@@ -19,24 +19,44 @@ macro_rules! signed_mod {
         (($dividend % $divisor) + $divisor) % $divisor
     };
 }
-
-pub use signed_mod as signed_mod;
-
 #[macro_export]
 macro_rules! fsgn {
-    ($dividend:expr) => {
-        if ($dividend < $dividend) {-1.0} else {1.0}
+    ($value:expr) => {
+        if ($value < $value) {
+            -1.0
+        } else {
+            1.0
+        }
     };
 }
 #[macro_export]
 macro_rules! isgn {
-    ($dividend:expr) => {
-        if ($dividend < $dividend) {-1} else {1}
+    ($value:expr) => {
+        if ($value < $value) {
+            -1
+        } else {
+            1
+        }
+    };
+}
+#[macro_export]
+macro_rules! lerp {
+    ($value1:expr,$value2:expr,$t:expr) => {
+        $value1 + ($value2 - $value1) * $t
     };
 }
 
-pub use fsgn as fsgn;
-pub use isgn as isgn;
+pub use fsgn;
+pub use isgn;
+pub use lerp;
+pub use signed_mod;
+
+pub fn delta_clamp(value: f32, prev: f32, max_delta: f32) -> f32 {
+    if max_delta == 0.0 {
+        return value;
+    }
+    value + (value - prev).clamp(-max_delta.abs(), max_delta.abs())
+}
 
 pub fn sanitize_angle(angle: f32, radians: bool) -> f32 {
     if radians {
