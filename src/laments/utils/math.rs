@@ -55,7 +55,7 @@ pub fn delta_clamp(value: f32, prev: f32, max_delta: f32) -> f32 {
     if max_delta == 0.0 {
         return value;
     }
-    value + (value - prev).clamp(-max_delta.abs(), max_delta.abs())
+    prev + (value - prev).clamp(-max_delta.abs(), max_delta.abs())
 }
 
 pub fn sanitize_angle(angle: f32, radians: bool) -> f32 {
