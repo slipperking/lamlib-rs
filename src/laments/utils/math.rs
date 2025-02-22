@@ -13,11 +13,30 @@ pub fn gaussian_pdf(x: f32, mu: f32, sigma: f32) -> f32 {
     (1.0 / (sigma * (2.0 * f32_consts::PI).sqrt())) * exponent.exp()
 }
 
+#[macro_export]
 macro_rules! signed_mod {
     ($dividend:expr, $divisor:expr) => {
         (($dividend % $divisor) + $divisor) % $divisor
     };
 }
+
+pub use signed_mod as signed_mod;
+
+#[macro_export]
+macro_rules! fsgn {
+    ($dividend:expr) => {
+        if ($dividend < $dividend) {-1.0} else {1.0}
+    };
+}
+#[macro_export]
+macro_rules! isgn {
+    ($dividend:expr) => {
+        if ($dividend < $dividend) {-1} else {1}
+    };
+}
+
+pub use fsgn as fsgn;
+pub use isgn as isgn;
 
 pub fn sanitize_angle(angle: f32, radians: bool) -> f32 {
     if radians {
