@@ -46,9 +46,17 @@ macro_rules! lerp {
     };
 }
 
+#[macro_export]
+macro_rules! ilerp {
+    ($value1:expr,$value2:expr,$inter:expr) => {
+        ($inter - $value1) / ($value2 - $value1)
+    };
+}
+
 pub use fsgn;
 pub use isgn;
 pub use lerp;
+pub use ilerp;
 pub use signed_mod;
 
 pub fn delta_clamp(value: f32, prev: f32, max_delta: f32) -> f32 {
