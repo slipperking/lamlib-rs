@@ -1,7 +1,4 @@
-use alloc::{
-    rc::Rc,
-    vec::Vec,
-};
+use alloc::{rc::Rc, vec::Vec};
 use core::cell::RefCell;
 
 use vexide::{
@@ -9,7 +6,7 @@ use vexide::{
     prelude::{AdiEncoder, Gearset, Position, RotationSensor},
 };
 
-use crate::laments::motor_group::MotorGroup;
+use crate::devices::motor_group::MotorGroup;
 
 pub struct OdomWheel {
     rotation: Option<Rc<RefCell<RotationSensor>>>,
@@ -96,31 +93,24 @@ impl OdomWheel {
             let gearsets: Vec<Result<Gearset, MotorError>> = motors.gearset_all();
             let positions: Vec<Result<Position, MotorError>> = motors.position_all();
             let motor_count = motors.size();
-            let mut distances: Vec<Option<f32>> = Vec::new();
+            let mut distances: Vec<f32> = Vec::new();
             (0..motor_count).for_each(|i| {
                 if let Ok(position) = positions[i] {
                     if let Ok(gearset) = gearsets[i] {
-                        let gearset_rpm = match &gearset {
-                            Gearset::Green => 200.0,
-                            Gearset::Blue => 600.0,
-                            Gearset::Red => 100.0,
-                        };
-                        distances.push(Some(
+                        let gearset_rpm: f32 = gearset.max_rpm() as f32;
+                        distances.push(
                             (position.as_revolutions()
                                 * core::f64::consts::PI
                                 * (self.wheel_diameter * self.drive_wheel_rpm / gearset_rpm) as f64)
                                 as f32,
-                        ));
-                        return;
+                        );
                     }
                 }
-                distances.push(None);
             });
-            let valid_distances: Vec<f32> = distances.iter().filter_map(|&d| d).collect();
-            if valid_distances.is_empty() {
+            if distances.is_empty() {
                 return None;
             }
-            return Some(valid_distances.iter().sum::<f32>() / valid_distances.len() as f32);
+            return Some(distances.iter().sum::<f32>() / distances.len() as f32);
         }
         None
     }

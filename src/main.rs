@@ -1,8 +1,14 @@
 #![no_main]
 #![no_std]
+
 extern crate alloc;
 extern crate approx;
 extern crate nalgebra;
+pub mod controllers;
+pub mod devices;
+pub mod laments;
+pub mod motions;
+pub mod tracking;
 
 use alloc::{rc::Rc, vec::Vec};
 use core::{cell::RefCell, panic::PanicInfo, time::Duration};
@@ -37,9 +43,7 @@ impl Compete for Robot {
     async fn disconnected(&mut self) {}
     async fn connected(&mut self) {}
 }
-pub mod laments;
-pub mod tracking;
-pub mod controllers;
+
 #[vexide::main]
 async fn main(peripherals: Peripherals) {
     let robot = Robot::new(peripherals).await;

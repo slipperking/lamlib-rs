@@ -8,7 +8,7 @@ edition = "2021"
 # These fields configure default behavior for uploads with `cargo v5`.
 [package.metadata.v5]
 upload-strategy = "differential"
-slot = 1
+slot = 3
 icon = "cool-x"
 compress = true
 

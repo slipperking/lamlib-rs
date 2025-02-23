@@ -1,7 +1,7 @@
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
-use super::motor_group::MotorGroup;
+use crate::devices::motor_group::MotorGroup;
 
 pub struct Drivetrain {
     left_motors: Rc<RefCell<MotorGroup>>,
