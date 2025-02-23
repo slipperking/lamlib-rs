@@ -38,7 +38,8 @@ impl Compete for Robot {
     async fn connected(&mut self) {}
 }
 pub mod laments;
-
+pub mod tracking;
+pub mod controllers;
 #[vexide::main]
 async fn main(peripherals: Peripherals) {
     let robot = Robot::new(peripherals).await;

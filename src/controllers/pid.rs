@@ -1,4 +1,7 @@
-use super::math;
+use vexide::core::time::Instant;
+
+use super::ControllerMethods;
+use crate::laments::utils::math;
 pub struct PID {
     gains: PIDGains,
     prev_error: f32, // Previous error for derivative calculation
@@ -24,13 +27,16 @@ impl PID {
             windup_range,
         }
     }
-
-    pub fn update(&mut self, error: f32) -> f32 {
+}
+impl ControllerMethods for PID {
+    fn update(&mut self, error: f32) -> f32 {
+        let current_time = Instant::now();
         let delta_time = match self.prev_time {
-            Some(instant) => instant.elapsed(),
+            Some(instant) => current_time.duration_since(instant),
             None => core::time::Duration::ZERO,
         }
         .as_millis() as f32;
+        self.prev_time = Some(current_time);
         self.integral += error * delta_time;
         if math::fsgn!(error) != math::fsgn!(self.prev_error) && self.reset_on_sign_flip
             || self.windup_range != 0.0 && error.abs() > self.windup_range
@@ -44,7 +50,7 @@ impl PID {
         output
     }
 
-    pub fn reset(&mut self) {
+    fn reset(&mut self) {
         self.integral = 0.0;
         self.prev_error = 0.0;
     }
