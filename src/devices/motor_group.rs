@@ -26,6 +26,12 @@ impl MotorGroup {
             let _ = motor.set_velocity(rpm);
         }
     }
+    pub fn set_position_all(&mut self, position: Position) -> Vec<Result<(), MotorError>> {
+        self.motors
+            .iter_mut()
+            .map(|motor| motor.set_position(position))
+            .collect()
+    }
     pub fn position_all(&self) -> Vec<Result<Position, MotorError>> {
         self.motors.iter().map(|motor| motor.position()).collect()
     }
