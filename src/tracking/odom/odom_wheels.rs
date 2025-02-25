@@ -19,12 +19,16 @@ pub struct OdomWheel {
     /// The ratio of wheel / sensor.
     gear_ratio: f64,
     drive_wheel_rpm: f64,
+
+    /// Tracking offset.
+    offset: f64,
 }
 impl OdomWheel {
     pub fn from_rotation(
         rotation: Rc<RefCell<RotationSensor>>,
         wheel_diameter: f64,
         gear_ratio: f64,
+        offset: f64,
     ) -> Self {
         Self {
             rotation: Some(rotation),
@@ -34,12 +38,14 @@ impl OdomWheel {
             wheel_diameter,
             gear_ratio,
             drive_wheel_rpm: 0.0,
+            offset,
         }
     }
     pub fn from_adi_encoder(
         encoder: Rc<RefCell<AdiEncoder>>,
         wheel_diameter: f64,
         gear_ratio: f64,
+        offset: f64,
     ) -> Self {
         Self {
             rotation: None,
@@ -49,6 +55,7 @@ impl OdomWheel {
             wheel_diameter,
             gear_ratio,
             drive_wheel_rpm: 0.0,
+            offset,
         }
     }
     pub fn from_motors(
@@ -56,6 +63,7 @@ impl OdomWheel {
         wheel_diameter: f64,
         gear_ratio: f64,
         drive_wheel_rpm: f64,
+        offset: f64,
     ) -> Self {
         Self {
             rotation: None,
@@ -65,6 +73,7 @@ impl OdomWheel {
             wheel_diameter,
             gear_ratio,
             drive_wheel_rpm,
+            offset,
         }
     }
     pub fn distance_traveled(&self) -> Option<f64> {
@@ -110,6 +119,9 @@ impl OdomWheel {
             return Some(distances.iter().sum::<f64>() / distances.len() as f64);
         }
         None
+    }
+    pub fn offset(&self) -> f64 {
+        self.offset
     }
     pub fn init(&self) {
         if let Some(rotation) = &self.rotation {
