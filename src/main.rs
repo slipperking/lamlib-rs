@@ -6,9 +6,10 @@ extern crate approx;
 extern crate nalgebra;
 pub mod controllers;
 pub mod devices;
-pub mod laments;
 pub mod motions;
+pub mod particle_flter;
 pub mod tracking;
+pub mod utils;
 
 use alloc::{rc::Rc, vec, vec::Vec};
 use core::{cell::RefCell, panic::PanicInfo, time::Duration};
@@ -46,7 +47,7 @@ impl Robot {
             0.0,
             0.0,
         );
-        let tracker = OdomTracking::new(Rc::new(sensors));
+        let tracker = Rc::new(Mutex::new(OdomTracking::new(Rc::new(sensors))));
         Self {
             controller: peripherals.primary_controller,
         }

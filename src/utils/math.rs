@@ -20,26 +20,6 @@ macro_rules! signed_mod {
     };
 }
 #[macro_export]
-macro_rules! fsgn {
-    ($value:expr) => {
-        if ($value < $value) {
-            -1.0
-        } else {
-            1.0
-        }
-    };
-}
-#[macro_export]
-macro_rules! isgn {
-    ($value:expr) => {
-        if ($value < $value) {
-            -1
-        } else {
-            1
-        }
-    };
-}
-#[macro_export]
 macro_rules! lerp {
     ($value1:expr,$value2:expr,$t:expr) => {
         $value1 + ($value2 - $value1) * $t
@@ -53,8 +33,6 @@ macro_rules! ilerp {
     };
 }
 
-pub use fsgn;
-pub use isgn;
 pub use lerp;
 pub use ilerp;
 pub use signed_mod;

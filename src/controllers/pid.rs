@@ -1,7 +1,6 @@
 use vexide::core::time::Instant;
 
 use super::ControllerMethods;
-use crate::laments::utils::math;
 pub struct PID {
     gains: PIDGains,
     prev_error: f32, // Previous error for derivative calculation
@@ -38,7 +37,7 @@ impl ControllerMethods for PID {
         .as_millis() as f32;
         self.prev_time = Some(current_time);
         self.integral += error * delta_time;
-        if math::fsgn!(error) != math::fsgn!(self.prev_error) && self.reset_on_sign_flip
+        if error.signum() != self.prev_error.signum() && self.reset_on_sign_flip
             || self.windup_range != 0.0 && error.abs() > self.windup_range
         {
             self.integral = 0.0f32;

@@ -324,6 +324,9 @@ impl Tracking for OdomTracking {
     fn position(&mut self) -> Vector3<f64> {
         self.tracked_pose
     }
+    fn set_position(&mut self, position: &Vector3<f64>) {
+        self.tracked_pose = *position;
+    }
     async fn init(&mut self, self_rc: Rc<Mutex<Self>>) {
         self.sensors
             .horizontals
@@ -349,10 +352,10 @@ impl Tracking for OdomTracking {
             async move {
                 loop {
                     {
+                        vexide::async_runtime::time::sleep(Duration::from_millis(10)).await;
                         let mut self_lock = self_rc.lock().await;
                         self_lock.update().await;
                     }
-                    vexide::async_runtime::time::sleep(Duration::from_millis(10)).await;
                 }
             }
         }));
