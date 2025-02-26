@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
 use vexide::{
-    devices::smart::motor::MotorError,
+    devices::smart::motor::{MotorError, MotorType},
     prelude::{Gearset, Motor, Position},
 };
 
@@ -19,6 +19,14 @@ impl MotorGroup {
     pub fn set_voltage(&mut self, voltage: f64) {
         for motor in self.motors.iter_mut() {
             let _ = motor.set_voltage(voltage);
+        }
+    }
+    pub fn set_voltage_for_types(&mut self, voltage_v5: f64, voltage_exp: f64) {
+        for motor in self.motors.iter_mut() {
+            let _ = motor.set_voltage(match motor.motor_type() {
+                MotorType::Exp => voltage_exp,
+                MotorType::V5 => voltage_v5,
+            });
         }
     }
     pub fn set_velocity(&mut self, rpm: i32) {

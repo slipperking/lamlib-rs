@@ -102,8 +102,8 @@ impl OdomWheel {
             let motor_count = motors.size();
             let mut distances: Vec<f64> = Vec::new();
             (0..motor_count).for_each(|i| {
-                if let Ok(position) = positions[i] {
-                    if let Ok(gearset) = gearsets[i] {
+                if let Ok(position) = &positions[i] {
+                    if let Ok(gearset) = &gearsets[i] {
                         let gearset_rpm: f64 = gearset.max_rpm();
                         distances.push(
                             position.as_revolutions()

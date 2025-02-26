@@ -81,7 +81,7 @@ pub struct OdomTracking {
     task: Option<Task<()>>,
     sensors: Rc<OdomSensors>,
     tracked_pose: Vector3<f64>,
-    delta_global_pose: Vector3<f64>,
+    delta_global_pose: Vector3<f32>,
     prev_imu_angles: Vec<Option<f64>>,
     prev_horizontal_distances: Vec<Option<f64>>,
     prev_vertical_distances: Vec<Option<f64>>,
@@ -308,15 +308,22 @@ impl OdomTracking {
 
         // At 0 degrees (facing right): (vertical, -horizontal)
         // At 90 degrees (facing up): (horizontal, vertical)
-        self.delta_global_pose = nalgebra::Vector3::new(
+        let delta_global_pose = nalgebra::Vector3::new(
             local_delta_vertical_distance * cos_value + local_delta_horizontal_distance * sin_value,
             local_delta_vertical_distance * sin_value - local_delta_horizontal_distance * cos_value,
             delta_angle,
         );
 
-        self.tracked_pose.x += self.delta_global_pose.x;
-        self.tracked_pose.y += self.delta_global_pose.y;
+        self.tracked_pose.x += delta_global_pose.x;
+        self.tracked_pose.y += delta_global_pose.y;
         self.tracked_pose.z = new_angle;
+
+        // Store deltas in f32.
+        self.delta_global_pose = nalgebra::Vector3::new(
+            delta_global_pose.x as f32,
+            delta_global_pose.y as f32,
+            delta_global_pose.z as f32,
+        );
     }
 }
 
@@ -327,7 +334,7 @@ impl Tracking for OdomTracking {
     fn set_position(&mut self, position: &Vector3<f64>) {
         self.tracked_pose = *position;
     }
-    async fn init(&mut self, self_rc: Rc<Mutex<Self>>) {
+    async fn init(&mut self, async_self_rc: Rc<Mutex<Self>>) {
         self.sensors
             .horizontals
             .iter()
@@ -348,12 +355,12 @@ impl Tracking for OdomTracking {
             }
         }
         self.task = Some(vexide::async_runtime::spawn({
-            let self_rc = self_rc.clone();
+            let async_self_rc = async_self_rc.clone();
             async move {
                 loop {
                     {
                         vexide::async_runtime::time::sleep(Duration::from_millis(10)).await;
-                        let mut self_lock = self_rc.lock().await;
+                        let mut self_lock = async_self_rc.lock().await;
                         self_lock.update().await;
                     }
                 }

@@ -1,15 +1,22 @@
 use num_traits::float::Float;
 pub struct ExponentialDriveCurve {
     /// Minimum input.
-    deadzone: f64,
+    pub deadzone: f64,
 
     /// Minimum output.
-    min_output: f64,
+    pub min_output: f64,
 
     /// How curved it is.
-    curve_intensity: f64,
+    pub curve_intensity: f64,
 }
 impl ExponentialDriveCurve {
+    pub fn new(deadzone: f64, min_output: f64, curve_intensity: f64) -> Self {
+        Self {
+            deadzone,
+            min_output,
+            curve_intensity,
+        }
+    }
     /// The following calculations are based off of https://www.desmos.com/calculator/e70h0a936n.
     pub fn update(&self, input: f64, maximum: f64) -> f64 {
         if input.abs() <= self.deadzone {

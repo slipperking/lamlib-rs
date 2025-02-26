@@ -11,21 +11,26 @@ pub mod particle_flter;
 pub mod tracking;
 pub mod utils;
 
-use alloc::{rc::Rc, vec, vec::Vec};
-use core::{cell::RefCell, panic::PanicInfo, time::Duration};
+use alloc::{rc::Rc, vec};
+use core::cell::RefCell;
 
+use devices::motor_group::MotorGroup;
+use motions::{
+    chassis::{Chassis, Drivetrain},
+    drive_curve::ExponentialDriveCurve,
+};
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use vexide::{
     core::{
-        competition::{CompetitionMode, CompetitionSystem},
         sync::Mutex,
         time::Instant,
     },
-    devices::{controller::ControllerId, peripherals, smart::*},
+    devices::smart::*,
     prelude::*,
 };
 struct Robot {
     controller: Controller,
+    chassis: Chassis<OdomTracking>,
 }
 impl Robot {
     async fn new(mut peripherals: Peripherals) -> Self {
@@ -47,9 +52,26 @@ impl Robot {
             0.0,
             0.0,
         );
-        let tracker = Rc::new(Mutex::new(OdomTracking::new(Rc::new(sensors))));
+        let tracking = Rc::new(Mutex::new(OdomTracking::new(Rc::new(sensors))));
+        let left_motors = Rc::new(RefCell::new(MotorGroup::new(vec![
+            Motor::new(peripherals.port_1, Gearset::Blue, Direction::Reverse),
+            Motor::new(peripherals.port_18, Gearset::Blue, Direction::Reverse),
+            Motor::new(peripherals.port_4, Gearset::Blue, Direction::Reverse),
+        ])));
+        let right_motors = Rc::new(RefCell::new(MotorGroup::new(vec![
+            Motor::new(peripherals.port_10, Gearset::Blue, Direction::Forward),
+            Motor::new(peripherals.port_9, Gearset::Blue, Direction::Forward),
+            Motor::new(peripherals.port_3, Gearset::Blue, Direction::Forward),
+        ])));
+        let drivetrain = Rc::new(Drivetrain::new(left_motors, right_motors));
         Self {
             controller: peripherals.primary_controller,
+            chassis: Chassis::new(
+                drivetrain,
+                tracking,
+                ExponentialDriveCurve::new(0.5, 1.0, 1.01),
+                ExponentialDriveCurve::new(0.5, 1.0, 1.01),
+            ),
         }
     }
 }
