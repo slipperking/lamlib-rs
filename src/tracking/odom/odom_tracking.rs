@@ -1,5 +1,5 @@
 use alloc::{rc::Rc, vec, vec::Vec};
-use core::time::Duration;
+use core::{cell::RefCell, ops::DerefMut, time::Duration};
 
 use nalgebra::Vector3;
 use vexide::{
@@ -8,7 +8,10 @@ use vexide::{
 };
 
 use super::odom_wheels::OdomWheel;
-use crate::tracking::abstract_tracking::Tracking;
+use crate::{
+    particle_flter::{sensors::ParticleFilterSensor, ParticleFilter},
+    tracking::abstract_tracking::Tracking,
+};
 pub struct OdomInertial {
     /// A mutex containing the inertial sensor.
     pub inertial: Rc<Mutex<InertialSensor>>,
@@ -79,8 +82,11 @@ impl OdomSensors {
 }
 pub struct OdomTracking {
     task: Option<Task<()>>,
+    localization: Rc<ParticleFilter>,
     sensors: Rc<OdomSensors>,
     tracked_pose: Vector3<f64>,
+    particle_filter_sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>,
+
     delta_global_pose: Vector3<f32>,
     prev_imu_angles: Vec<Option<f64>>,
     prev_horizontal_distances: Vec<Option<f64>>,
@@ -103,17 +109,34 @@ macro_rules! avg_valid {
 }
 
 impl OdomTracking {
-    pub fn new(sensors: Rc<OdomSensors>) -> Self {
+    pub fn new(
+        sensors: Rc<OdomSensors>,
+        localization: Rc<ParticleFilter>,
+        particle_filter_sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>,
+    ) -> Self {
         Self {
             task: None,
             sensors: sensors.clone(),
             tracked_pose: Vector3::new(0.0, 0.0, 0.0),
+            localization,
+            particle_filter_sensors,
             delta_global_pose: Vector3::new(0.0, 0.0, 0.0),
             prev_imu_angles: vec![None; sensors.imu_count()],
             prev_horizontal_distances: vec![None; sensors.horizontals_count()],
             prev_vertical_distances: vec![None; sensors.verticals_count()],
         }
     }
+
+    async fn set_position_no_filter(&mut self, position: &Vector3<f64>) {
+        self.localization
+            .scatter_particles(
+                &Vector3::<f32>::new(position.x as f32, position.y as f32, position.z as f32),
+                2.0,
+            )
+            .await;
+        self.set_position(position);
+    }
+
     async fn update(&mut self) {
         // Use a basic fusion of inertials and tracking wheels to get delta theta.
         let mut imu_angles: Vec<Option<f64>> = Vec::new();
@@ -334,6 +357,7 @@ impl Tracking for OdomTracking {
     fn set_position(&mut self, position: &Vector3<f64>) {
         self.tracked_pose = *position;
     }
+
     async fn init(&mut self, async_self_rc: Rc<Mutex<Self>>) {
         self.sensors
             .horizontals
@@ -357,12 +381,17 @@ impl Tracking for OdomTracking {
         self.task = Some(vexide::async_runtime::spawn({
             let async_self_rc = async_self_rc.clone();
             async move {
+                vexide::async_runtime::time::sleep(Duration::from_millis(10)).await;
                 loop {
                     {
-                        vexide::async_runtime::time::sleep(Duration::from_millis(10)).await;
                         let mut self_lock = async_self_rc.lock().await;
                         self_lock.update().await;
+                        self_lock.localization.run_filter(
+                            self_lock.delta_global_pose,
+                            self_lock.particle_filter_sensors.clone(),
+                        );
                     }
+                    vexide::async_runtime::time::sleep(Duration::from_millis(10)).await;
                 }
             }
         }));

@@ -21,20 +21,20 @@ macro_rules! signed_mod {
 }
 #[macro_export]
 macro_rules! lerp {
-    ($value1:expr,$value2:expr,$t:expr) => {
+    ($value1:expr, $value2:expr, $t:expr) => {
         $value1 + ($value2 - $value1) * $t
     };
 }
 
 #[macro_export]
 macro_rules! ilerp {
-    ($value1:expr,$value2:expr,$inter:expr) => {
+    ($value1:expr, $value2:expr, $inter:expr) => {
         ($inter - $value1) / ($value2 - $value1)
     };
 }
 
-pub use lerp;
 pub use ilerp;
+pub use lerp;
 pub use signed_mod;
 
 pub fn delta_clamp(value: f32, prev: f32, max_delta: f32) -> f32 {

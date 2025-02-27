@@ -5,7 +5,10 @@ use nalgebra::{Vector2, Vector3};
 use vexide::{core::sync::Mutex, prelude::Motor};
 
 use super::drive_curve::ExponentialDriveCurve;
-use crate::{devices::motor_group::MotorGroup, tracking::abstract_tracking::Tracking};
+use crate::{
+    devices::motor_group::MotorGroup, particle_flter::ParticleFilter,
+    tracking::abstract_tracking::Tracking,
+};
 
 pub struct Drivetrain {
     left_motors: Rc<RefCell<MotorGroup>>,
@@ -34,7 +37,7 @@ pub enum MoveTarget {
     Pose(Vector3<f64>),
 }
 
-pub struct Chassis<T: Tracking + 'static> {
+pub struct Chassis<T: Tracking> {
     drivetrain: Rc<Drivetrain>,
     tracking: Rc<Mutex<T>>,
     throttle_curve: ExponentialDriveCurve,
@@ -57,6 +60,7 @@ impl<T: Tracking> Chassis<T> {
     pub async fn calibrate(&self) {
         self.tracking.lock().await.init(self.tracking.clone()).await;
     }
+
     pub async fn set_pose(&mut self, mut position: Vector3<f64>, radians: bool) {
         position.z = if radians {
             position.z
@@ -65,7 +69,7 @@ impl<T: Tracking> Chassis<T> {
         };
         self.tracking.lock().await.set_position(&position);
     }
-    pub async fn get_pose(&self, radians: bool) -> Vector3<f64> {
+    pub async fn pose(&self, radians: bool) -> Vector3<f64> {
         let mut tracking_lock = self.tracking.lock().await;
         let mut pose = tracking_lock.position();
         let _ = tracking_lock;
