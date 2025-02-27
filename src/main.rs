@@ -59,13 +59,13 @@ impl Robot {
         );
         let localization = Rc::new(ParticleFilter::new(
             300,
-            Rc::new(Matrix3::from_diagonal(&Vector3::<f32>::new(
+            Matrix3::from_diagonal(&Vector3::<f32>::new(
                 0.08, 0.08, 0.003,
-            ))),
+            )),
         ));
 
         let sensor_position_noise =
-            Rc::new(Matrix2::from_diagonal(&Vector2::<f32>::new(0.15, 0.15)));
+            Matrix2::from_diagonal(&Vector2::<f32>::new(0.15, 0.15));
         let mcl_lidar_0 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_6)));
         let mcl_lidar_pi_2 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_13)));
         let mcl_lidar_pi = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_12)));
@@ -74,28 +74,28 @@ impl Robot {
             Rc::new(vec![
                 Rc::new(RefCell::new(LiDAR::new(
                     Vector3::<f32>::new(1.0, 1.0, 0.0),
-                    sensor_position_noise.clone(),
+                    sensor_position_noise,
                     3.0,
                     7.0,
                     mcl_lidar_0,
                 ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
                 Rc::new(RefCell::new(LiDAR::new(
                     Vector3::<f32>::new(1.0, 1.0, FRAC_PI_2),
-                    sensor_position_noise.clone(),
+                    sensor_position_noise,
                     3.0,
                     7.0,
                     mcl_lidar_pi_2,
                 ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
                 Rc::new(RefCell::new(LiDAR::new(
                     Vector3::<f32>::new(1.0, 1.0, PI),
-                    sensor_position_noise.clone(),
+                    sensor_position_noise,
                     3.0,
                     7.0,
                     mcl_lidar_pi,
                 ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
                 Rc::new(RefCell::new(LiDAR::new(
                     Vector3::<f32>::new(1.0, 1.0, 3.0 * FRAC_PI_2),
-                    sensor_position_noise.clone(),
+                    sensor_position_noise,
                     3.0,
                     7.0,
                     mcl_lidar_3_pi_2,

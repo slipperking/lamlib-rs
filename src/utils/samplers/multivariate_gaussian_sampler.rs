@@ -18,8 +18,8 @@ pub struct GaussianSampler<const T: usize, const P: usize> {
 
 impl<const T: usize, const P: usize> GaussianSampler<T, P> {
     pub fn new(
-        mu: Rc<SVector<f32, T>>,
-        sigma: Rc<Matrix<f32, Const<T>, Const<T>, ArrayStorage<f32, T, T>>>,
+        mu: SVector<f32, T>,
+        sigma: Matrix<f32, Const<T>, Const<T>, ArrayStorage<f32, T, T>>,
     ) -> Self {
         let mut rng = veranda::SystemRng::new();
         let mut precomputed_samples = SMatrix::<f32, T, P>::zeros();
@@ -33,7 +33,7 @@ impl<const T: usize, const P: usize> GaussianSampler<T, P> {
         // Precompute a set of samples.
         for j in 0..P {
             let standard_normal = SVector::<f32, T>::from_fn(|_, _| rng.random::<f32>());
-            precomputed_samples.set_column(j, &(*mu + l * standard_normal));
+            precomputed_samples.set_column(j, &(mu + l * standard_normal));
         }
 
         Self {

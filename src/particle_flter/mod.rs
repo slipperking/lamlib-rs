@@ -28,11 +28,11 @@ pub struct ParticleFilter {
 }
 
 impl ParticleFilter {
-    pub fn new(particle_count: usize, covariance_matrix: Rc<Matrix3<f32>>) -> Self {
+    pub fn new(particle_count: usize, covariance_matrix: Matrix3<f32>) -> Self {
         let positions = Matrix3xX::from_element(particle_count, 0.0);
         let new_positions = Matrix3xX::from_element(particle_count, 0.0);
         let weights = DVector::from_element(particle_count, 1.0 / particle_count as f32);
-        let sampler = GaussianSampler::new(Rc::new(Vector3::zeros()), covariance_matrix);
+        let sampler = GaussianSampler::new(Vector3::zeros(), covariance_matrix);
 
         ParticleFilter {
             enabled: false,

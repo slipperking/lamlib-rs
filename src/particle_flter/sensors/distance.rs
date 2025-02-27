@@ -30,12 +30,12 @@ pub struct LiDAR {
 impl LiDAR {
     pub fn new(
         sensor_offset: Vector3<f32>,
-        sensor_noise_covar_matrix: Rc<Matrix2<f32>>,
+        sensor_noise_covar_matrix: Matrix2<f32>,
         min_std_dev: f32,
         max_std_dev: f32,
         distance_sensor: Rc<RefCell<DistanceSensor>>,
     ) -> Self {
-        let sampler = GaussianSampler::new(Rc::new(Vector2::zeros()), sensor_noise_covar_matrix);
+        let sampler = GaussianSampler::new(Vector2::zeros(), sensor_noise_covar_matrix);
 
         LiDAR {
             distance_sensor,
