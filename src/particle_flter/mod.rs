@@ -4,7 +4,6 @@ use core::{
     cell::RefCell,
     f32::{self, consts::PI},
     ops::{Deref, DerefMut},
-    sync::atomic::{AtomicBool, Ordering},
 };
 
 use nalgebra::{DMatrix, DVector, Matrix, Matrix3, Matrix3xX, Vector3};
@@ -167,11 +166,15 @@ impl ParticleFilter {
         &self,
         delta_odometry: Vector3<f32>,
         sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>,
-    ) -> nalgebra::Vector3<f32> {
-        self.predict(&delta_odometry).await;
-        self.update(sensors.clone()).await;
-        self.resample().await;
-        self.calculate_mean().await;
-        *self.estimate_position.lock().await
+    ) -> Option<nalgebra::Vector3<f32>> {
+        if self.enabled {
+            self.predict(&delta_odometry).await;
+            self.update(sensors.clone()).await;
+            self.resample().await;
+            self.calculate_mean().await;
+            Some(*self.estimate_position.lock().await)
+        } else {
+            None
+        }
     }
 }

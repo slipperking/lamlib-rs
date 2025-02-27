@@ -1,9 +1,9 @@
-use alloc::{rc::Rc, vec, vec::Vec};
-use core::{cell::RefCell, ops::DerefMut, time::Duration};
+use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
+use core::{cell::RefCell, time::Duration};
 
 use nalgebra::Vector3;
 use vexide::{
-    core::sync::Mutex,
+    core::{sync::Mutex, time::Instant},
     prelude::{Float, InertialSensor, Task},
 };
 
@@ -128,13 +128,7 @@ impl OdomTracking {
     }
 
     async fn set_position_no_filter(&mut self, position: &Vector3<f64>) {
-        self.localization
-            .scatter_particles(
-                &Vector3::<f32>::new(position.x as f32, position.y as f32, position.z as f32),
-                2.0,
-            )
-            .await;
-        self.set_position(position);
+        self.tracked_pose = *position;
     }
 
     async fn update(&mut self) {
@@ -350,11 +344,18 @@ impl OdomTracking {
     }
 }
 
+#[async_trait::async_trait(?Send)]
 impl Tracking for OdomTracking {
     fn position(&mut self) -> Vector3<f64> {
         self.tracked_pose
     }
-    fn set_position(&mut self, position: &Vector3<f64>) {
+    async fn set_position(&mut self, position: &Vector3<f64>) {
+        self.localization
+            .scatter_particles(
+                &Vector3::<f32>::new(position.x as f32, position.y as f32, position.z as f32),
+                2.0,
+            )
+            .await;
         self.tracked_pose = *position;
     }
 
@@ -382,16 +383,36 @@ impl Tracking for OdomTracking {
             let async_self_rc = async_self_rc.clone();
             async move {
                 vexide::async_runtime::time::sleep(Duration::from_millis(10)).await;
+                let start_time = Instant::now();
                 loop {
                     {
                         let mut self_lock = async_self_rc.lock().await;
                         self_lock.update().await;
-                        self_lock.localization.run_filter(
-                            self_lock.delta_global_pose,
-                            self_lock.particle_filter_sensors.clone(),
-                        );
+                        let mcl_output = self_lock
+                            .localization
+                            .run_filter(
+                                self_lock.delta_global_pose,
+                                self_lock.particle_filter_sensors.clone(),
+                            )
+                            .await;
+                        if let Some(position) = mcl_output {
+                            self_lock
+                                .set_position_no_filter(&Vector3::new(
+                                    position.x as f64,
+                                    position.y as f64,
+                                    position.z as f64,
+                                ))
+                                .await;
+                        }
                     }
-                    vexide::async_runtime::time::sleep(Duration::from_millis(10)).await;
+                    vexide::async_runtime::time::sleep({
+                        let mut duration = Instant::elapsed(&start_time).as_millis();
+                        if duration > 10 {
+                            duration = 0;
+                        }
+                        Duration::from_millis((10 - duration) as u64)
+                    })
+                    .await;
                 }
             }
         }));

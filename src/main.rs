@@ -12,7 +12,10 @@ pub mod tracking;
 pub mod utils;
 
 use alloc::{rc::Rc, vec, vec::Vec};
-use core::cell::RefCell;
+use core::{
+    cell::RefCell,
+    f32::consts::{FRAC_PI_2, PI},
+};
 
 use devices::motor_group::MotorGroup;
 use motions::{
@@ -35,7 +38,7 @@ struct Robot {
     chassis: Chassis<OdomTracking>,
 }
 impl Robot {
-    async fn new(mut peripherals: Peripherals) -> Self {
+    async fn new(peripherals: Peripherals) -> Self {
         let rotation_vertical_odom_wheel: Rc<RefCell<RotationSensor>> = Rc::new(RefCell::new(
             RotationSensor::new(peripherals.port_7, Direction::Forward),
         ));
@@ -64,15 +67,40 @@ impl Robot {
         let sensor_position_noise =
             Rc::new(Matrix2::from_diagonal(&Vector2::<f32>::new(0.15, 0.15)));
         let mcl_lidar_0 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_6)));
-        let particle_filter_sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>> = Rc::new(
-            vec![Rc::new(RefCell::new(LiDAR::new(
-                Vector3::<f32>::new(1.0, 1.0, 0.0),
-                sensor_position_noise,
-                3.0,
-                7.0,
-                mcl_lidar_0,
-            ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>],
-        );
+        let mcl_lidar_pi_2 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_13)));
+        let mcl_lidar_pi = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_12)));
+        let mcl_lidar_3_pi_2 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_17)));
+        let particle_filter_sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>> =
+            Rc::new(vec![
+                Rc::new(RefCell::new(LiDAR::new(
+                    Vector3::<f32>::new(1.0, 1.0, 0.0),
+                    sensor_position_noise.clone(),
+                    3.0,
+                    7.0,
+                    mcl_lidar_0,
+                ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
+                Rc::new(RefCell::new(LiDAR::new(
+                    Vector3::<f32>::new(1.0, 1.0, FRAC_PI_2),
+                    sensor_position_noise.clone(),
+                    3.0,
+                    7.0,
+                    mcl_lidar_pi_2,
+                ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
+                Rc::new(RefCell::new(LiDAR::new(
+                    Vector3::<f32>::new(1.0, 1.0, PI),
+                    sensor_position_noise.clone(),
+                    3.0,
+                    7.0,
+                    mcl_lidar_pi,
+                ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
+                Rc::new(RefCell::new(LiDAR::new(
+                    Vector3::<f32>::new(1.0, 1.0, 3.0 * FRAC_PI_2),
+                    sensor_position_noise.clone(),
+                    3.0,
+                    7.0,
+                    mcl_lidar_3_pi_2,
+                ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
+            ]);
 
         let tracking = Rc::new(Mutex::new(OdomTracking::new(
             Rc::new(sensors),

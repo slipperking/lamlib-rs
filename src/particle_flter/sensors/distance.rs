@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, rc::Rc};
+use alloc::rc::Rc;
 use core::{cell::RefCell, f32::consts::PI};
 
 use nalgebra::{DVector, Matrix1xX, Matrix2, Matrix2xX, Matrix3xX, RowDVector, Vector2, Vector3};

@@ -1,4 +1,5 @@
 use alloc::rc::Rc;
+
 use nalgebra::{ArrayStorage, Const, Dyn, Matrix, SMatrix, SVector, VecStorage};
 use rand::Rng;
 
@@ -49,7 +50,10 @@ impl<const T: usize, const P: usize> AbstractSampler<T> for GaussianSampler<T, P
         self.precomputed_samples.column(idx).into()
     }
 
-    fn sample_batch(&mut self, n: usize) -> Matrix<f32, Const<T>, Dyn, VecStorage<f32, Const<T>, Dyn>> {
+    fn sample_batch(
+        &mut self,
+        n: usize,
+    ) -> Matrix<f32, Const<T>, Dyn, VecStorage<f32, Const<T>, Dyn>> {
         let mut samples = Matrix::<f32, Const<T>, Dyn, VecStorage<f32, Const<T>, Dyn>>::zeros(n);
         for j in 0..n {
             let idx = self.rng.random_range(0..self.precomputed_size);

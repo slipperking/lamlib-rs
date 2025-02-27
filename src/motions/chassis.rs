@@ -6,7 +6,7 @@ use vexide::{core::sync::Mutex, prelude::Motor};
 
 use super::drive_curve::ExponentialDriveCurve;
 use crate::{
-    devices::motor_group::MotorGroup, particle_flter::ParticleFilter,
+    devices::motor_group::MotorGroup,
     tracking::abstract_tracking::Tracking,
 };
 
@@ -67,7 +67,7 @@ impl<T: Tracking> Chassis<T> {
         } else {
             position.z.to_radians()
         };
-        self.tracking.lock().await.set_position(&position);
+        self.tracking.lock().await.set_position(&position).await;
     }
     pub async fn pose(&self, radians: bool) -> Vector3<f64> {
         let mut tracking_lock = self.tracking.lock().await;
