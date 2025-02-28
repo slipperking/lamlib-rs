@@ -1,6 +1,6 @@
 use vexide::core::time::Instant;
 
-use super::ControllerMethods;
+use super::ControllerMethod;
 pub struct PID {
     gains: PIDGains,
     prev_error: f32, // Previous error for derivative calculation
@@ -27,7 +27,7 @@ impl PID {
         }
     }
 }
-impl ControllerMethods for PID {
+impl ControllerMethod for PID {
     fn update(&mut self, error: f32) -> f32 {
         let current_time = Instant::now();
         let delta_time = match self.prev_time {

@@ -1,5 +1,3 @@
-use alloc::rc::Rc;
-
 use nalgebra::{ArrayStorage, Const, Dyn, Matrix, SMatrix, SVector, VecStorage};
 use rand::Rng;
 

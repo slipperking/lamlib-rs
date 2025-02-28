@@ -2,11 +2,11 @@ pub mod sensors;
 use alloc::{rc::Rc, vec::Vec};
 use core::{
     cell::RefCell,
-    f32::{self, consts::PI},
+    f32::{self},
     ops::{Deref, DerefMut},
 };
 
-use nalgebra::{DMatrix, DVector, Matrix, Matrix3, Matrix3xX, Vector3};
+use nalgebra::{DVector, Matrix, Matrix2xX, Matrix3, Matrix3xX, Vector3};
 use rand::{
     distr::{Distribution, Uniform},
     Rng,
@@ -50,9 +50,7 @@ impl ParticleFilter {
         self.enabled = state;
         if state {
             if let Some(pos) = position {
-                let mut new_position = pos;
-                new_position[2] = PI / 2.0 - new_position[2];
-                self.scatter_particles(&new_position, 2.0).await;
+                self.scatter_particles(&pos, 2.0).await;
             }
         }
     }
@@ -139,7 +137,7 @@ impl ParticleFilter {
     pub async fn scatter_particles(&self, center: &Vector3<f32>, distance: f32) {
         let noise = {
             let mut rng = self.generator.lock().await;
-            DMatrix::from_fn(2, self.particle_count, |_, _| {
+            Matrix2xX::from_fn(self.particle_count, |_, _| {
                 rng.random_range(-distance..distance)
             })
         };

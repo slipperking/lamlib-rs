@@ -325,6 +325,7 @@ impl OdomTracking {
 
         // At 0 degrees (facing right): (vertical, -horizontal)
         // At 90 degrees (facing up): (horizontal, vertical)
+        // A positive distance on a wheel means forward.
         let delta_global_pose = nalgebra::Vector3::new(
             local_delta_vertical_distance * cos_value + local_delta_horizontal_distance * sin_value,
             local_delta_vertical_distance * sin_value - local_delta_horizontal_distance * cos_value,
@@ -345,6 +346,8 @@ impl OdomTracking {
 }
 
 #[async_trait::async_trait(?Send)]
+// Make dyn compatible by Box wrapping.
+
 impl Tracking for OdomTracking {
     fn position(&mut self) -> Vector3<f64> {
         self.tracked_pose

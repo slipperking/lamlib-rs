@@ -79,7 +79,7 @@ impl<T: Tracking> Chassis<T> {
         pose
     }
 
-    pub async fn arcade(
+    pub fn arcade(
         &self,
         mut throttle: f64,
         mut steer: f64,
@@ -125,7 +125,7 @@ impl<T: Tracking> Chassis<T> {
             );
     }
 
-    pub async fn tank(&self, mut left: f64, mut right: f64, use_drive_curve: bool) {
+    pub fn tank(&self, mut left: f64, mut right: f64, use_drive_curve: bool) {
         left = if use_drive_curve {
             self.throttle_curve.update(left, Motor::V5_MAX_VOLTAGE)
         } else {

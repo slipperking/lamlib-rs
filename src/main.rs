@@ -8,6 +8,7 @@ pub mod controllers;
 pub mod devices;
 pub mod motions;
 pub mod particle_flter;
+pub mod subsystems;
 pub mod tracking;
 pub mod utils;
 
@@ -15,6 +16,7 @@ use alloc::{rc::Rc, vec, vec::Vec};
 use core::{
     cell::RefCell,
     f32::consts::{FRAC_PI_2, PI},
+    time::Duration,
 };
 
 use devices::motor_group::MotorGroup;
@@ -29,6 +31,7 @@ use particle_flter::{
 };
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use vexide::{
+    async_runtime::time,
     core::{sync::Mutex, time::Instant},
     devices::smart::*,
     prelude::*,
@@ -59,13 +62,10 @@ impl Robot {
         );
         let localization = Rc::new(ParticleFilter::new(
             300,
-            Matrix3::from_diagonal(&Vector3::<f32>::new(
-                0.08, 0.08, 0.003,
-            )),
+            Matrix3::from_diagonal(&Vector3::<f32>::new(0.08, 0.08, 0.003)),
         ));
 
-        let sensor_position_noise =
-            Matrix2::from_diagonal(&Vector2::<f32>::new(0.15, 0.15));
+        let sensor_position_noise = Matrix2::from_diagonal(&Vector2::<f32>::new(0.15, 0.15));
         let mcl_lidar_0 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_6)));
         let mcl_lidar_pi_2 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_13)));
         let mcl_lidar_pi = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_12)));
@@ -135,6 +135,12 @@ impl Compete for Robot {
     }
     async fn driver(&mut self) {
         println!("Driver!");
+        loop {
+            let state = self.controller.state().unwrap_or_default();
+            self.chassis
+                .arcade(state.left_stick.y(), state.left_stick.x(), true, 0.5);
+            time::sleep(Duration::from_millis(10)).await;
+        }
     }
     async fn disabled(&mut self) {}
     async fn disconnected(&mut self) {}
