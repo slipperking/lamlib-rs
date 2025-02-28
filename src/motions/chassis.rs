@@ -112,14 +112,14 @@ impl<T: Tracking> Chassis<T> {
         self.drivetrain
             .left_motors
             .borrow_mut()
-            .set_voltage_for_types(
+            .set_voltage_all_for_types(
                 throttle + steer,
                 (throttle + steer) * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
             );
         self.drivetrain
             .right_motors
             .borrow_mut()
-            .set_voltage_for_types(
+            .set_voltage_all_for_types(
                 throttle - steer,
                 (throttle - steer) * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
             );
@@ -139,11 +139,11 @@ impl<T: Tracking> Chassis<T> {
         self.drivetrain
             .left_motors
             .borrow_mut()
-            .set_voltage_for_types(left, left * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE);
+            .set_voltage_all_for_types(left, left * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE);
         self.drivetrain
             .right_motors
             .borrow_mut()
-            .set_voltage_for_types(
+            .set_voltage_all_for_types(
                 right,
                 right * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
             );

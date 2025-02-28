@@ -386,8 +386,8 @@ impl Tracking for OdomTracking {
             let async_self_rc = async_self_rc.clone();
             async move {
                 vexide::async_runtime::time::sleep(Duration::from_millis(10)).await;
-                let start_time = Instant::now();
                 loop {
+                    let start_time = Instant::now();
                     {
                         let mut self_lock = async_self_rc.lock().await;
                         self_lock.update().await;
