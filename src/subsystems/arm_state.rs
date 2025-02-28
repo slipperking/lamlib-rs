@@ -1,10 +1,11 @@
 use alloc::rc::Rc;
 use core::{cell::RefCell, time::Duration};
 
-use vexide::prelude::RotationSensor;
+use vexide::{devices::controller::ControllerState, prelude::RotationSensor};
 
 use crate::{controllers::ControllerMethod, devices::motor_group::MotorGroup};
 
+#[derive(PartialEq, Clone, Copy)]
 pub enum ArmState {
     Off,
 
@@ -20,6 +21,7 @@ pub enum ArmState {
     Alliance,
 }
 
+#[derive(PartialEq, Clone, Copy)]
 pub enum ArmButtonCycle {
     Default,
     Full,
@@ -38,12 +40,14 @@ pub struct ArmStateMachine<'a> {
     last_intake_button: ArmButtonCycle,
     motor_group: Rc<RefCell<MotorGroup>>,
     rotation_sensor: Rc<RefCell<RotationSensor>>,
+    gear_ratio: f64,
 }
 
 impl<'a> ArmStateMachine<'a> {
     pub fn new(
         motor_group: Rc<RefCell<MotorGroup>>,
         rotation_sensor: Rc<RefCell<RotationSensor>>,
+        gear_ratio: f64,
         controller: &'a mut dyn ControllerMethod,
     ) -> Self {
         const CYCLE_ORDERS: &[(ArmButtonCycle, (ArmState, &[ArmState]))] = &[
@@ -92,6 +96,40 @@ impl<'a> ArmStateMachine<'a> {
             state_reached_threshold: 1.5,
             motor_group,
             rotation_sensor,
+            gear_ratio,
         }
     }
+    pub fn set_state(&mut self, state: ArmState) {
+        self.state = state;
+    }
+    pub fn next_arm_state(&self, current_state: ArmState, button: ArmButtonCycle) -> ArmState {
+        if let Some(&(_, (default_state, state_cycle))) =
+            self.cycle_orders.iter().find(|&&(b, _)| b == button)
+        {
+            for (i, state) in state_cycle.iter().enumerate() {
+                if *state == current_state {
+                    return state_cycle[(i + 1) % state_cycle.len()];
+                }
+            }
+            default_state
+        } else {
+            ArmState::Off
+        }
+    }
+    pub fn opcontrol(&mut self, controller_state: Rc<ControllerState>) {
+        if controller_state.button_a.is_pressed() {
+            if self.last_intake_button != ArmButtonCycle::Default {
+                self.last_intake_button = ArmButtonCycle::Default;
+                self.set_state(self.next_arm_state(self.state, ArmButtonCycle::Default));
+            }
+        } else if controller_state.button_x.is_pressed() {
+            if self.last_intake_button != ArmButtonCycle::Full {
+                self.last_intake_button = ArmButtonCycle::Full;
+                self.set_state(self.next_arm_state(self.state, ArmButtonCycle::Full));
+            }
+        } else {
+            self.last_intake_button = ArmButtonCycle::None;
+        }
+    }
+    // TODO: implement task and controller logic.
 }
