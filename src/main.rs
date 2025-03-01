@@ -126,7 +126,7 @@ impl Robot {
             ExponentialDriveCurve::new(0.5, 1.0, 1.01),
         );
 
-        let pid_arm_controller = PID::new(200.0, 1.0, 2000.0, 4.0, true);
+        let mut pid_arm_controller = PID::new(200.0, 1.0, 2000.0, 4.0, true);
 
         chassis.calibrate().await;
         Self {
@@ -135,6 +135,7 @@ impl Robot {
         }
     }
 }
+
 impl Compete for Robot {
     async fn autonomous(&mut self) {
         println!("Autonomous!");
