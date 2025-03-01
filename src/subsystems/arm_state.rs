@@ -38,6 +38,9 @@ pub struct ArmStateMachine {
     state_reached: bool,
     state_reached_threshold: f64,
     controller: Rc<RefCell<dyn ControllerMethod<f64>>>,
+    /// A map between a cycle and a cycle pair.
+    /// The pair involves an ArmState, or the default,
+    /// and a shared pointer to the sequence (a vector) itself.
     cycle_orders: Rc<BTreeMap<ArmButtonCycle, (ArmState, Rc<Vec<ArmState>>)>>,
     arm_state_positions: Rc<BTreeMap<ArmState, f64>>,
     free_start_time: Option<Instant>,
@@ -144,7 +147,7 @@ impl ArmStateMachine {
                 if Instant::elapsed(&free_start_time).as_millis() > 1200
                     && self.state == ArmState::FreeTimedReset
                 {
-                    self.reset_all();
+                    self.reset_all().await;
                     self.set_state(ArmState::Off);
                     return;
                 }

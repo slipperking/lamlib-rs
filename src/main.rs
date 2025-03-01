@@ -19,6 +19,7 @@ use core::{
     time::Duration,
 };
 
+use controllers::pid::PID;
 use devices::motor_group::MotorGroup;
 use motions::{
     chassis::{Chassis, Drivetrain},
@@ -118,14 +119,19 @@ impl Robot {
             Motor::new(peripherals.port_3, Gearset::Blue, Direction::Forward),
         ])));
         let drivetrain = Rc::new(Drivetrain::new(left_motors, right_motors));
+        let chassis = Chassis::new(
+            drivetrain.clone(),
+            tracking,
+            ExponentialDriveCurve::new(0.5, 1.0, 1.01),
+            ExponentialDriveCurve::new(0.5, 1.0, 1.01),
+        );
+
+        let pid_arm_controller = PID::new(200.0, 1.0, 2000.0, 4.0, true);
+
+        chassis.calibrate().await;
         Self {
             controller: peripherals.primary_controller,
-            chassis: Chassis::new(
-                drivetrain.clone(),
-                tracking,
-                ExponentialDriveCurve::new(0.5, 1.0, 1.01),
-                ExponentialDriveCurve::new(0.5, 1.0, 1.01),
-            ),
+            chassis,
         }
     }
 }
