@@ -23,12 +23,16 @@ pub enum ArmState {
     NeutralStakeHold,
     Neutral,
     Alliance,
+    ManualMax,
+    ManualMin,
 }
 
 #[derive(PartialEq, Clone, Copy, PartialOrd, Ord, Eq)]
 pub enum ArmButtonCycle {
     Default,
     Full,
+    ManualForward,
+    ManualReverse,
     None,
 }
 
@@ -38,6 +42,7 @@ pub struct ArmStateMachine {
     state_reached: bool,
     state_reached_threshold: f64,
     controller: Rc<RefCell<dyn ControllerMethod<f64>>>,
+
     /// A map between a cycle and a cycle pair.
     /// The pair involves an ArmState, or the default,
     /// and a shared pointer to the sequence (a vector) itself.
@@ -48,7 +53,10 @@ pub struct ArmStateMachine {
     motor_group: Rc<RefCell<MotorGroup>>,
     rotation_sensor: Rc<RefCell<RotationSensor>>,
 
-    /// This is the ratio from the Rotation sensor to the arm.
+    /// The max speed for each state.
+    max_speeds: BTreeMap<ArmState, Option<f64>>,
+
+    /// This is the ratio from the rotation sensor to the arm.
     gear_ratio: f64,
     task: Option<Task<()>>,
 }
@@ -65,8 +73,10 @@ impl ArmStateMachine {
             (ArmState::Load, 13.0),
             (ArmState::LoadUp, 46.0),
             (ArmState::NeutralStakeHold, 135.0),
-            (ArmState::Neutral, 133.0),
-            (ArmState::Alliance, 190.0),
+            (ArmState::Neutral, 135.0),
+            (ArmState::Alliance, 195.0),
+            (ArmState::ManualMax, 215.0),
+            (ArmState::ManualMin, 0.0),
         ]));
 
         Self {
@@ -96,8 +106,20 @@ impl ArmStateMachine {
                         ]),
                     ),
                 ),
+                (
+                    ArmButtonCycle::ManualForward,
+                    (ArmState::ManualMax, Rc::new(vec![ArmState::ManualMax])),
+                ),
+                (
+                    ArmButtonCycle::ManualReverse,
+                    (ArmState::ManualMin, Rc::new(vec![ArmState::ManualMin])),
+                ),
             ]),
             arm_state_positions,
+            max_speeds: BTreeMap::from([
+                (ArmState::ManualMax, Some(8.0)),
+                (ArmState::ManualMin, Some(8.0)),
+            ]),
             free_start_time: None,
             last_intake_button: ArmButtonCycle::None,
             state_reached_threshold: 1.5,
@@ -150,6 +172,11 @@ impl ArmStateMachine {
                 }
             }
         } else {
+            let max_speed: f64 = self
+                .max_speeds
+                .get(&self.state)
+                .unwrap_or(&Some(f64::INFINITY))
+                .unwrap_or(f64::INFINITY);
             let target_position = self.arm_state_positions.get(&self.state);
             if let Some(target_position) = target_position {
                 let current_arm_position = self
@@ -160,10 +187,14 @@ impl ArmStateMachine {
                     .as_degrees();
                 let error = target_position - current_arm_position * self.gear_ratio;
                 {
-                    let mut controller = self.controller.borrow_mut();
+                    let controller_output = self
+                        .controller
+                        .borrow_mut()
+                        .update(error)
+                        .clamp(-max_speed, max_speed);
                     self.motor_group.borrow_mut().set_voltage_all_for_types(
-                        controller.update(error),
-                        controller.update(error) * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
+                        controller_output,
+                        controller_output * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
                     );
                 }
                 if error.abs() < self.state_reached_threshold {
@@ -197,7 +228,23 @@ impl ArmStateMachine {
                 self.last_intake_button = ArmButtonCycle::Full;
                 self.set_state(self.next_arm_state(self.state, ArmButtonCycle::Full));
             }
+        } else if controller_state.button_r1.is_pressed() && controller_state.button_r2.is_pressed()
+        {
+            if self.last_intake_button != ArmButtonCycle::ManualForward {
+                self.last_intake_button = ArmButtonCycle::ManualForward;
+                self.set_state(self.next_arm_state(self.state, ArmButtonCycle::ManualForward));
+            }
+        } else if controller_state.button_y.is_pressed() {
+            if self.last_intake_button != ArmButtonCycle::ManualReverse {
+                self.last_intake_button = ArmButtonCycle::ManualReverse;
+                self.set_state(self.next_arm_state(self.state, ArmButtonCycle::ManualReverse));
+            }
         } else {
+            if self.last_intake_button == ArmButtonCycle::ManualForward
+                || self.last_intake_button == ArmButtonCycle::ManualReverse
+            {
+                self.set_state(ArmState::Free);
+            }
             self.last_intake_button = ArmButtonCycle::None;
         }
     }

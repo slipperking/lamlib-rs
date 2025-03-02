@@ -30,7 +30,7 @@ use particle_flter::{
     sensors::{distance::LiDAR, ParticleFilterSensor},
     ParticleFilter,
 };
-use subsystems::arm_state::{ArmState, ArmStateMachine};
+use subsystems::arm_state_machine::ArmStateMachine;
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use vexide::{
     async_runtime::time,
