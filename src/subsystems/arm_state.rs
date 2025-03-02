@@ -41,12 +41,12 @@ pub struct ArmStateMachine {
     /// A map between a cycle and a cycle pair.
     /// The pair involves an ArmState, or the default,
     /// and a shared pointer to the sequence (a vector) itself.
-    cycle_orders: Rc<BTreeMap<ArmButtonCycle, (ArmState, Rc<Vec<ArmState>>)>>,
+    cycle_orders: BTreeMap<ArmButtonCycle, (ArmState, Rc<Vec<ArmState>>)>,
     arm_state_positions: Rc<BTreeMap<ArmState, f64>>,
     free_start_time: Option<Instant>,
     last_intake_button: ArmButtonCycle,
-    motor_group: Rc<Mutex<MotorGroup>>,
-    rotation_sensor: Rc<Mutex<RotationSensor>>,
+    motor_group: Rc<RefCell<MotorGroup>>,
+    rotation_sensor: Rc<RefCell<RotationSensor>>,
 
     /// This is the ratio from the Rotation sensor to the arm.
     gear_ratio: f64,
@@ -55,8 +55,8 @@ pub struct ArmStateMachine {
 
 impl ArmStateMachine {
     pub fn new(
-        motor_group: Rc<Mutex<MotorGroup>>,
-        rotation_sensor: Rc<Mutex<RotationSensor>>,
+        motor_group: Rc<RefCell<MotorGroup>>,
+        rotation_sensor: Rc<RefCell<RotationSensor>>,
         gear_ratio: f64,
         controller: Rc<RefCell<dyn ControllerMethod<f64>>>,
     ) -> Self {
@@ -74,7 +74,7 @@ impl ArmStateMachine {
             state: ArmState::Off,
             state_reached: true,
             last_arm_state: ArmState::Off,
-            cycle_orders: Rc::new(BTreeMap::from([
+            cycle_orders: BTreeMap::from([
                 (
                     ArmButtonCycle::Full,
                     (
@@ -96,7 +96,7 @@ impl ArmStateMachine {
                         ]),
                     ),
                 ),
-            ])),
+            ]),
             arm_state_positions,
             free_start_time: None,
             last_intake_button: ArmButtonCycle::None,
@@ -124,21 +124,18 @@ impl ArmStateMachine {
 
     pub async fn reset_all(&self) {
         self.motor_group
-            .lock()
-            .await
+            .borrow_mut()
             .set_position_all(Position::from_degrees(0.0));
         let _ = self
             .rotation_sensor
-            .lock()
-            .await
+            .borrow_mut()
             .set_position(Position::from_degrees(0.0));
     }
     pub async fn update(&mut self) {
         if self.state == ArmState::Free || self.state == ArmState::FreeTimedReset {
             if self.last_arm_state != self.state {
                 self.motor_group
-                    .lock()
-                    .await
+                    .borrow_mut()
                     .set_target_all(MotorControl::Brake(BrakeMode::Coast));
                 self.state_reached = false;
                 self.free_start_time = Some(Instant::now());
@@ -157,13 +154,12 @@ impl ArmStateMachine {
             if let Some(target_position) = target_position {
                 let current_arm_position = self
                     .rotation_sensor
-                    .lock()
-                    .await
+                    .borrow()
                     .position()
                     .unwrap_or_default()
                     .as_degrees();
                 let error = target_position - current_arm_position * self.gear_ratio;
-                self.motor_group.lock().await.set_voltage_all_for_types(
+                self.motor_group.borrow_mut().set_voltage_all_for_types(
                     self.controller.borrow_mut().update(error),
                     self.controller.borrow_mut().update(error) * Motor::EXP_MAX_VOLTAGE
                         / Motor::V5_MAX_VOLTAGE,
@@ -188,7 +184,7 @@ impl ArmStateMachine {
         }
         self.last_arm_state = self.state;
     }
-    pub fn opcontrol(&mut self, controller_state: Rc<ControllerState>) {
+    pub fn opcontrol(&mut self, controller_state: &ControllerState) {
         if controller_state.button_a.is_pressed() {
             if self.last_intake_button != ArmButtonCycle::Default {
                 self.last_intake_button = ArmButtonCycle::Default;

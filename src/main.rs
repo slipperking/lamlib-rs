@@ -30,6 +30,7 @@ use particle_flter::{
     sensors::{distance::LiDAR, ParticleFilterSensor},
     ParticleFilter,
 };
+use subsystems::arm_state::{ArmState, ArmStateMachine};
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use vexide::{
     async_runtime::time,
@@ -40,6 +41,7 @@ use vexide::{
 struct Robot {
     controller: Controller,
     chassis: Chassis<OdomTracking>,
+    intake_arm: Rc<Mutex<ArmStateMachine>>,
 }
 impl Robot {
     async fn new(peripherals: Peripherals) -> Self {
@@ -126,12 +128,29 @@ impl Robot {
             ExponentialDriveCurve::new(0.5, 1.0, 1.01),
         );
 
-        let mut pid_arm_controller = PID::new(200.0, 1.0, 2000.0, 4.0, true);
+        let pid_arm_controller = Rc::new(RefCell::new(PID::new(240.0, 1.0, 2000.0, 4.0, true)));
+        let rotation_arm_state_machine = Rc::new(RefCell::new(RotationSensor::new(
+            peripherals.port_21,
+            Direction::Forward,
+        )));
+
+        let arm_state_machine_motors = Rc::new(RefCell::new(MotorGroup::new(vec![
+            Motor::new_exp(peripherals.port_19, Direction::Reverse),
+            Motor::new_exp(peripherals.port_20, Direction::Forward),
+        ])));
+        let intake_arm = Rc::new(Mutex::new(ArmStateMachine::new(
+            arm_state_machine_motors,
+            rotation_arm_state_machine.clone(),
+            1.0,
+            pid_arm_controller,
+        )));
 
         chassis.calibrate().await;
+        intake_arm.lock().await.init(intake_arm.clone()).await;
         Self {
             controller: peripherals.primary_controller,
             chassis,
+            intake_arm,
         }
     }
 }
@@ -143,10 +162,11 @@ impl Compete for Robot {
     async fn driver(&mut self) {
         println!("Driver!");
         loop {
-            let state = Rc::new(self.controller.state().unwrap_or_default());
+            let state = self.controller.state().unwrap_or_default();
             self.chassis
                 .arcade(state.left_stick.y(), state.left_stick.x(), true, 0.5);
-            time::sleep(Duration::from_millis(10)).await;
+            self.intake_arm.lock().await.opcontrol(&state);
+            time::sleep(Duration::from_millis(20)).await;
         }
     }
     async fn disabled(&mut self) {}
