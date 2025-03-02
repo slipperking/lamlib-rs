@@ -76,7 +76,7 @@ impl ArmStateMachine {
             last_arm_state: ArmState::Off,
             cycle_orders: BTreeMap::from([
                 (
-                    ArmButtonCycle::Full,
+                    ArmButtonCycle::Default,
                     (
                         ArmState::Neutral,
                         Rc::new(vec![ArmState::Off, ArmState::Load, ArmState::Neutral]),
@@ -159,11 +159,13 @@ impl ArmStateMachine {
                     .unwrap_or_default()
                     .as_degrees();
                 let error = target_position - current_arm_position * self.gear_ratio;
-                self.motor_group.borrow_mut().set_voltage_all_for_types(
-                    self.controller.borrow_mut().update(error),
-                    self.controller.borrow_mut().update(error) * Motor::EXP_MAX_VOLTAGE
-                        / Motor::V5_MAX_VOLTAGE,
-                );
+                {
+                    let mut controller = self.controller.borrow_mut();
+                    self.motor_group.borrow_mut().set_voltage_all_for_types(
+                        controller.update(error),
+                        controller.update(error) * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
+                    );
+                }
                 if error.abs() < self.state_reached_threshold {
                     if self.state == ArmState::Neutral {
                         self.state = ArmState::Off;
@@ -171,8 +173,8 @@ impl ArmStateMachine {
                         self.state_reached = true;
                     }
                     if error.abs() < self.state_reached_threshold / 2.0 {
-                        self.controller.borrow_mut().reset()
-                    };
+                        self.controller.borrow_mut().reset();
+                    }
                 } else {
                     self.state_reached = false;
                 }
