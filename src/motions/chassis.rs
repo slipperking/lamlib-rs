@@ -5,10 +5,7 @@ use nalgebra::{Vector2, Vector3};
 use vexide::{core::sync::Mutex, prelude::Motor};
 
 use super::drive_curve::ExponentialDriveCurve;
-use crate::{
-    devices::motor_group::MotorGroup,
-    tracking::abstract_tracking::Tracking,
-};
+use crate::{devices::motor_group::MotorGroup, tracking::abstract_tracking::Tracking};
 
 pub struct Drivetrain {
     left_motors: Rc<RefCell<MotorGroup>>,

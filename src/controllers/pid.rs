@@ -1,9 +1,11 @@
+use core::ops::AddAssign;
+
 use num::FromPrimitive;
-use num_traits::{Float, Num, NumAssign, NumAssignOps, NumAssignRef};
+use num_traits::Float;
 use vexide::core::time::Instant;
 
 use super::ControllerMethod;
-pub struct PID<T: Float + Num + NumAssign + NumAssignOps + NumAssignRef + FromPrimitive> {
+pub struct PID<T: Float + FromPrimitive + AddAssign> {
     gains: PIDGains<T>,
     prev_error: T, // Previous error for derivative calculation
     prev_time: Option<crate::Instant>,
@@ -11,13 +13,13 @@ pub struct PID<T: Float + Num + NumAssign + NumAssignOps + NumAssignRef + FromPr
     windup_range: T,          // Range where integral starts accumulating
     reset_on_sign_flip: bool, // Whether or not to reset integral when sign flips
 }
-pub struct PIDGains<T: Float + Num + NumAssign + NumAssignOps + NumAssignRef + FromPrimitive> {
+pub struct PIDGains<T: Float + FromPrimitive + AddAssign> {
     kp: T, // Proportional gain
     ki: T, // Integral gain
     kd: T, // Derivative gain
 }
 
-impl<T: Float + Num + NumAssign + NumAssignOps + NumAssignRef + FromPrimitive> PID<T> {
+impl<T: Float + FromPrimitive + AddAssign> PID<T> {
     pub fn new(kp: T, ki: T, kd: T, windup_range: T, reset_on_sign_flip: bool) -> Self {
         PID {
             gains: PIDGains { kp, ki, kd },
@@ -29,7 +31,7 @@ impl<T: Float + Num + NumAssign + NumAssignOps + NumAssignRef + FromPrimitive> P
         }
     }
 }
-impl<T: Float + Num + NumAssign + NumAssignOps + NumAssignRef + FromPrimitive> ControllerMethod<T>
+impl<T: Float + FromPrimitive + AddAssign> ControllerMethod<T>
     for PID<T>
 {
     fn update(&mut self, error: T) -> T {

@@ -12,9 +12,6 @@ slot = 4
 icon = "cool-x"
 compress = true
 
-[profile.dev]
-opt-level = 3
-
 [dependencies]
 vexide = "0.6.1"
 nalgebra = { version = "0.33.2", default-features = false, features = ["libm", "alloc"] }

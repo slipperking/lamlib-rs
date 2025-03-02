@@ -373,12 +373,18 @@ impl Tracking for OdomTracking {
             .for_each(|tracking_wheel| tracking_wheel.init());
         for imu in &self.sensors.imus {
             let imu_lock_value = &mut imu.inertial.lock().await;
-            let calibration_result_1 = imu_lock_value.calibrate().await;
-            match &calibration_result_1 {
+            let set_rotation_result = imu_lock_value.set_rotation(0.0);
+            match set_rotation_result {
+                Ok(_) => {}
+                Err(_) => {
+                    let _ = imu_lock_value.set_rotation(0.0);
+                }
+            }
+            let calibration_result = imu_lock_value.calibrate().await;
+            match calibration_result {
                 Ok(_) => {}
                 Err(_) => {
                     let _ = imu_lock_value.calibrate().await;
-                    let _ = imu_lock_value.set_rotation(0.0);
                 }
             }
         }

@@ -1,7 +1,8 @@
+use core::ops::AddAssign;
+
 use num::FromPrimitive;
-use num_traits::{Float, Num, NumAssign, NumAssignOps, NumAssignRef};
-pub trait ControllerMethod<T: Float + Num + NumAssign + NumAssignOps + NumAssignRef + FromPrimitive>
-{
+use num_traits::Float;
+pub trait ControllerMethod<T: Float + FromPrimitive + AddAssign> {
     fn update(&mut self, error: T) -> T;
     fn reset(&mut self);
 }

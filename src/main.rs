@@ -162,10 +162,14 @@ impl Compete for Robot {
     async fn driver(&mut self) {
         println!("Driver!");
         loop {
-            let state = self.controller.state().unwrap_or_default();
-            self.chassis
-                .arcade(state.left_stick.y(), state.right_stick.x(), true, 0.5);
-            self.intake_arm.lock().await.opcontrol(&state);
+            {
+                let state = self.controller.state().unwrap_or_default();
+                self.chassis
+                    .arcade(state.left_stick.y(), state.right_stick.x(), true, 0.5);
+                {
+                    self.intake_arm.lock().await.opcontrol(&state);
+                }
+            }
             time::sleep(Duration::from_millis(20)).await;
         }
     }

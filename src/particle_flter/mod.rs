@@ -68,20 +68,21 @@ impl ParticleFilter {
     }
 
     pub async fn update(&self, sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>) {
-        let positions = self.positions.lock().await;
-        let mut weights = self.weights.lock().await;
+        {
+            let positions = self.positions.lock().await;
+            let mut weights = self.weights.lock().await;
 
-        for sensor in sensors.iter() {
-            let mut sensor_mut = sensor.borrow_mut();
-            sensor_mut.precompute(&positions);
-            sensor_mut.update(&positions, &mut weights);
+            for sensor in sensors.iter() {
+                let mut sensor_mut = sensor.borrow_mut();
+                sensor_mut.precompute(&positions);
+                sensor_mut.update(&positions, &mut weights);
+            }
+
+            for sensor in sensors.iter() {
+                let mut sensor_mut = sensor.borrow_mut();
+                sensor_mut.cleanup_precomputed();
+            }
         }
-
-        for sensor in sensors.iter() {
-            let mut sensor_mut = sensor.borrow_mut();
-            sensor_mut.cleanup_precomputed();
-        }
-
         self.normalize_weights().await;
     }
 
