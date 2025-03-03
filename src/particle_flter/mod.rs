@@ -77,6 +77,7 @@ impl ParticleFilter {
                 sensor_mut.precompute(&positions);
                 sensor_mut.update(&positions, &mut weights);
             }
+            let _ = positions;
 
             for sensor in sensors.iter() {
                 let mut sensor_mut = sensor.borrow_mut();

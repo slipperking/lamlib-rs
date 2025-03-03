@@ -144,7 +144,7 @@ impl ArmStateMachine {
         ArmState::Off
     }
 
-    pub async fn reset_all(&self) {
+    pub fn reset_all(&self) {
         self.motor_group
             .borrow_mut()
             .set_position_all(Position::from_degrees(0.0));
@@ -153,7 +153,7 @@ impl ArmStateMachine {
             .borrow_mut()
             .set_position(Position::from_degrees(0.0));
     }
-    pub async fn update(&mut self) {
+    pub fn update(&mut self) {
         if self.state == ArmState::Free || self.state == ArmState::FreeTimedReset {
             if self.last_arm_state != self.state {
                 self.motor_group
@@ -166,7 +166,7 @@ impl ArmStateMachine {
                 if Instant::elapsed(&free_start_time).as_millis() > 1200
                     && self.state == ArmState::FreeTimedReset
                 {
-                    self.reset_all().await;
+                    self.reset_all();
                     self.set_state(ArmState::Off);
                     return;
                 }
@@ -249,7 +249,7 @@ impl ArmStateMachine {
         }
     }
     pub async fn init(&mut self, async_self_rc: Rc<Mutex<Self>>) {
-        self.reset_all().await;
+        self.reset_all();
         self.task = Some(vexide::async_runtime::spawn({
             let async_self_rc = async_self_rc.clone();
             async move {
@@ -257,7 +257,7 @@ impl ArmStateMachine {
                 loop {
                     let start_time = Instant::now();
                     {
-                        async_self_rc.lock().await.update().await;
+                        async_self_rc.lock().await.update();
                     }
                     vexide::async_runtime::time::sleep({
                         let mut duration = Instant::elapsed(&start_time).as_millis();
@@ -271,5 +271,4 @@ impl ArmStateMachine {
             }
         }));
     }
-    // TODO: implement task and controller logic.
 }
