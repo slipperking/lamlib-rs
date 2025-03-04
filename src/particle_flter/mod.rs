@@ -77,7 +77,7 @@ impl ParticleFilter {
                 sensor_mut.precompute(&positions);
                 sensor_mut.update(&positions, &mut weights);
             }
-            let _ = positions;
+            core::mem::drop(positions);
 
             for sensor in sensors.iter() {
                 let mut sensor_mut = sensor.borrow_mut();
@@ -151,7 +151,7 @@ impl ParticleFilter {
         }
 
         positions.fixed_view_mut::<2, 1>(0, 0).copy_from(&noise);
-        let _ = positions;
+        core::mem::drop(positions);
         let mut weights = self.weights.lock().await;
         Matrix::fill(weights.deref_mut(), 1.0 / self.particle_count as f32);
     }

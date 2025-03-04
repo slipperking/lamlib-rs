@@ -150,6 +150,7 @@ impl ArmStateMachine {
         self.motor_group
             .borrow_mut()
             .set_position_all(Position::from_degrees(0.0));
+
         let _ = self
             .rotation_sensor
             .borrow_mut()

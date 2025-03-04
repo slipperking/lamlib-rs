@@ -1,5 +1,5 @@
-use alloc::{collections::VecDeque, rc::Rc, vec::Vec};
-use core::{cell::RefCell, time::Duration};
+use alloc::{boxed::Box, collections::VecDeque, rc::Rc, vec::Vec};
+use core::{cell::RefCell, mem, time::Duration};
 
 use vexide::{
     core::{sync::Mutex, time::Instant},
@@ -14,6 +14,16 @@ enum IntakeButtonState {
     Spin,
     Reverse,
 }
+
+// An empty optical callback.
+#[macro_export]
+macro_rules! default_optical_callback {
+    () => {
+        RefCell::new(Box::new(|_color: AllianceColor| false))
+    };
+}
+pub use default_optical_callback;
+
 pub struct Intake {
     /// Intake motors.
     motor_group: Rc<RefCell<MotorGroup>>,
@@ -24,6 +34,9 @@ pub struct Intake {
     optical: Option<Rc<RefCell<vexide::prelude::OpticalSensor>>>,
     optical_color_history: VecDeque<(Option<AllianceColor>, Instant)>,
     optical_sort_delay: Option<Duration>,
+
+    /// Optical callback ran on every optical sampling. Use for timed intake stops, etc.
+    optical_callback: RefCell<Box<dyn Fn(AllianceColor) -> bool>>,
 
     /// If available, distance is used for color sorting.
     /// Optical sensor stores last color, while distance is for ring detection.
@@ -44,7 +57,7 @@ pub struct Intake {
 
     jam_start_time: Option<Instant>,
     jam_detected: bool,
-    additional_anti_jam_criterion: Option<alloc::boxed::Box<dyn Fn() -> bool>>,
+    additional_anti_jam_criterion: Option<Box<dyn Fn() -> bool>>,
 
     task: Option<Task<()>>,
 }
@@ -82,6 +95,7 @@ impl Intake {
             alliance_color,
             optical_sort_delay,
             distance_sort_delay,
+            optical_callback: default_optical_callback!(),
         }
     }
     pub fn spin(&mut self, voltage: f64) {
@@ -108,7 +122,13 @@ impl Intake {
             );
         }
     }
-    fn optical_color(&self) -> Option<AllianceColor> {
+    pub fn clear_optical_callback(&mut self) {
+        self.optical_callback = default_optical_callback!();
+    }
+    pub fn set_optical_callback(&mut self, callback: Box<dyn Fn(AllianceColor) -> bool>) {
+        self.optical_callback = RefCell::new(callback);
+    }
+    fn optical_color(&mut self) -> Option<AllianceColor> {
         // TODO: Optical Callbacks
 
         if let Some(optical) = &self.optical {
@@ -118,11 +138,32 @@ impl Intake {
             if let Ok(hue) = hue {
                 if let Ok(proximity) = proximity {
                     if proximity < 90.0 {
-                        return Some(AllianceColor::None);
+                        return {
+                            let optical_callback = self.optical_callback.borrow_mut();
+                            if (optical_callback)(AllianceColor::None) {
+                                mem::drop(optical_callback);
+                                self.optical_callback = default_optical_callback!();
+                            };
+                            Some(AllianceColor::None)
+                        };
                     } else if !(20.0..340.0).contains(&hue) {
-                        return Some(AllianceColor::Red);
+                        return {
+                            let optical_callback = self.optical_callback.borrow_mut();
+                            if (optical_callback)(AllianceColor::Red) {
+                                mem::drop(optical_callback);
+                                self.optical_callback = default_optical_callback!();
+                            };
+                            Some(AllianceColor::Red)
+                        };
                     } else if (180.0..220.0).contains(&hue) {
-                        return Some(AllianceColor::Blue);
+                        return {
+                            let optical_callback = self.optical_callback.borrow_mut();
+                            if (optical_callback)(AllianceColor::Blue) {
+                                mem::drop(optical_callback);
+                                self.optical_callback = default_optical_callback!();
+                            };
+                            Some(AllianceColor::Blue)
+                        };
                     }
                 }
             }
@@ -349,6 +390,6 @@ impl Intake {
             }
         }));
         // TODO: Optical and distance callbacks.
-        // Store callbacks using Box<dyn Fn() -> Result<(), Error>>
+        // Store callbacks using Box<dyn Fn() -> bool>
     }
 }

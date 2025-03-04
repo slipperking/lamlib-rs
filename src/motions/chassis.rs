@@ -69,7 +69,7 @@ impl<T: Tracking> Chassis<T> {
     pub async fn pose(&self, radians: bool) -> Vector3<f64> {
         let mut tracking_lock = self.tracking.lock().await;
         let mut pose = tracking_lock.position();
-        let _ = tracking_lock;
+        core::mem::drop(tracking_lock);
         if !radians {
             pose.z = pose.z.to_degrees()
         };
