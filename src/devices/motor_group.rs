@@ -24,8 +24,8 @@ impl MotorGroup {
     pub fn set_voltage_all_for_types(&mut self, voltage_v5: f64, voltage_exp: f64) {
         for motor in self.motors.iter_mut() {
             let _ = motor.set_voltage(match motor.motor_type() {
-                MotorType::Exp => voltage_exp,
                 MotorType::V5 => voltage_v5,
+                MotorType::Exp => voltage_exp,
             });
         }
     }
@@ -49,6 +49,9 @@ impl MotorGroup {
     }
     pub fn position_all(&self) -> Vec<Result<Position, MotorError>> {
         self.motors.iter().map(|motor| motor.position()).collect()
+    }
+    pub fn velocity_all(&self) -> Vec<Result<f64, MotorError>> {
+        self.motors.iter().map(|motor| motor.velocity()).collect()
     }
     pub fn gearset_all(&self) -> Vec<Result<Gearset, MotorError>> {
         self.motors.iter().map(|motor| motor.gearset()).collect()

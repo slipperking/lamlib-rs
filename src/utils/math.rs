@@ -33,9 +33,26 @@ macro_rules! ilerp {
     };
 }
 
+#[macro_export]
+macro_rules! avg_valid {
+    ($vec:expr) => {{
+        let (sum, count) = $vec
+            .iter()
+            .filter_map(|&x| x)
+            .fold((0.0, 0), |(sum, count), x| (sum + x, count + 1));
+
+        if count > 0 {
+            Some(sum / count as f64)
+        } else {
+            None
+        }
+    }};
+}
+
 pub use ilerp;
 pub use lerp;
 pub use signed_mod;
+pub use avg_valid;
 
 pub fn delta_clamp(value: f32, prev: f32, max_delta: f32) -> f32 {
     if max_delta == 0.0 {

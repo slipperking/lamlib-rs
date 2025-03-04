@@ -2,7 +2,7 @@ use alloc::{collections::BTreeMap, rc::Rc, vec, vec::Vec};
 use core::{cell::RefCell, time::Duration};
 
 use vexide::{
-    core::{sync::Mutex, time::Instant},
+    core::{print, sync::Mutex, time::Instant},
     devices::controller::ControllerState,
     prelude::{BrakeMode, Motor, MotorControl, Position, RotationSensor, Task},
 };
@@ -15,6 +15,8 @@ pub enum ArmState {
 
     /// Used to override the state machine, such as manual control.
     Free,
+
+    FreeStopHold,
 
     /// Used to tare positions.
     FreeTimedReset,
@@ -154,11 +156,20 @@ impl ArmStateMachine {
             .set_position(Position::from_degrees(0.0));
     }
     pub fn update(&mut self) {
-        if self.state == ArmState::Free || self.state == ArmState::FreeTimedReset {
+        if self.state == ArmState::Free
+            || self.state == ArmState::FreeTimedReset
+            || self.state == ArmState::FreeStopHold
+        {
             if self.last_arm_state != self.state {
                 self.motor_group
                     .borrow_mut()
-                    .set_target_all(MotorControl::Brake(BrakeMode::Coast));
+                    .set_target_all(MotorControl::Brake(
+                        if self.state == ArmState::FreeStopHold {
+                            BrakeMode::Hold
+                        } else {
+                            BrakeMode::Coast
+                        },
+                    ));
                 self.state_reached = false;
                 self.free_start_time = Some(Instant::now());
             }
@@ -192,6 +203,7 @@ impl ArmStateMachine {
                         .borrow_mut()
                         .update(error)
                         .clamp(-max_speed, max_speed);
+                    print!("{controller_output} ");
                     self.motor_group.borrow_mut().set_voltage_all_for_types(
                         controller_output,
                         controller_output * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
@@ -217,7 +229,7 @@ impl ArmStateMachine {
         }
         self.last_arm_state = self.state;
     }
-    pub fn opcontrol(&mut self, controller_state: &ControllerState) {
+    pub fn driver(&mut self, controller_state: &ControllerState) {
         if controller_state.button_a.is_pressed() {
             if self.last_intake_button != ArmButtonCycle::Default {
                 self.last_intake_button = ArmButtonCycle::Default;
@@ -243,7 +255,7 @@ impl ArmStateMachine {
             if self.last_intake_button == ArmButtonCycle::ManualForward
                 || self.last_intake_button == ArmButtonCycle::ManualReverse
             {
-                self.set_state(ArmState::Free);
+                self.set_state(ArmState::FreeStopHold);
             }
             self.last_intake_button = ArmButtonCycle::None;
         }

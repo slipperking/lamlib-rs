@@ -31,16 +31,16 @@ impl<T: Float + FromPrimitive + AddAssign> PID<T> {
         }
     }
 }
-impl<T: Float + FromPrimitive + AddAssign> ControllerMethod<T>
-    for PID<T>
-{
+impl<T: Float + FromPrimitive + AddAssign> ControllerMethod<T> for PID<T> {
     fn update(&mut self, error: T) -> T {
         let current_time = Instant::now();
-        let delta_time = T::from_u128(match self.prev_time {
-            Some(instant) => current_time.duration_since(instant),
-            None => core::time::Duration::ZERO,
+        let delta_time = match self.prev_time {
+            Some(instant) => {
+                T::from_f64(current_time.duration_since(instant).as_secs_f64() * 1000.0)
+            }
+            None => None,
         }
-        .as_millis()).unwrap();
+        .unwrap_or(T::zero());
         self.prev_time = Some(current_time);
         self.integral += error * delta_time;
         if error.signum() != self.prev_error.signum() && self.reset_on_sign_flip
@@ -48,7 +48,12 @@ impl<T: Float + FromPrimitive + AddAssign> ControllerMethod<T>
         {
             self.integral = T::zero();
         }
-        let derivative: T = (error - self.prev_error) / delta_time;
+        let derivative: T = (error - self.prev_error)
+            / if delta_time.is_zero() {
+                T::infinity()
+            } else {
+                delta_time
+            };
         let output: T =
             self.gains.kp * error + self.gains.ki * self.integral + self.gains.kd * derivative;
         self.prev_error = error;
@@ -58,5 +63,6 @@ impl<T: Float + FromPrimitive + AddAssign> ControllerMethod<T>
     fn reset(&mut self) {
         self.integral = T::zero();
         self.prev_error = T::zero();
+        self.prev_time = None;
     }
 }

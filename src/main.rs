@@ -30,8 +30,9 @@ use particle_flter::{
     sensors::{distance::LiDAR, ParticleFilterSensor},
     ParticleFilter,
 };
-use subsystems::arm_state_machine::ArmStateMachine;
+use subsystems::{arm_state_machine::ArmStateMachine, intake::Intake};
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
+use utils::AllianceColor;
 use vexide::{
     async_runtime::time,
     core::{sync::Mutex, time::Instant},
@@ -39,12 +40,17 @@ use vexide::{
     prelude::*,
 };
 struct Robot {
+    alliance_color: Rc<RefCell<AllianceColor>>,
     controller: Controller,
     chassis: Chassis<OdomTracking>,
     intake_arm: Rc<Mutex<ArmStateMachine>>,
+    intake: Rc<Mutex<Intake>>,
 }
 impl Robot {
     async fn new(peripherals: Peripherals) -> Self {
+        // TODO: impleemnt color.
+        let alliance_color = Rc::new(RefCell::new(AllianceColor::Red));
+
         let rotation_vertical_odom_wheel: Rc<RefCell<RotationSensor>> = Rc::new(RefCell::new(
             RotationSensor::new(peripherals.port_7, Direction::Forward),
         ));
@@ -70,7 +76,7 @@ impl Robot {
 
         let sensor_position_noise = Matrix2::from_diagonal(&Vector2::<f32>::new(0.15, 0.15));
         let mcl_lidar_0 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_6)));
-        let mcl_lidar_pi_2 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_14)));
+        let mcl_lidar_pi_2 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_11)));
         let mcl_lidar_pi = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_12)));
         let mcl_lidar_3_pi_2 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_8)));
         let particle_filter_sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>> =
@@ -128,7 +134,7 @@ impl Robot {
             ExponentialDriveCurve::new(0.5, 1.0, 1.01),
         );
 
-        let pid_arm_controller = Rc::new(RefCell::new(PID::new(240.0, 1.0, 2000.0, 4.0, true)));
+        let pid_arm_controller = Rc::new(RefCell::new(PID::new(2.0, 0.01, 10.0, 2.0, true)));
         let rotation_arm_state_machine = Rc::new(RefCell::new(RotationSensor::new(
             peripherals.port_17,
             Direction::Forward,
@@ -144,13 +150,35 @@ impl Robot {
             1.0,
             pid_arm_controller,
         )));
+        let intake_motors = Rc::new(RefCell::new(MotorGroup::new(vec![Motor::new(
+            peripherals.port_2,
+            Gearset::Blue,
+            Direction::Reverse,
+        )])));
+        let optical_sorter = Rc::new(RefCell::new(OpticalSensor::new(peripherals.port_14)));
+        let intake = Rc::new(Mutex::new(Intake::new(
+            intake_motors,
+            Some(optical_sorter),
+            None,
+            alliance_color.clone(),
+            Some(alloc::boxed::Box::new(|| true)),
+            Some(Duration::from_millis(20)),
+            Some(Duration::from_millis(20)),
+        )));
 
         chassis.calibrate().await;
-        intake_arm.lock().await.init(intake_arm.clone()).await;
+        {
+            intake_arm.lock().await.init(intake_arm.clone()).await;
+        }
+        {
+            intake.lock().await.init(intake.clone()).await
+        }
         Self {
+            alliance_color,
             controller: peripherals.primary_controller,
             chassis,
             intake_arm,
+            intake,
         }
     }
 }
@@ -166,8 +194,12 @@ impl Compete for Robot {
                 let state = self.controller.state().unwrap_or_default();
                 self.chassis
                     .arcade(state.left_stick.y(), state.right_stick.x(), true, 0.5);
+                // Put in scopes to free mutexes.
                 {
-                    self.intake_arm.lock().await.opcontrol(&state);
+                    self.intake_arm.lock().await.driver(&state);
+                }
+                {
+                    self.intake.lock().await.driver(&state);
                 }
             }
             time::sleep(Duration::from_millis(20)).await;

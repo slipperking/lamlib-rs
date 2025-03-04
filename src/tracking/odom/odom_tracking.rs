@@ -9,6 +9,7 @@ use vexide::{
 
 use super::odom_wheels::OdomWheel;
 use crate::{
+    avg_valid,
     particle_flter::{sensors::ParticleFilterSensor, ParticleFilter},
     tracking::abstract_tracking::Tracking,
 };
@@ -91,21 +92,6 @@ pub struct OdomTracking {
     prev_imu_angles: Vec<Option<f64>>,
     prev_horizontal_distances: Vec<Option<f64>>,
     prev_vertical_distances: Vec<Option<f64>>,
-}
-
-macro_rules! avg_valid {
-    ($vec:expr) => {{
-        let (sum, count) = $vec
-            .iter()
-            .filter_map(|&x| x)
-            .fold((0.0, 0), |(sum, count), x| (sum + x, count + 1));
-
-        if count > 0 {
-            sum / count as f64
-        } else {
-            0.0
-        }
-    }};
 }
 
 impl OdomTracking {
@@ -303,22 +289,24 @@ impl OdomTracking {
         let local_delta_vertical_distance: f64;
 
         if delta_angle == 0.0 {
-            local_delta_horizontal_distance = avg_valid!(delta_horizontal_distances);
-            local_delta_vertical_distance = avg_valid!(delta_vertical_distances);
+            local_delta_horizontal_distance = avg_valid!(delta_horizontal_distances).unwrap_or(0.0);
+            local_delta_vertical_distance = avg_valid!(delta_vertical_distances).unwrap_or(0.0);
         } else {
             local_delta_horizontal_distance = avg_valid!(delta_horizontal_distances
                 .iter()
                 .zip(self.sensors.horizontals.iter())
                 .map(|(&d, sensor)| d
                     .map(|d| 2.0 * (delta_angle / 2.0).sin() * (d / delta_angle - sensor.offset())))
-                .collect::<Vec<Option<f64>>>());
+                .collect::<Vec<Option<f64>>>())
+            .unwrap_or(0.0);
 
             local_delta_vertical_distance = avg_valid!(delta_vertical_distances
                 .iter()
                 .zip(self.sensors.verticals.iter())
                 .map(|(&d, sensor)| d
                     .map(|d| 2.0 * (delta_angle / 2.0).sin() * (d / delta_angle - sensor.offset())))
-                .collect::<Vec<Option<f64>>>());
+                .collect::<Vec<Option<f64>>>())
+            .unwrap_or(0.0);
         }
         let cos_value: f64 = avg_angle.cos();
         let sin_value: f64 = avg_angle.sin();
@@ -372,7 +360,7 @@ impl Tracking for OdomTracking {
             .iter()
             .for_each(|tracking_wheel| tracking_wheel.init());
         for imu in &self.sensors.imus {
-            let imu_lock_value = &mut imu.inertial.lock().await;
+            let mut imu_lock_value = imu.inertial.lock().await;
             let set_rotation_result = imu_lock_value.set_rotation(0.0);
             match set_rotation_result {
                 Ok(_) => {}
