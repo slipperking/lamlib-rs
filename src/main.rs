@@ -27,7 +27,10 @@ use motions::{
 };
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
 use particle_flter::{
-    sensors::{distance::LiDAR, ParticleFilterSensor},
+    sensors::{
+        distance::{LiDAR, LiDARPrecomputedData},
+        ParticleFilterSensor,
+    },
     ParticleFilter,
 };
 use subsystems::{arm_state_machine::ArmStateMachine, intake::Intake};
@@ -75,10 +78,11 @@ impl Robot {
         ));
 
         let sensor_position_noise = Matrix2::from_diagonal(&Vector2::<f32>::new(0.15, 0.15));
-        let mcl_lidar_0 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_6)));
-        let mcl_lidar_pi_2 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_11)));
-        let mcl_lidar_pi = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_12)));
-        let mcl_lidar_3_pi_2 = Rc::new(RefCell::new(DistanceSensor::new(peripherals.port_8)));
+        let mcl_lidar_0 = Rc::new(DistanceSensor::new(peripherals.port_6));
+        let mcl_lidar_pi_2 = Rc::new(DistanceSensor::new(peripherals.port_11));
+        let mcl_lidar_pi = Rc::new(DistanceSensor::new(peripherals.port_12));
+        let mcl_lidar_3_pi_2 = Rc::new(DistanceSensor::new(peripherals.port_8));
+        let lidar_group_precompute_data = Rc::new(RefCell::new(LiDARPrecomputedData::new()));
         let particle_filter_sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>> =
             Rc::new(vec![
                 Rc::new(RefCell::new(LiDAR::new(
@@ -87,6 +91,7 @@ impl Robot {
                     3.0,
                     7.0,
                     mcl_lidar_0,
+                    lidar_group_precompute_data.clone(),
                 ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
                 Rc::new(RefCell::new(LiDAR::new(
                     Vector3::<f32>::new(1.0, 1.0, FRAC_PI_2),
@@ -94,6 +99,7 @@ impl Robot {
                     3.0,
                     7.0,
                     mcl_lidar_pi_2,
+                    lidar_group_precompute_data.clone(),
                 ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
                 Rc::new(RefCell::new(LiDAR::new(
                     Vector3::<f32>::new(1.0, 1.0, PI),
@@ -101,6 +107,7 @@ impl Robot {
                     3.0,
                     7.0,
                     mcl_lidar_pi,
+                    lidar_group_precompute_data.clone(),
                 ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
                 Rc::new(RefCell::new(LiDAR::new(
                     Vector3::<f32>::new(1.0, 1.0, 3.0 * FRAC_PI_2),
@@ -108,6 +115,7 @@ impl Robot {
                     3.0,
                     7.0,
                     mcl_lidar_3_pi_2,
+                    lidar_group_precompute_data.clone(),
                 ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
             ]);
 

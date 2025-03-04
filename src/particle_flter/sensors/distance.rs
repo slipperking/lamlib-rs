@@ -9,8 +9,25 @@ use crate::utils::{
     math::lerp,
     samplers::{multivariate_gaussian_sampler::GaussianSampler, AbstractSampler},
 };
+
+pub struct LiDARPrecomputedData {
+    precomputed: bool,
+    precomputed_robot_cosines_rotated: RowDVector<f32>,
+    precomputed_robot_sines_rotated: RowDVector<f32>,
+}
+
+impl LiDARPrecomputedData {
+    pub fn new() -> Self {
+        Self {
+            precomputed: false,
+            precomputed_robot_cosines_rotated: RowDVector::zeros(0),
+            precomputed_robot_sines_rotated: RowDVector::zeros(0),
+        }
+    }
+}
+
 pub struct LiDAR {
-    distance_sensor: Rc<RefCell<DistanceSensor>>,
+    distance_sensor: Rc<DistanceSensor>,
     /// Offset: the vector from the tracking center to the sensor position.
     /// Offset where (+, 0) refers to the right side and (0, +) refers to the front.
     /// Angle (z) is independent of (x, y).
@@ -23,9 +40,7 @@ pub struct LiDAR {
     sensor_unit_vectors: Matrix2xX<f32>,
     transformed_sensor_offsets: Matrix2xX<f32>,
     global_angles: DVector<f32>,
-    precomputed: bool,
-    robot_cosines_rotated: RowDVector<f32>,
-    robot_sines_rotated: RowDVector<f32>,
+    precompute_data: Rc<RefCell<LiDARPrecomputedData>>,
 }
 impl LiDAR {
     pub fn new(
@@ -33,7 +48,8 @@ impl LiDAR {
         sensor_noise_covar_matrix: Matrix2<f32>,
         min_std_dev: f32,
         max_std_dev: f32,
-        distance_sensor: Rc<RefCell<DistanceSensor>>,
+        distance_sensor: Rc<DistanceSensor>,
+        precompute_data: Rc<RefCell<LiDARPrecomputedData>>,
     ) -> Self {
         let sampler = GaussianSampler::new(Vector2::zeros(), sensor_noise_covar_matrix);
 
@@ -46,9 +62,7 @@ impl LiDAR {
             sensor_unit_vectors: Matrix2xX::zeros(2),
             transformed_sensor_offsets: Matrix2xX::zeros(0),
             global_angles: DVector::zeros(1),
-            precomputed: false,
-            robot_cosines_rotated: RowDVector::zeros(0),
-            robot_sines_rotated: RowDVector::zeros(0),
+            precompute_data,
         }
     }
 }
@@ -56,19 +70,20 @@ impl LiDAR {
 // #[async_trait::async_trait(?Send)]
 impl ParticleFilterSensor<3> for LiDAR {
     fn precompute(&mut self, positions: &Matrix3xX<f32>) {
-        if !self.precomputed {
-            self.robot_cosines_rotated = positions.row(2).map(|x| x.sin());
-            self.robot_sines_rotated = positions.row(2).map(|x| -x.cos());
-            self.precomputed = true;
+        let mut precompute_data = self.precompute_data.borrow_mut();
+        if !precompute_data.precomputed {
+            precompute_data.precomputed_robot_cosines_rotated = positions.row(2).map(|x| x.sin());
+            precompute_data.precomputed_robot_sines_rotated = positions.row(2).map(|x| -x.cos());
+            precompute_data.precomputed = true;
         }
     }
 
     fn cleanup_precomputed(&mut self) {
-        self.precomputed = false;
+        self.precompute_data.borrow_mut().precomputed = false;
     }
 
     fn update(&mut self, positions: &Matrix3xX<f32>, weights: &mut DVector<f32>) {
-        let detected_object = self.distance_sensor.borrow().object().unwrap_or_default();
+        let detected_object = self.distance_sensor.object().unwrap_or_default();
 
         if let Some(detected_distance_mm) = detected_object.as_ref().map(|object| object.distance) {
             let robot_thetas = positions.row(2).transpose();
@@ -82,19 +97,21 @@ impl ParticleFilterSensor<3> for LiDAR {
 
             let mut sampler = self.sampler.borrow_mut();
             self.transformed_sensor_offsets = sampler.sample_batch(positions.ncols());
-
+            let precompute_data = self.precompute_data.borrow();
             self.transformed_sensor_offsets.row_mut(0).add_scalar_mut(
-                self.robot_cosines_rotated
+                precompute_data
+                    .precomputed_robot_cosines_rotated
                     .dot(&self.sensor_offset.fixed_rows::<1>(0))
-                    - self
-                        .robot_sines_rotated
+                    - precompute_data
+                        .precomputed_robot_sines_rotated
                         .dot(&self.sensor_offset.fixed_rows::<1>(1)),
             );
             self.transformed_sensor_offsets.row_mut(1).add_scalar_mut(
-                self.robot_sines_rotated
+                precompute_data
+                    .precomputed_robot_sines_rotated
                     .dot(&self.sensor_offset.fixed_rows::<1>(0))
-                    + self
-                        .robot_cosines_rotated
+                    + precompute_data
+                        .precomputed_robot_cosines_rotated
                         .dot(&self.sensor_offset.fixed_rows::<1>(1)),
             );
 
