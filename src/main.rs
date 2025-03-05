@@ -164,10 +164,11 @@ impl Robot {
             Direction::Reverse,
         )])));
         let optical_sorter = Rc::new(RefCell::new(OpticalSensor::new(peripherals.port_14)));
+        let distance_sorter = Rc::new(DistanceSensor::new(peripherals.port_21));
         let intake = Rc::new(Mutex::new(Intake::new(
             intake_motors,
             Some(optical_sorter),
-            None,
+            Some(distance_sorter),
             alliance_color.clone(),
             Some(alloc::boxed::Box::new(|| true)),
             Some(Duration::from_millis(20)),

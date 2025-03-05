@@ -303,13 +303,19 @@ impl OdomTracking {
             local_delta_vertical_distance = avg_valid!(delta_vertical_distances
                 .iter()
                 .zip(self.sensors.verticals.iter())
-                .map(|(&d, sensor)| d
-                    .map(|d| 2.0 * (delta_angle / 2.0).sin() * (d / delta_angle - sensor.offset())))
+                .map(|(&d, sensor)| d.map(|d| 2.0
+                    * (delta_angle / 2.0).sin()
+                    * (d / delta_angle /* This is the radius of the arc */ - sensor.offset())))
                 .collect::<Vec<Option<f64>>>())
             .unwrap_or(0.0);
         }
         let cos_value: f64 = avg_angle.cos();
         let sin_value: f64 = avg_angle.sin();
+
+        // x=ucos(θ-90) - vsin(θ-90)
+        // y=usin(θ-90) + vcos(θ-90)
+        // x=usin(theta) + vcos(theta)
+        // y=-ucos(theta) + vsin(theta)
 
         // At 0 degrees (facing right): (vertical, -horizontal)
         // At 90 degrees (facing up): (horizontal, vertical)

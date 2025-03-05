@@ -31,7 +31,7 @@ pub struct Intake {
     alliance_color: Rc<RefCell<AllianceColor>>,
 
     /// If available, for color sorting.
-    optical: Option<Rc<RefCell<vexide::prelude::OpticalSensor>>>,
+    optical_sensor: Option<Rc<RefCell<vexide::prelude::OpticalSensor>>>,
     optical_color_history: VecDeque<(Option<AllianceColor>, Instant)>,
     optical_sort_delay: Option<Duration>,
 
@@ -40,7 +40,7 @@ pub struct Intake {
 
     /// If available, distance is used for color sorting.
     /// Optical sensor stores last color, while distance is for ring detection.
-    distance: Option<Rc<RefCell<vexide::prelude::DistanceSensor>>>,
+    distance_sensor: Option<Rc<vexide::prelude::DistanceSensor>>,
     distance_stored_color: AllianceColor,
     distance_color_history: VecDeque<(Option<AllianceColor>, Instant)>,
     distance_sort_delay: Option<Duration>,
@@ -65,8 +65,8 @@ pub struct Intake {
 impl Intake {
     pub fn new(
         motor_group: Rc<RefCell<MotorGroup>>,
-        optical: Option<Rc<RefCell<vexide::prelude::OpticalSensor>>>,
-        distance: Option<Rc<RefCell<vexide::prelude::DistanceSensor>>>,
+        optical_sensor: Option<Rc<RefCell<vexide::prelude::OpticalSensor>>>,
+        distance_sensor: Option<Rc<vexide::prelude::DistanceSensor>>,
         alliance_color: Rc<RefCell<AllianceColor>>,
         additional_anti_jam_criterion: Option<alloc::boxed::Box<dyn Fn() -> bool>>,
 
@@ -76,8 +76,8 @@ impl Intake {
     ) -> Self {
         Self {
             motor_group,
-            optical,
-            distance,
+            optical_sensor,
+            distance_sensor,
             voltage: 0.0,
             previous_intake_voltage: 0.0,
             last_sort_time: None,
@@ -131,7 +131,7 @@ impl Intake {
     fn optical_color(&mut self) -> Option<AllianceColor> {
         // TODO: Optical Callbacks
 
-        if let Some(optical) = &self.optical {
+        if let Some(optical) = &self.optical_sensor {
             let optical = optical.borrow();
             let hue = optical.hue();
             let proximity = optical.proximity();
@@ -195,8 +195,8 @@ impl Intake {
     fn distance_color(&mut self) -> Option<AllianceColor> {
         let color = self.optical_color();
         if let Some(color) = color {
-            if let Some(distance) = &self.distance {
-                let distance = distance.borrow();
+            if let Some(distance) = &self.distance_sensor {
+                let distance = distance;
                 if color != AllianceColor::None {
                     self.distance_stored_color = color;
                 }
@@ -241,7 +241,7 @@ impl Intake {
     }
 
     fn update(&mut self) {
-        // Precedence as follows:
+        // Sorting precedence as follows:
         // If a distance exists, call the delayed distance color.
         // It should return None if there was an error (such as no optical).
         // If None, take the optical color delayed.
@@ -361,7 +361,7 @@ impl Intake {
         }
     }
     pub async fn init(&mut self, async_self_rc: Rc<Mutex<Self>>) {
-        if let Some(optical) = &self.optical {
+        if let Some(optical) = &self.optical_sensor {
             let mut optical = optical.borrow_mut();
             let _ = optical.set_integration_time(Duration::from_millis(10));
             let _ = optical.set_led_brightness(0.75);
