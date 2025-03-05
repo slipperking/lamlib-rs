@@ -26,6 +26,12 @@ impl LiDARPrecomputedData {
     }
 }
 
+impl Default for LiDARPrecomputedData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct LiDAR {
     distance_sensor: Rc<DistanceSensor>,
     /// Offset: the vector from the tracking center to the sensor position.

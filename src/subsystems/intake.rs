@@ -139,27 +139,24 @@ impl Intake {
                 if let Ok(proximity) = proximity {
                     if proximity < 90.0 {
                         return {
-                            let optical_callback = self.optical_callback.borrow_mut();
+                            let optical_callback = self.optical_callback.get_mut();
                             if (optical_callback)(AllianceColor::None) {
-                                mem::drop(optical_callback);
                                 self.optical_callback = default_optical_callback!();
                             };
                             Some(AllianceColor::None)
                         };
                     } else if !(20.0..340.0).contains(&hue) {
                         return {
-                            let optical_callback = self.optical_callback.borrow_mut();
+                            let optical_callback = self.optical_callback.get_mut();
                             if (optical_callback)(AllianceColor::Red) {
-                                mem::drop(optical_callback);
                                 self.optical_callback = default_optical_callback!();
                             };
                             Some(AllianceColor::Red)
                         };
                     } else if (180.0..220.0).contains(&hue) {
                         return {
-                            let optical_callback = self.optical_callback.borrow_mut();
+                            let optical_callback = self.optical_callback.get_mut();
                             if (optical_callback)(AllianceColor::Blue) {
-                                mem::drop(optical_callback);
                                 self.optical_callback = default_optical_callback!();
                             };
                             Some(AllianceColor::Blue)
