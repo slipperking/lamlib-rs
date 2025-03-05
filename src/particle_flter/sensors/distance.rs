@@ -1,7 +1,7 @@
 use alloc::rc::Rc;
 use core::{cell::RefCell, f32::consts::PI};
 
-use nalgebra::{DVector, Matrix1xX, Matrix2, Matrix2xX, Matrix3xX, RowDVector, Vector2, Vector3};
+use nalgebra::{Matrix1xX, Matrix2, Matrix2xX, Matrix3xX, RowDVector, Vector2, Vector3};
 use vexide::prelude::{DistanceSensor, Float};
 
 use super::ParticleFilterSensor;
@@ -45,7 +45,7 @@ pub struct LiDAR {
     sampler: Rc<RefCell<GaussianSampler<2, 5000>>>,
     sensor_unit_vectors: Matrix2xX<f32>,
     transformed_sensor_offsets: Matrix2xX<f32>,
-    global_angles: DVector<f32>,
+    global_angles: RowDVector<f32>,
     precompute_data: Rc<RefCell<LiDARPrecomputedData>>,
 
     /// The amount to scale the LiDAR reading by. 
@@ -73,7 +73,7 @@ impl LiDAR {
             sampler: Rc::new(RefCell::new(sampler)),
             sensor_unit_vectors: Matrix2xX::zeros(2),
             transformed_sensor_offsets: Matrix2xX::zeros(0),
-            global_angles: DVector::zeros(1),
+            global_angles: RowDVector::zeros(1),
             precompute_data,
             scalar: scalar.unwrap_or(1.0),
         }
@@ -95,13 +95,12 @@ impl ParticleFilterSensor<3> for LiDAR {
         self.precompute_data.borrow_mut().precomputed = false;
     }
 
-    fn update(&mut self, positions: &Matrix3xX<f32>, weights: &mut DVector<f32>) {
-        let detected_object = self.distance_sensor.object().unwrap_or_default();
+    fn update(&mut self, positions: &Matrix3xX<f32>, weights: &mut RowDVector<f32>) {
+        let detected_object = self.distance_sensor.object().unwrap_or(None);
 
         if let Some(detected_distance_mm) = detected_object.as_ref().map(|object| object.distance) {
             let detected_distance_mm = detected_distance_mm as f32 * self.scalar;
-            let robot_thetas = positions.row(2).transpose();
-            self.global_angles = robot_thetas.map(|x| x + self.sensor_offset[2]);
+            self.global_angles = positions.row(2).map(|x| x + self.sensor_offset[2]);
             self.sensor_unit_vectors
                 .row_mut(0)
                 .copy_from(&self.global_angles.map(|x| x.cos()));
@@ -192,7 +191,7 @@ impl ParticleFilterSensor<3> for LiDAR {
                 0.5
             };
 
-            *weights *= normal_pdf_row_vector(&errors, 0.0, final_std_dev).transpose();
+            *weights *= normal_pdf_row_vector(&errors, 0.0, final_std_dev);
         }
     }
 }

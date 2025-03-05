@@ -6,7 +6,7 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
-use nalgebra::{DVector, Matrix, Matrix2xX, Matrix3, Matrix3xX, Vector3};
+use nalgebra::{Matrix, Matrix2xX, Matrix3, Matrix3xX, RowDVector, Vector3};
 use rand::{
     distr::{Distribution, Uniform},
     Rng,
@@ -21,7 +21,7 @@ pub struct ParticleFilter {
     estimate_position: Rc<Mutex<Vector3<f32>>>,
     positions: Rc<Mutex<Matrix3xX<f32>>>,
     new_positions: Rc<Mutex<Matrix3xX<f32>>>,
-    weights: Rc<Mutex<DVector<f32>>>,
+    weights: Rc<Mutex<RowDVector<f32>>>,
     sampler: Rc<Mutex<GaussianSampler<3, 20000>>>,
     particle_count: usize,
     generator: Rc<Mutex<SystemRng>>,
@@ -31,7 +31,7 @@ impl ParticleFilter {
     pub fn new(particle_count: usize, covariance_matrix: Matrix3<f32>) -> Self {
         let positions = Matrix3xX::from_element(particle_count, 0.0);
         let new_positions = Matrix3xX::from_element(particle_count, 0.0);
-        let weights = DVector::from_element(particle_count, 1.0 / particle_count as f32);
+        let weights = RowDVector::from_element(particle_count, 1.0 / particle_count as f32);
         let sampler = GaussianSampler::new(Vector3::zeros(), covariance_matrix);
 
         ParticleFilter {
@@ -133,7 +133,7 @@ impl ParticleFilter {
         let weights = self.weights.lock().await;
         let mut estimate_position = self.estimate_position.lock().await;
 
-        *estimate_position = positions.deref() * weights.deref();
+        *estimate_position = positions.deref() * weights.deref().transpose();
     }
 
     pub async fn scatter_particles(&self, center: &Vector3<f32>, distance: f32) {

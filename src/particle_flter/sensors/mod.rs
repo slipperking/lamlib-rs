@@ -1,4 +1,4 @@
-use nalgebra::{Const, DVector, Dyn, Matrix, VecStorage};
+use nalgebra::{Const, Dyn, Matrix, RowDVector, VecStorage};
 
 pub mod distance;
 
@@ -12,6 +12,6 @@ pub trait ParticleFilterSensor<const T: usize> {
     fn update(
         &mut self,
         positions: &Matrix<f32, Const<T>, Dyn, VecStorage<f32, Const<T>, Dyn>>,
-        weights: &mut DVector<f32>,
+        weights: &mut RowDVector<f32>,
     );
 }
