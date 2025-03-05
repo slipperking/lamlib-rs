@@ -24,16 +24,6 @@ impl Drivetrain {
     }
 }
 
-pub enum TurnTarget {
-    Point(Vector2<f64>),
-    Heading(f64),
-}
-
-pub enum MoveTarget {
-    Point(Vector2<f64>),
-    Pose(Vector3<f64>),
-}
-
 pub struct Chassis<T: Tracking> {
     drivetrain: Rc<Drivetrain>,
     tracking: Rc<Mutex<T>>,
@@ -69,7 +59,6 @@ impl<T: Tracking> Chassis<T> {
     pub async fn pose(&self, radians: bool) -> Vector3<f64> {
         let mut tracking_lock = self.tracking.lock().await;
         let mut pose = tracking_lock.position();
-        core::mem::drop(tracking_lock);
         if !radians {
             pose.z = pose.z.to_degrees()
         };
@@ -89,14 +78,14 @@ impl<T: Tracking> Chassis<T> {
             throttle = self.throttle_curve.update(throttle, Motor::V5_MAX_VOLTAGE);
             steer = self.steer_curve.update(steer, Motor::V5_MAX_VOLTAGE);
         }
-        if throttle.abs() + steer.abs() > 12.0 {
+        if throttle.abs() + steer.abs() > Motor::V5_MAX_VOLTAGE {
             let original_throttle = throttle;
             let original_steer = steer;
             throttle *= 1.0
                 - throttle_over_steer_prioritization
                     * (original_steer / Motor::V5_MAX_VOLTAGE).abs();
             steer *=
-                1.0 - (1.0 - throttle_over_steer_prioritization) * (original_throttle / 12.0).abs();
+                1.0 - (1.0 - throttle_over_steer_prioritization) * (original_throttle / Motor::V5_MAX_VOLTAGE).abs();
 
             if steer.abs() + throttle.abs() == Motor::V5_MAX_VOLTAGE {
                 if throttle_over_steer_prioritization < 0.5 {

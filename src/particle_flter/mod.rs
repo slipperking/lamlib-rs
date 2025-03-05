@@ -20,11 +20,11 @@ pub struct ParticleFilter {
     enabled: bool,
     estimate_position: Rc<Mutex<Vector3<f32>>>,
     positions: Rc<Mutex<Matrix3xX<f32>>>,
-    new_positions: Rc<Mutex<Matrix3xX<f32>>>,
+    new_positions: RefCell<Matrix3xX<f32>>,
     weights: Rc<Mutex<RowDVector<f32>>>,
-    sampler: Rc<Mutex<GaussianSampler<3, 20000>>>,
+    sampler: RefCell<GaussianSampler<3, 20000>>,
     particle_count: usize,
-    generator: Rc<Mutex<SystemRng>>,
+    generator: Rc<RefCell<SystemRng>>,
 }
 
 impl ParticleFilter {
@@ -38,11 +38,11 @@ impl ParticleFilter {
             enabled: false,
             estimate_position: Rc::new(Mutex::new(Vector3::zeros())),
             positions: Rc::new(Mutex::new(positions)),
-            new_positions: Rc::new(Mutex::new(new_positions)),
+            new_positions: RefCell::new(new_positions),
             weights: Rc::new(Mutex::new(weights)),
-            sampler: Rc::new(Mutex::new(sampler)),
+            sampler: RefCell::new(sampler),
             particle_count,
-            generator: Rc::new(Mutex::new(SystemRng::new())),
+            generator: Rc::new(RefCell::new(SystemRng::new())),
         }
     }
 
@@ -61,7 +61,7 @@ impl ParticleFilter {
 
     pub async fn predict(&self, delta_odometry: &Vector3<f32>) {
         let mut positions = self.positions.lock().await;
-        let noise = { self.sampler.lock().await.sample_batch(self.particle_count) };
+        let noise = { self.sampler.borrow_mut().sample_batch(self.particle_count) };
 
         *positions += *delta_odometry;
         *positions += noise;
@@ -88,9 +88,7 @@ impl ParticleFilter {
 
     pub async fn resample(&self) {
         let mut positions = self.positions.lock().await;
-        let mut new_positions = self.new_positions.lock().await;
         let mut weights = self.weights.lock().await;
-        let mut rng = self.generator.lock().await;
 
         let sum = weights.iter().map(|&w| w * w).sum::<f32>();
         if sum <= 0.0 {
@@ -110,8 +108,10 @@ impl ParticleFilter {
 
         let step = 1.0 / self.particle_count as f32;
         let dist = Uniform::new(0.0, step).expect("Failed to create uniform distribution.");
+        let mut rng = self.generator.borrow_mut();
         let offset = dist.sample(&mut *rng);
 
+        let mut new_positions = self.new_positions.borrow_mut();
         for i in 0..self.particle_count {
             let target = offset + i as f32 * step;
             let idx = partial_sums
@@ -137,7 +137,7 @@ impl ParticleFilter {
 
     pub async fn scatter_particles(&self, center: &Vector3<f32>, distance: f32) {
         let noise = {
-            let mut rng = self.generator.lock().await;
+            let mut rng = self.generator.borrow_mut();
             Matrix2xX::from_fn(self.particle_count, |_, _| {
                 rng.random_range(-distance..distance)
             })

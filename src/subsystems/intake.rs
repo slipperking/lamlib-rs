@@ -376,10 +376,13 @@ impl Intake {
                     }
                     vexide::async_runtime::time::sleep({
                         let mut duration = Instant::elapsed(&start_time).as_secs_f64() * 1000.0;
-                        if duration > 10.0 {
+                        if duration > Motor::WRITE_INTERVAL.as_secs_f64() * 1000.0 {
                             duration = 0.0;
                         }
-                        Duration::from_millis((10.0 - duration) as u64)
+                        Duration::from_millis(
+                            (Motor::WRITE_INTERVAL.as_secs_f64() * 1000.0 - duration * 1000.0)
+                                as u64,
+                        )
                     })
                     .await;
                 }

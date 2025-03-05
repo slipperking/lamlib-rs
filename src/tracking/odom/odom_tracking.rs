@@ -4,7 +4,7 @@ use core::{cell::RefCell, time::Duration};
 use nalgebra::Vector3;
 use vexide::{
     core::{sync::Mutex, time::Instant},
-    prelude::{Float, InertialSensor, Task},
+    prelude::{Float, InertialSensor, Motor, Task},
 };
 
 use super::odom_wheels::OdomWheel;
@@ -385,7 +385,7 @@ impl Tracking for OdomTracking {
         self.task = Some(vexide::async_runtime::spawn({
             let async_self_rc = async_self_rc.clone();
             async move {
-                vexide::async_runtime::time::sleep(Duration::from_millis(10)).await;
+                vexide::async_runtime::time::sleep(Motor::WRITE_INTERVAL).await;
                 loop {
                     let start_time = Instant::now();
                     {
@@ -409,11 +409,13 @@ impl Tracking for OdomTracking {
                         }
                     }
                     vexide::async_runtime::time::sleep({
-                        let mut duration = Instant::elapsed(&start_time).as_millis();
-                        if duration > 10 {
-                            duration = 0;
+                        let mut duration = Instant::elapsed(&start_time).as_secs_f64() * 1000.0;
+                        if duration > Motor::WRITE_INTERVAL.as_secs_f64() * 1000.0 {
+                            duration = 0.0;
                         }
-                        Duration::from_millis((10 - duration) as u64)
+                        Duration::from_millis(
+                            (Motor::WRITE_INTERVAL.as_secs_f64() * 1000.0 - duration) as u64,
+                        )
                     })
                     .await;
                 }

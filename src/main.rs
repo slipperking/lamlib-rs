@@ -6,7 +6,7 @@ extern crate approx;
 extern crate nalgebra;
 pub mod controllers;
 pub mod devices;
-pub mod motions;
+pub mod differential;
 pub mod particle_flter;
 pub mod subsystems;
 pub mod tracking;
@@ -21,7 +21,7 @@ use core::{
 
 use controllers::pid::PID;
 use devices::motor_group::MotorGroup;
-use motions::{
+use differential::{
     chassis::{Chassis, Drivetrain},
     drive_curve::ExponentialDriveCurve,
 };
