@@ -43,7 +43,9 @@ use vexide::{
     prelude::*,
 };
 struct Robot {
+    #[allow(dead_code)]
     alliance_color: Rc<RefCell<AllianceColor>>,
+    #[warn(dead_code)]
     controller: Controller,
     chassis: Chassis<OdomTracking>,
     intake_arm: Rc<Mutex<ArmStateMachine>>,
@@ -92,6 +94,7 @@ impl Robot {
                     7.0,
                     mcl_lidar_0,
                     lidar_group_precompute_data.clone(),
+                    None,
                 ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
                 Rc::new(RefCell::new(LiDAR::new(
                     Vector3::<f32>::new(1.0, 1.0, FRAC_PI_2),
@@ -100,6 +103,7 @@ impl Robot {
                     7.0,
                     mcl_lidar_pi_2,
                     lidar_group_precompute_data.clone(),
+                    None,
                 ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
                 Rc::new(RefCell::new(LiDAR::new(
                     Vector3::<f32>::new(1.0, 1.0, PI),
@@ -108,6 +112,7 @@ impl Robot {
                     7.0,
                     mcl_lidar_pi,
                     lidar_group_precompute_data.clone(),
+                    None,
                 ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
                 Rc::new(RefCell::new(LiDAR::new(
                     Vector3::<f32>::new(1.0, 1.0, 3.0 * FRAC_PI_2),
@@ -116,6 +121,7 @@ impl Robot {
                     7.0,
                     mcl_lidar_3_pi_2,
                     lidar_group_precompute_data.clone(),
+                    None,
                 ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
             ]);
 

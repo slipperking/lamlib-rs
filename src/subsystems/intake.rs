@@ -196,7 +196,6 @@ impl Intake {
         let color = self.optical_color();
         if let Some(color) = color {
             if let Some(distance) = &self.distance_sensor {
-                let distance = distance;
                 if color != AllianceColor::None {
                     self.distance_stored_color = color;
                 }

@@ -12,16 +12,16 @@ use crate::utils::{
 
 pub struct LiDARPrecomputedData {
     precomputed: bool,
-    precomputed_robot_cosines_rotated: RowDVector<f32>,
-    precomputed_robot_sines_rotated: RowDVector<f32>,
+    transformed_heading_cosines: RowDVector<f32>,
+    transformed_heading_sines: RowDVector<f32>,
 }
 
 impl LiDARPrecomputedData {
     pub fn new() -> Self {
         Self {
             precomputed: false,
-            precomputed_robot_cosines_rotated: RowDVector::zeros(0),
-            precomputed_robot_sines_rotated: RowDVector::zeros(0),
+            transformed_heading_cosines: RowDVector::zeros(0),
+            transformed_heading_sines: RowDVector::zeros(0),
         }
     }
 }
@@ -47,6 +47,11 @@ pub struct LiDAR {
     transformed_sensor_offsets: Matrix2xX<f32>,
     global_angles: DVector<f32>,
     precompute_data: Rc<RefCell<LiDARPrecomputedData>>,
+
+    /// The amount to scale the LiDAR reading by. 
+    /// This is in case your mounting is not perfectly straight,
+    /// and this is the cosine value of the angular offset.
+    scalar: f32,
 }
 impl LiDAR {
     pub fn new(
@@ -56,6 +61,7 @@ impl LiDAR {
         max_std_dev: f32,
         distance_sensor: Rc<DistanceSensor>,
         precompute_data: Rc<RefCell<LiDARPrecomputedData>>,
+        scalar: Option<f32>,
     ) -> Self {
         let sampler = GaussianSampler::new(Vector2::zeros(), sensor_noise_covar_matrix);
 
@@ -69,6 +75,7 @@ impl LiDAR {
             transformed_sensor_offsets: Matrix2xX::zeros(0),
             global_angles: DVector::zeros(1),
             precompute_data,
+            scalar: scalar.unwrap_or(1.0),
         }
     }
 }
@@ -78,8 +85,8 @@ impl ParticleFilterSensor<3> for LiDAR {
     fn precompute(&mut self, positions: &Matrix3xX<f32>) {
         let mut precompute_data = self.precompute_data.borrow_mut();
         if !precompute_data.precomputed {
-            precompute_data.precomputed_robot_cosines_rotated = positions.row(2).map(|x| x.sin());
-            precompute_data.precomputed_robot_sines_rotated = positions.row(2).map(|x| -x.cos());
+            precompute_data.transformed_heading_cosines = positions.row(2).map(|x| x.sin());
+            precompute_data.transformed_heading_sines = positions.row(2).map(|x| -x.cos());
             precompute_data.precomputed = true;
         }
     }
@@ -92,6 +99,7 @@ impl ParticleFilterSensor<3> for LiDAR {
         let detected_object = self.distance_sensor.object().unwrap_or_default();
 
         if let Some(detected_distance_mm) = detected_object.as_ref().map(|object| object.distance) {
+            let detected_distance_mm = detected_distance_mm as f32 * self.scalar;
             let robot_thetas = positions.row(2).transpose();
             self.global_angles = robot_thetas.map(|x| x + self.sensor_offset[2]);
             self.sensor_unit_vectors
@@ -106,18 +114,18 @@ impl ParticleFilterSensor<3> for LiDAR {
             let precompute_data = self.precompute_data.borrow();
             self.transformed_sensor_offsets.row_mut(0).add_scalar_mut(
                 precompute_data
-                    .precomputed_robot_cosines_rotated
+                    .transformed_heading_cosines
                     .dot(&self.sensor_offset.fixed_rows::<1>(0))
                     - precompute_data
-                        .precomputed_robot_sines_rotated
+                        .transformed_heading_sines
                         .dot(&self.sensor_offset.fixed_rows::<1>(1)),
             );
             self.transformed_sensor_offsets.row_mut(1).add_scalar_mut(
                 precompute_data
-                    .precomputed_robot_sines_rotated
+                    .transformed_heading_sines
                     .dot(&self.sensor_offset.fixed_rows::<1>(0))
                     + precompute_data
-                        .precomputed_robot_cosines_rotated
+                        .transformed_heading_cosines
                         .dot(&self.sensor_offset.fixed_rows::<1>(1)),
             );
 
@@ -169,9 +177,9 @@ impl ParticleFilterSensor<3> for LiDAR {
                     |a, b| a.min(b),
                 );
 
-            let detected_distance = detected_distance_mm as f32 * 0.03937008;
+            let detected_distance = detected_distance_mm * 0.03937008;
             let errors = shortest.map(|distance| distance - detected_distance);
-            let final_std_dev = if detected_distance_mm > 200 {
+            let final_std_dev = if detected_distance_mm > 200.0 {
                 lerp!(
                     self.max_std_dev,
                     self.min_std_dev,
