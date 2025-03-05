@@ -1,5 +1,5 @@
 use alloc::{boxed::Box, collections::VecDeque, rc::Rc, vec::Vec};
-use core::{cell::RefCell, mem, time::Duration};
+use core::{cell::RefCell, time::Duration};
 
 use vexide::{
     core::{sync::Mutex, time::Instant},
