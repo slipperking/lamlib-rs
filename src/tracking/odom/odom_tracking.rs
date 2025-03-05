@@ -125,8 +125,8 @@ impl OdomTracking {
         for (i, imu) in self.sensors.imus.iter().enumerate() {
             let imu_lock = imu.inertial.lock().await;
             let rotation = match (imu_lock.rotation(), &self.prev_imu_angles[i]) {
-                (Ok(rotation), _) => Some(-rotation * imu.scalar),
-                (Err(_), Some(rotation)) => Some(*rotation),
+                (Ok(rotation), _) => Some(-rotation.to_radians() * imu.scalar),
+                (Err(_), Some(rotation)) => Some(rotation.to_radians()),
                 (Err(_), None) => None,
             };
             imu_angles.push(rotation);

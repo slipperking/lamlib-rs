@@ -77,7 +77,6 @@ impl ParticleFilter {
                 sensor_mut.precompute(&positions);
                 sensor_mut.update(&positions, &mut weights);
             }
-            core::mem::drop(positions);
 
             for sensor in sensors.iter() {
                 let mut sensor_mut = sensor.borrow_mut();
