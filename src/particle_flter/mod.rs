@@ -3,7 +3,7 @@ use alloc::{rc::Rc, vec::Vec};
 use core::{
     cell::RefCell,
     f32::{self},
-    ops::{Deref, DerefMut},
+    ops::{AddAssign, Deref, DerefMut},
 };
 
 use nalgebra::{Matrix, Matrix2xX, Matrix3, Matrix3xX, RowDVector, Vector3};
@@ -13,12 +13,12 @@ use rand::{
 };
 use sensors::ParticleFilterSensor;
 use veranda::SystemRng;
-use vexide::core::sync::Mutex;
+use vexide::sync::Mutex;
 
 use crate::utils::samplers::{multivariate_gaussian_sampler::GaussianSampler, AbstractSampler};
 pub struct ParticleFilter {
     enabled: bool,
-    estimate_position: Rc<Mutex<Vector3<f32>>>,
+    estimate_position: Rc<RefCell<Vector3<f32>>>,
     positions: Rc<Mutex<Matrix3xX<f32>>>,
     new_positions: RefCell<Matrix3xX<f32>>,
     weights: Rc<Mutex<RowDVector<f32>>>,
@@ -36,7 +36,7 @@ impl ParticleFilter {
 
         ParticleFilter {
             enabled: false,
-            estimate_position: Rc::new(Mutex::new(Vector3::zeros())),
+            estimate_position: Rc::new(RefCell::new(Vector3::zeros())),
             positions: Rc::new(Mutex::new(positions)),
             new_positions: RefCell::new(new_positions),
             weights: Rc::new(Mutex::new(weights)),
@@ -130,7 +130,7 @@ impl ParticleFilter {
     pub async fn calculate_mean(&self) {
         let positions = self.positions.lock().await;
         let weights = self.weights.lock().await;
-        let mut estimate_position = self.estimate_position.lock().await;
+        let mut estimate_position = self.estimate_position.borrow_mut();
 
         *estimate_position = positions.deref() * weights.deref().transpose();
     }
@@ -148,8 +148,7 @@ impl ParticleFilter {
         for i in 0..positions.ncols() {
             positions.set_column(i, center);
         }
-
-        positions.fixed_view_mut::<2, 1>(0, 0).copy_from(&noise);
+        positions.fixed_rows_mut::<2>(0).add_assign(&noise);
         core::mem::drop(positions);
         let mut weights = self.weights.lock().await;
         Matrix::fill(weights.deref_mut(), 1.0 / self.particle_count as f32);
@@ -171,7 +170,7 @@ impl ParticleFilter {
             self.update(sensors.clone()).await;
             self.resample().await;
             self.calculate_mean().await;
-            Some(*self.estimate_position.lock().await)
+            Some(*self.estimate_position.borrow())
         } else {
             None
         }

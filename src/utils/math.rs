@@ -1,6 +1,5 @@
 use core::f32::consts as f32_consts;
-
-use vexide::core::float::Float;
+use vexide::float::Float;
 
 pub enum AngularDirection {
     CW,

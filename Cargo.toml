@@ -13,11 +13,14 @@ icon = "cool-x"
 compress = true
 
 [dependencies]
-vexide = "0.6.1"
-nalgebra = { version = "0.33.2", default-features = false, features = ["libm", "alloc"] }
-approx = "0.5.1"
-veranda = "0.1.4"
+vexide = "0.7.0"
+async-trait = { version = "0.1.87", default-features = false }
+nalgebra = { version = "0.33.2", default-features = false, features = [
+    "libm",
+    "alloc",
+] }
+approx = { version = "0.5.1", default-features = false }
 rand = { version = "0.9.0", default-features = false }
 num-traits = { version = "0.2.19", default-features = false }
-async-trait = { version = "0.1.86", default-features = false }
 num = { version = "0.4.3", default-features = false }
+veranda = "0.1.5"

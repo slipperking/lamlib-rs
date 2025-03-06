@@ -2,7 +2,7 @@ use core::ops::AddAssign;
 
 use num::FromPrimitive;
 use num_traits::Float;
-use vexide::core::time::Instant;
+use vexide::time::Instant;
 
 use super::ControllerMethod;
 pub struct PID<T: Float + FromPrimitive + AddAssign> {

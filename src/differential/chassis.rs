@@ -1,8 +1,8 @@
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
-use nalgebra::{Vector2, Vector3};
-use vexide::{core::sync::Mutex, prelude::Motor};
+use nalgebra::Vector3;
+use vexide::{prelude::Motor, sync::Mutex};
 
 use super::drive_curve::ExponentialDriveCurve;
 use crate::{devices::motor_group::MotorGroup, tracking::abstract_tracking::Tracking};
@@ -84,8 +84,9 @@ impl<T: Tracking> Chassis<T> {
             throttle *= 1.0
                 - throttle_over_steer_prioritization
                     * (original_steer / Motor::V5_MAX_VOLTAGE).abs();
-            steer *=
-                1.0 - (1.0 - throttle_over_steer_prioritization) * (original_throttle / Motor::V5_MAX_VOLTAGE).abs();
+            steer *= 1.0
+                - (1.0 - throttle_over_steer_prioritization)
+                    * (original_throttle / Motor::V5_MAX_VOLTAGE).abs();
 
             if steer.abs() + throttle.abs() == Motor::V5_MAX_VOLTAGE {
                 if throttle_over_steer_prioritization < 0.5 {

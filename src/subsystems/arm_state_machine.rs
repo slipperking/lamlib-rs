@@ -2,9 +2,11 @@ use alloc::{collections::BTreeMap, rc::Rc, vec, vec::Vec};
 use core::{cell::RefCell, time::Duration};
 
 use vexide::{
-    core::{print, sync::Mutex, time::Instant},
     devices::controller::ControllerState,
+    io::print,
     prelude::{BrakeMode, Motor, MotorControl, Position, RotationSensor, Task},
+    sync::Mutex,
+    time::Instant,
 };
 
 use crate::{controllers::ControllerMethod, devices::motor_group::MotorGroup};
@@ -133,6 +135,9 @@ impl ArmStateMachine {
     }
     pub fn set_state(&mut self, state: ArmState) {
         self.state = state;
+    }
+    pub fn state(&self) -> ArmState {
+        self.state
     }
     pub fn next_arm_state(&self, current_state: ArmState, button: ArmButtonCycle) -> ArmState {
         if let Some((default, state_cycle)) = self.cycle_orders.get(&button) {
@@ -263,22 +268,22 @@ impl ArmStateMachine {
     }
     pub async fn init(&mut self, async_self_rc: Rc<Mutex<Self>>) {
         self.reset_all();
-        self.task = Some(vexide::async_runtime::spawn({
+        self.task = Some(vexide::task::spawn({
             let async_self_rc = async_self_rc.clone();
             async move {
-                vexide::async_runtime::time::sleep(Motor::WRITE_INTERVAL).await;
+                vexide::time::sleep(Motor::WRITE_INTERVAL).await;
                 loop {
                     let start_time = Instant::now();
                     {
                         async_self_rc.lock().await.update();
                     }
-                    vexide::async_runtime::time::sleep({
+                    vexide::time::sleep({
                         let mut duration = Instant::elapsed(&start_time).as_secs_f64() * 1000.0;
-                        if duration > Motor::WRITE_INTERVAL.as_secs_f64() * 1000.0 {
+                        if duration > Motor::WRITE_INTERVAL.as_secs_f64() * 2000.0 {
                             duration = 0.0;
                         }
                         Duration::from_millis(
-                            (Motor::WRITE_INTERVAL.as_secs_f64() * 1000.0 - duration) as u64,
+                            (Motor::WRITE_INTERVAL.as_secs_f64() * 2000.0 - duration) as u64,
                         )
                     })
                     .await;

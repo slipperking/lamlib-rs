@@ -1,7 +1,7 @@
 use alloc::{boxed::Box, rc::Rc};
 
 use nalgebra::Vector3;
-use vexide::core::sync::Mutex;
+use vexide::sync::Mutex;
 
 #[async_trait::async_trait(?Send)]
 pub trait Tracking {

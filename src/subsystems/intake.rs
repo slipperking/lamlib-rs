@@ -1,9 +1,10 @@
 use alloc::{boxed::Box, collections::VecDeque, rc::Rc, vec::Vec};
-use core::{cell::RefCell, time::Duration};
+use core::{cell::RefCell, future::Future, pin::Pin, time::Duration};
 
 use vexide::{
-    core::{sync::Mutex, time::Instant},
     prelude::{BrakeMode, Motor, MotorControl, Task},
+    sync::Mutex,
+    time::Instant,
 };
 
 use crate::{avg_valid, devices::motor_group::MotorGroup, utils::AllianceColor};
@@ -24,6 +25,7 @@ macro_rules! default_optical_callback {
 }
 pub use default_optical_callback;
 
+#[allow(clippy::type_complexity)]
 pub struct Intake {
     /// Intake motors.
     motor_group: Rc<RefCell<MotorGroup>>,
@@ -57,18 +59,19 @@ pub struct Intake {
 
     jam_start_time: Option<Instant>,
     jam_detected: bool,
-    additional_anti_jam_criterion: Option<Box<dyn Fn() -> bool>>,
+    additional_anti_jam_criterion: Option<Box<dyn Fn() -> Pin<Box<dyn Future<Output = bool>>>>>,
 
     task: Option<Task<()>>,
 }
 
+#[allow(clippy::type_complexity)]
 impl Intake {
     pub fn new(
         motor_group: Rc<RefCell<MotorGroup>>,
         optical_sensor: Option<Rc<RefCell<vexide::prelude::OpticalSensor>>>,
         distance_sensor: Option<Rc<vexide::prelude::DistanceSensor>>,
         alliance_color: Rc<RefCell<AllianceColor>>,
-        additional_anti_jam_criterion: Option<alloc::boxed::Box<dyn Fn() -> bool>>,
+        additional_anti_jam_criterion: Option<Box<dyn Fn() -> Pin<Box<dyn Future<Output = bool>>>>>,
 
         // This value is not used if distance is available.
         optical_sort_delay: Option<Duration>,
@@ -114,7 +117,7 @@ impl Intake {
     /// Adds braking for 0.0 voltage.
     fn spin_at_voltage(&self, motor_group: &mut MotorGroup, voltage: f64) {
         if voltage == 0.0 {
-            motor_group.set_target_all(MotorControl::Brake(BrakeMode::Hold));
+            motor_group.set_target_all(MotorControl::Brake(BrakeMode::Coast));
         } else {
             motor_group.set_voltage_all_for_types(
                 voltage,
@@ -239,7 +242,12 @@ impl Intake {
             .map_or(color, |(c, _)| *c)
     }
 
-    fn update(&mut self) {
+    async fn update(&mut self) {
+        let additional_anti_jam_result: bool = match &self.additional_anti_jam_criterion {
+            Some(closure) => closure().await,
+            None => true,
+        };
+
         // Sorting precedence as follows:
         // If a distance exists, call the delayed distance color.
         // It should return None if there was an error (such as no optical).
@@ -274,10 +282,7 @@ impl Intake {
                         .collect::<Vec<_>>())
                     .unwrap_or(0.0)
                         * 0.1
-                    && match &self.additional_anti_jam_criterion {
-                        Some(closure) => closure(),
-                        None => true,
-                    }
+                    && additional_anti_jam_result
                     || self.jam_detected
                 {
                     const MIN_ANTI_JAM_REVERSE_TIME: f64 = 180.0;
@@ -365,22 +370,22 @@ impl Intake {
             let _ = optical.set_integration_time(Duration::from_millis(10));
             let _ = optical.set_led_brightness(0.75);
         }
-        self.task = Some(vexide::async_runtime::spawn({
+        self.task = Some(vexide::task::spawn({
             let async_self_rc = async_self_rc.clone();
             async move {
-                vexide::async_runtime::time::sleep(Duration::from_millis(10)).await;
+                vexide::time::sleep(Motor::WRITE_INTERVAL).await;
                 loop {
                     let start_time = Instant::now();
                     {
-                        async_self_rc.lock().await.update();
+                        async_self_rc.lock().await.update().await;
                     }
-                    vexide::async_runtime::time::sleep({
+                    vexide::time::sleep({
                         let mut duration = Instant::elapsed(&start_time).as_secs_f64() * 1000.0;
-                        if duration > Motor::WRITE_INTERVAL.as_secs_f64() * 1000.0 {
+                        if duration > Motor::WRITE_INTERVAL.as_secs_f64() * 2000.0 {
                             duration = 0.0;
                         }
                         Duration::from_millis(
-                            (Motor::WRITE_INTERVAL.as_secs_f64() * 1000.0 - duration * 1000.0)
+                            (Motor::WRITE_INTERVAL.as_secs_f64() * 2000.0 - duration * 1000.0)
                                 as u64,
                         )
                     })

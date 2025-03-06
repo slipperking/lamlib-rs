@@ -21,6 +21,7 @@ use core::{
 
 use controllers::pid::PID;
 use devices::motor_group::MotorGroup;
+//use vexide_motorgroup::MotorGroup;
 use differential::{
     chassis::{Chassis, Drivetrain},
     drive_curve::ExponentialDriveCurve,
@@ -36,12 +37,7 @@ use particle_flter::{
 use subsystems::{arm_state_machine::ArmStateMachine, intake::Intake};
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use utils::AllianceColor;
-use vexide::{
-    async_runtime::time,
-    core::{sync::Mutex, time::Instant},
-    devices::smart::*,
-    prelude::*,
-};
+use vexide::{prelude::*, sync::Mutex, time, time::Instant};
 struct Robot {
     #[allow(dead_code)]
     alliance_color: Rc<RefCell<AllianceColor>>,
@@ -148,7 +144,7 @@ impl Robot {
             ExponentialDriveCurve::new(0.5, 1.0, 1.01),
         );
 
-        let pid_arm_controller = Rc::new(RefCell::new(PID::new(2.0, 0.01, 10.0, 2.0, true)));
+        let pid_arm_controller = Rc::new(RefCell::new(PID::new(0.18, 0.0, 0.0, 2.0, true)));
         let rotation_arm_state_machine = Rc::new(RefCell::new(RotationSensor::new(
             peripherals.port_17,
             Direction::Forward,
@@ -169,14 +165,20 @@ impl Robot {
             Gearset::Blue,
             Direction::Reverse,
         )])));
-        let optical_sorter = Rc::new(RefCell::new(OpticalSensor::new(peripherals.port_14)));
+        let optical_sorter = Rc::new(RefCell::new(OpticalSensor::new(peripherals.port_15)));
         let distance_sorter = Rc::new(DistanceSensor::new(peripherals.port_21));
+        let intake_arm_clone = intake_arm.clone();
         let intake = Rc::new(Mutex::new(Intake::new(
             intake_motors,
             Some(optical_sorter),
             Some(distance_sorter),
             alliance_color.clone(),
-            Some(alloc::boxed::Box::new(|| true)),
+            Some(alloc::boxed::Box::new(move || {
+                let intake_arm = intake_arm_clone.clone();
+                alloc::boxed::Box::pin(async move {
+                    intake_arm.lock().await.state() != subsystems::arm_state_machine::ArmState::Load
+                })
+            })),
             Some(Duration::from_millis(20)),
             Some(Duration::from_millis(20)),
         )));
