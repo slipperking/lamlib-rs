@@ -2,7 +2,7 @@ use alloc::{boxed::Box, collections::VecDeque, rc::Rc, vec::Vec};
 use core::{cell::RefCell, future::Future, pin::Pin, time::Duration};
 
 use vexide::{
-    prelude::{BrakeMode, Motor, MotorControl, Task},
+    prelude::{BrakeMode, Motor, MotorControl, SmartDevice, Task},
     sync::Mutex,
     time::Instant,
 };
@@ -156,7 +156,7 @@ impl Intake {
                             };
                             Some(AllianceColor::Red)
                         };
-                    } else if (180.0..220.0).contains(&hue) {
+                    } else if (190.0..230.0).contains(&hue) {
                         return {
                             let optical_callback = self.optical_callback.get_mut();
                             if (optical_callback)(AllianceColor::Blue) {
@@ -373,7 +373,7 @@ impl Intake {
         self.task = Some(vexide::task::spawn({
             let async_self_rc = async_self_rc.clone();
             async move {
-                vexide::time::sleep(Motor::WRITE_INTERVAL).await;
+                vexide::time::sleep(Motor::UPDATE_INTERVAL).await;
                 loop {
                     let start_time = Instant::now();
                     {
@@ -381,11 +381,11 @@ impl Intake {
                     }
                     vexide::time::sleep({
                         let mut duration = Instant::elapsed(&start_time).as_secs_f64() * 1000.0;
-                        if duration > Motor::WRITE_INTERVAL.as_secs_f64() * 2000.0 {
+                        if duration > Motor::UPDATE_INTERVAL.as_secs_f64() * 1000.0 {
                             duration = 0.0;
                         }
                         Duration::from_millis(
-                            (Motor::WRITE_INTERVAL.as_secs_f64() * 2000.0 - duration * 1000.0)
+                            (Motor::UPDATE_INTERVAL.as_secs_f64() * 1000.0 - duration * 1000.0)
                                 as u64,
                         )
                     })

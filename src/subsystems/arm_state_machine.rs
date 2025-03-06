@@ -3,8 +3,7 @@ use core::{cell::RefCell, time::Duration};
 
 use vexide::{
     devices::controller::ControllerState,
-    io::print,
-    prelude::{BrakeMode, Motor, MotorControl, Position, RotationSensor, Task},
+    prelude::{BrakeMode, Motor, MotorControl, Position, RotationSensor, SmartDevice, Task},
     sync::Mutex,
     time::Instant,
 };
@@ -209,7 +208,6 @@ impl ArmStateMachine {
                         .borrow_mut()
                         .update(error)
                         .clamp(-max_speed, max_speed);
-                    print!("{controller_output} ");
                     self.motor_group.borrow_mut().set_voltage_all_for_types(
                         controller_output,
                         controller_output * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
@@ -271,7 +269,7 @@ impl ArmStateMachine {
         self.task = Some(vexide::task::spawn({
             let async_self_rc = async_self_rc.clone();
             async move {
-                vexide::time::sleep(Motor::WRITE_INTERVAL).await;
+                vexide::time::sleep(Motor::UPDATE_INTERVAL).await;
                 loop {
                     let start_time = Instant::now();
                     {
@@ -279,11 +277,11 @@ impl ArmStateMachine {
                     }
                     vexide::time::sleep({
                         let mut duration = Instant::elapsed(&start_time).as_secs_f64() * 1000.0;
-                        if duration > Motor::WRITE_INTERVAL.as_secs_f64() * 2000.0 {
+                        if duration > Motor::UPDATE_INTERVAL.as_secs_f64() * 1000.0 {
                             duration = 0.0;
                         }
                         Duration::from_millis(
-                            (Motor::WRITE_INTERVAL.as_secs_f64() * 2000.0 - duration) as u64,
+                            (Motor::UPDATE_INTERVAL.as_secs_f64() * 1000.0 - duration) as u64,
                         )
                     })
                     .await;
