@@ -48,7 +48,7 @@ impl<T: Tracking> Chassis<T> {
         self.tracking.lock().await.init(self.tracking.clone()).await;
     }
 
-    pub async fn set_pose(&mut self, mut position: Vector3<f64>, radians: bool) {
+    pub async fn set_pose(&self, mut position: Vector3<f64>, radians: bool) {
         position.z = if radians {
             position.z
         } else {

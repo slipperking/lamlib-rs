@@ -188,9 +188,12 @@ impl Robot {
         {
             intake.lock().await.init(intake.clone()).await
         }
+        chassis.set_pose(Vector3::new(0.0, 0.0, 0.0), true).await;
+        let mut controller = peripherals.primary_controller;
+        let _ = controller.rumble("._.").await;
         Self {
             alliance_color,
-            controller: peripherals.primary_controller,
+            controller,
             chassis,
             intake_arm,
             intake,
