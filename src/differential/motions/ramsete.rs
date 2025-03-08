@@ -1,2 +1,7 @@
 use super::super::chassis::Chassis;
-use crate::tracking::abstract_tracking::Tracking;
+
+pub struct RamseteConstants {
+    pub b: f64,
+    pub zeta: f64,
+    
+}

@@ -12,7 +12,7 @@ pub mod subsystems;
 pub mod tracking;
 pub mod utils;
 
-use alloc::{rc::Rc, vec, vec::Vec};
+use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use core::{
     cell::RefCell,
     f32::consts::{FRAC_PI_2, PI},
@@ -23,8 +23,9 @@ use controllers::pid::PID;
 use devices::motor_group::MotorGroup;
 //use vexide_motorgroup::MotorGroup;
 use differential::{
-    chassis::{Chassis, Drivetrain},
+    chassis::{Chassis, Drivetrain, MotionSettings},
     drive_curve::ExponentialDriveCurve,
+    motions::MotionHandler,
 };
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
 use particle_flter::{
@@ -137,11 +138,16 @@ impl Robot {
             Motor::new(peripherals.port_3, Gearset::Blue, Direction::Forward),
         ])));
         let drivetrain = Rc::new(Drivetrain::new(left_motors, right_motors));
+        let motion_settings = MotionSettings::new(
+            Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)),
+            Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)),
+        );
         let chassis = Chassis::new(
             drivetrain.clone(),
             tracking,
             ExponentialDriveCurve::new(0.5, 1.0, 1.01),
             ExponentialDriveCurve::new(0.5, 1.0, 1.01),
+            motion_settings,
         );
 
         let pid_arm_controller = Rc::new(RefCell::new(PID::new(0.18, 0.0, 0.0, 2.0, true)));

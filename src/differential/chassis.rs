@@ -1,11 +1,11 @@
-use alloc::rc::Rc;
-use core::cell::RefCell;
+use alloc::{boxed::Box, rc::Rc};
+use core::{cell::RefCell, time::Duration};
 
 use nalgebra::Vector3;
 use vexide::{prelude::Motor, sync::Mutex};
 
-use super::drive_curve::ExponentialDriveCurve;
-use crate::{devices::motor_group::MotorGroup, tracking::abstract_tracking::Tracking};
+use super::{drive_curve::ExponentialDriveCurve, motions::MotionHandler};
+use crate::{controllers::ControllerMethod, devices::motor_group::MotorGroup, tracking::*};
 
 pub struct Drivetrain {
     left_motors: Rc<RefCell<MotorGroup>>,
@@ -24,28 +24,73 @@ impl Drivetrain {
     }
 }
 
-pub struct Chassis<T: Tracking> {
-    drivetrain: Rc<Drivetrain>,
-    tracking: Rc<Mutex<T>>,
-    throttle_curve: ExponentialDriveCurve,
-    steer_curve: ExponentialDriveCurve,
+pub struct MotionSettings {
+    pub lateral_pid: Box<dyn ControllerMethod<f64>>,
+    pub angular_pid: Box<dyn ControllerMethod<f64>>,
 }
+
+impl MotionSettings {
+    pub fn new(
+        lateral_pid: Box<dyn ControllerMethod<f64>>,
+        angular_pid: Box<dyn ControllerMethod<f64>>,
+    ) -> Self {
+        Self {
+            lateral_pid,
+            angular_pid,
+        }
+    }
+}
+
+pub struct Chassis<T: Tracking> {
+    pub(super) drivetrain: Rc<Drivetrain>,
+    pub(super) tracking: Rc<Mutex<T>>,
+    pub(super) throttle_curve: ExponentialDriveCurve,
+    pub(super) steer_curve: ExponentialDriveCurve,
+    pub(super) motion_handler: MotionHandler,
+    pub(super) motion_settings: RefCell<MotionSettings>,
+    pub(super) distance_traveled: Option<f64>,
+}
+
 impl<T: Tracking> Chassis<T> {
     pub fn new(
         drivetrain: Rc<Drivetrain>,
         tracking: Rc<Mutex<T>>,
         throttle_curve: ExponentialDriveCurve,
         steer_curve: ExponentialDriveCurve,
+        motion_settings: MotionSettings,
     ) -> Self {
         Self {
             drivetrain,
             tracking,
             throttle_curve,
             steer_curve,
+            motion_handler: MotionHandler::new(),
+            distance_traveled: None,
+            motion_settings: RefCell::new(motion_settings),
         }
     }
     pub async fn calibrate(&self) {
         self.tracking.lock().await.init(self.tracking.clone()).await;
+    }
+
+    pub async fn wait_until(&self, distance: f64) {
+        loop {
+            vexide::time::sleep(Duration::from_millis(10)).await;
+            if match self.distance_traveled {
+                Some(distance_traveled) => distance_traveled >= distance,
+                None => true,
+            } {
+                break;
+            }
+        }
+    }
+    pub async fn wait_until_complete(&self) {
+        loop {
+            vexide::time::sleep(Duration::from_millis(10)).await;
+            if self.distance_traveled.is_none() {
+                break;
+            }
+        }
     }
 
     pub async fn set_pose(&self, mut position: Vector3<f64>, radians: bool) {

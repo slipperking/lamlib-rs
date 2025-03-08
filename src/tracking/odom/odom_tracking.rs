@@ -12,7 +12,7 @@ use super::odom_wheels::OdomWheel;
 use crate::{
     avg_valid,
     particle_flter::{sensors::ParticleFilterSensor, ParticleFilter},
-    tracking::abstract_tracking::Tracking,
+    tracking::*,
 };
 pub struct OdomInertial {
     /// A mutex containing the inertial sensor.
