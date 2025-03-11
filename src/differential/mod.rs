@@ -20,9 +20,10 @@ pub mod pose {
             orientation => $orientation:expr;
             $(standard => $standard:expr;)?
         ) => {
+            #[allow(unused_assignments)]
             {
-                let standard = true;
-                $(let standard = $standard;)?
+                let mut standard = true;
+                $(standard = $standard;)?
 
                 differential::pose::Pose::new(
                     $x,
@@ -44,10 +45,11 @@ pub mod pose {
             orientation => $orientation:expr;
             $(standard => $standard:expr;)?
         ) => {
+            #[allow(unused_assignments)]
             {
                 let orientation = ($orientation as f64).to_radians();
-                let standard = true;
-                $(let standard = $standard;)?
+                let mut standard = true;
+                $(standard = $standard;)?
 
                 differential::pose::Pose::new(
                     $x,
