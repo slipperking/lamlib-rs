@@ -1,12 +1,12 @@
 use alloc::rc::Rc;
 use core::{f64::consts::PI, time::Duration};
 
-use vexide::prelude::Float;
+use vexide::prelude::{BrakeMode, Float, Motor};
 
 use crate::{
     differential::{chassis::Chassis, pose::Pose},
     tracking::Tracking,
-    utils::math::{angle_error, AngularDirection},
+    utils::math::{angle_error, arcade_desaturate, delta_clamp, AngularDirection},
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -15,7 +15,11 @@ pub struct BoomerangParameters {
     pub lead: f64,
     pub min_lateral_speed: f64,
     pub max_lateral_speed: f64,
+    pub max_angular_speed: f64,
     pub early_exit_range: f64,
+    pub lateral_slew: Option<f64>,
+    pub angular_slew: Option<f64>,
+    pub horizontal_drift_compensation: Option<f64>,
 }
 
 #[macro_export]
@@ -25,23 +29,43 @@ macro_rules! boomerang {
         $(lead => $lead:expr;)?
         $(min_lateral_speed => $min_lateral_speed:expr;)?
         $(max_lateral_speed => $max_lateral_speed:expr;)?
+        $(max_angular_speed => $max_angular_speed:expr;)?
         $(early_exit_range => $early_exit_range:expr;)?
+        $(lateral_slew => $lateral_slew:expr;)?
+        $(angular_slew => $angular_slew:expr;)?
+        $(horizontal_drift_compensation => $horizontal_drift_compensation:expr;)?
     ) => {
+        #[allow(unused_mut)]
         {
-            let forwards = true;
-            let lead = 0.6;
-            let min_lateral_speed = 0.0;
-            let max_lateral_speed = 12.0;
-            let early_exit_range = 0.0;
+            let mut forwards = true;
+            let mut lead = 0.6;
+            let mut min_lateral_speed = 0.0;
+            let mut max_lateral_speed = 1.0;
+            let mut max_angular_speed = 1.0;
+            let mut early_exit_range = 0.0;
+            let mut lateral_slew = None;
+            let mut angular_slew = None;
+            let mut horizontal_drift_compensation = None;
 
             $(forwards = $forwards;)?
             $(lead = $lead;)?
             $(min_lateral_speed = $min_lateral_speed;)?
             $(max_lateral_speed = $max_lateral_speed;)?
             $(early_exit_range = $early_exit_range;)?
+            $(lateral_slew = $lateral_slew;)?
+            $(angular_slew = $angular_slew;)?
+            $(horizontal_drift_compensation = $horizontal_drift_compensation;)?
 
             BoomerangParameters {
-                forwards, lead, min_lateral_speed, max_lateral_speed, early_exit_range
+                forwards,
+                lead,
+                min_lateral_speed,
+                max_lateral_speed,
+                max_angular_speed,
+                early_exit_range,
+                lateral_slew,
+                angular_slew,
+                horizontal_drift_compensation
             }
         }
     }
@@ -52,7 +76,7 @@ impl<T: Tracking + 'static> Chassis<T> {
     /// Consider boomerang to be lateral; distance traveled, etc. will be distance in inches.
     pub async fn boomerang(
         self: Rc<Self>,
-        mut boomerang_target: Pose,
+        boomerang_target: Pose,
         timeout: Option<Duration>,
         params: Option<BoomerangParameters>,
         run_async: bool,
@@ -86,7 +110,6 @@ impl<T: Tracking + 'static> Chassis<T> {
             *self.distance_traveled.borrow_mut() = Some(0.0);
         }
         let mut is_near = false;
-        let mut is_lateral_settled = false;
         let mut previous_was_same_side = false;
         let mut previous_lateral_output: f64 = 0.0;
         let mut previous_angular_output: f64 = 0.0;
@@ -101,7 +124,7 @@ impl<T: Tracking + 'static> Chassis<T> {
             previous_pose = pose;
             if distance_to_target < 7.5 && !is_near {
                 is_near = true;
-                unwrapped_params.max_lateral_speed = previous_lateral_output.max(6.0);
+                unwrapped_params.max_lateral_speed = previous_lateral_output.max(0.5);
             }
             let robot_vectors_normalized = nalgebra::Vector2::<f64>::new(
                 boomerang_target.orientation.cos(),
@@ -132,9 +155,9 @@ impl<T: Tracking + 'static> Chassis<T> {
             };
             let angular_error = {
                 let adjusted_orientation = if unwrapped_params.forwards {
-                    pose.orientation + PI
-                } else {
                     pose.orientation
+                } else {
+                    pose.orientation + PI
                 };
                 if is_near {
                     angle_error(
@@ -173,8 +196,133 @@ impl<T: Tracking + 'static> Chassis<T> {
                     break;
                 }
             }
+            {
+                let is_robot_side: bool = (pose.position.y - boomerang_target.position.y)
+                    * -boomerang_target.orientation.sin()
+                    <= (pose.position.x - boomerang_target.position.x)
+                        * boomerang_target.orientation.cos()
+                        + unwrapped_params.early_exit_range;
+                let is_carrot_side: bool = (carrot_point.y - boomerang_target.position.y)
+                    * -boomerang_target.orientation.sin()
+                    <= (carrot_point.x - boomerang_target.position.x)
+                        * boomerang_target.orientation.cos()
+                        + unwrapped_params.early_exit_range;
+                let is_same_side: bool = is_robot_side == is_carrot_side;
+
+                if !is_same_side
+                    && previous_was_same_side
+                    && is_near
+                    && unwrapped_params.min_lateral_speed != 0.0
+                {
+                    break;
+                }
+                previous_was_same_side = is_same_side;
+            }
+            let angular_output = {
+                let mut motion_settings = self.motion_settings.borrow_mut();
+                let mut raw_output = motion_settings.angular_pid.update(angular_error).clamp(
+                    -unwrapped_params.max_angular_speed,
+                    unwrapped_params.max_angular_speed,
+                );
+                raw_output = delta_clamp(
+                    raw_output,
+                    previous_angular_output,
+                    unwrapped_params
+                        .angular_slew
+                        .unwrap_or(motion_settings.angular_slew.unwrap_or(0.0)),
+                    None,
+                );
+                previous_angular_output = raw_output;
+                raw_output
+            };
+            let lateral_output = {
+                let mut motion_settings = self.motion_settings.borrow_mut();
+                let mut raw_output = motion_settings.lateral_pid.update(lateral_error).clamp(
+                    -unwrapped_params.max_lateral_speed,
+                    unwrapped_params.max_lateral_speed,
+                );
+                if !is_near {
+                    raw_output = delta_clamp(
+                        raw_output,
+                        previous_lateral_output,
+                        unwrapped_params
+                            .lateral_slew
+                            .unwrap_or(motion_settings.lateral_slew.unwrap_or(0.0)),
+                        None,
+                    )
+                }
+                // Get radius. Calculate local error to carrot.
+                let carrot_error: nalgebra::Vector2<f64> =
+                    nalgebra::Rotation2::new(-pose.orientation) * (carrot_point - pose.position);
+                let half_arc = carrot_error.y / carrot_error.x.atan().abs();
+                let radius = carrot_error.norm() / (2.0 * half_arc.sin());
+                if let Some(horizontal_drift_compensation) =
+                    unwrapped_params.horizontal_drift_compensation
+                {
+                    let anti_drift_max_speed = (horizontal_drift_compensation * radius).sqrt();
+                    raw_output = raw_output.clamp(-anti_drift_max_speed, anti_drift_max_speed);
+                }
+
+                let overturn: f64 =
+                    angular_output + raw_output.abs() - unwrapped_params.max_lateral_speed;
+                if overturn > 0.0 {
+                    raw_output -= if raw_output > 0.0 {
+                        overturn
+                    } else {
+                        -overturn
+                    };
+                }
+                // Prevent moving in the wrong direction.
+                if !unwrapped_params.forwards && !is_near {
+                    raw_output = raw_output.min(0.0);
+                } else if unwrapped_params.forwards && !is_near {
+                    raw_output = raw_output.max(0.0);
+                }
+
+                if !unwrapped_params.forwards
+                    && -raw_output < unwrapped_params.min_lateral_speed.abs()
+                    && raw_output < 0.0
+                {
+                    raw_output = -unwrapped_params.min_lateral_speed.abs();
+                } else if unwrapped_params.forwards
+                    && raw_output < unwrapped_params.min_lateral_speed.abs()
+                    && raw_output > 0.0
+                {
+                    raw_output = unwrapped_params.min_lateral_speed.abs();
+                }
+                previous_lateral_output = raw_output;
+                raw_output
+            };
+            let (left, right) = arcade_desaturate(lateral_output, angular_output);
+            {
+                self.drivetrain
+                    .left_motors
+                    .borrow_mut()
+                    .set_voltage_all_for_types(
+                        left * Motor::V5_MAX_VOLTAGE,
+                        left * Motor::EXP_MAX_VOLTAGE,
+                    );
+                self.drivetrain
+                    .right_motors
+                    .borrow_mut()
+                    .set_voltage_all_for_types(
+                        right * Motor::V5_MAX_VOLTAGE,
+                        right * Motor::EXP_MAX_VOLTAGE,
+                    );
+            }
             vexide::time::sleep(vexide::prelude::Motor::WRITE_INTERVAL).await;
         }
-        todo!();
+        {
+            self.drivetrain
+                .left_motors
+                .borrow_mut()
+                .set_target_all(vexide::prelude::MotorControl::Brake(BrakeMode::Coast));
+            self.drivetrain
+                .right_motors
+                .borrow_mut()
+                .set_target_all(vexide::prelude::MotorControl::Brake(BrakeMode::Coast));
+            *self.distance_traveled.borrow_mut() = None;
+        }
+        self.motion_handler.end_motion().await;
     }
 }

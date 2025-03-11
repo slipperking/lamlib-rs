@@ -1,4 +1,7 @@
-use core::ops::{Add, Div, Mul, Neg, Rem, Sub};
+use core::{
+    ops::{Add, Div, Mul, Neg, Rem, Sub},
+    time::Duration,
+};
 
 use num::{FromPrimitive, Zero};
 use vexide::float::Float;
@@ -73,17 +76,37 @@ pub use ilerp;
 pub use lerp;
 pub use signed_mod;
 
+fn remainder<T: Div<Output = T> + Sub<Output = T> + Float + Copy + Mul<Output = T>>(
+    a: T,
+    b: T,
+) -> T {
+    let n = (a / b).round();
+    a - b * n
+}
+
 pub fn delta_clamp<
-    T: Neg<Output = T> + Zero + Copy + PartialEq + num_traits::Float + Sub<Output = T>,
+    T: Neg<Output = T>
+        + Zero
+        + Copy
+        + PartialEq
+        + num_traits::Float
+        + Sub<Output = T>
+        + FromPrimitive
+        + Default,
 >(
-    value: T,
-    prev: T,
+    target: T,
+    current: T,
     max_delta: T,
+    delta_time: Option<Duration>,
 ) -> T {
     if max_delta == T::zero() {
-        return value;
+        return target;
     }
-    prev + (value - prev).clamp(-max_delta.abs(), max_delta.abs())
+    let delta_time = match delta_time {
+        Some(duration) => T::from_f64(duration.as_secs_f64()).unwrap_or(T::from_u8(1).unwrap()),
+        None => T::from_u8(1).unwrap(),
+    };
+    current + (target - current).clamp(-max_delta.abs() * delta_time, max_delta.abs() * delta_time)
 }
 
 pub fn sanitize_angle<T: FromPrimitive + Rem<Output = T> + Add<Output = T> + Default>(
@@ -102,13 +125,16 @@ pub fn sanitize_angle<T: FromPrimitive + Rem<Output = T> + Add<Output = T> + Def
 
 pub fn angle_error<
     T: Copy
+        + Float
         + FromPrimitive
+        + Zero
+        + PartialOrd
         + Default
         + Sub<Output = T>
         + Add<Output = T>
-        + Zero
-        + PartialOrd
-        + Rem<Output = T>,
+        + Rem<Output = T>
+        + Div<Output = T>
+        + Mul<Output = T>,
 >(
     mut target: T,
     current: T,
@@ -120,7 +146,7 @@ pub fn angle_error<
     let max: T = if radians {
         T::from_f64(core::f64::consts::TAU).unwrap_or_default()
     } else {
-        T::from_f64(360.0).unwrap_or_default()
+        T::from_u16(360).unwrap_or_default()
     };
     let raw_error: T = target - current;
     match direction {
@@ -138,8 +164,32 @@ pub fn angle_error<
                 raw_error
             }
         }
-        _ => {
-            signed_mod!(raw_error, max)
-        }
+        _ => remainder(raw_error, max),
     }
+}
+
+pub fn arcade_desaturate<
+    T: Copy
+        + Sub<Output = T>
+        + Add<Output = T>
+        + Float
+        + PartialOrd<T>
+        + Div<Output = T>
+        + FromPrimitive,
+>(
+    lateral: T,
+    angular: T,
+) -> (T, T) {
+    let left: T = lateral - angular;
+    let right: T = lateral + angular;
+    let sum = {
+        let raw_sum = lateral.abs() + angular.abs();
+        let one = T::from_u8(1).unwrap();
+        if raw_sum < one {
+            one
+        } else {
+            raw_sum
+        }
+    };
+    (left / sum, right / sum)
 }

@@ -105,10 +105,10 @@ impl Intake {
         self.voltage = voltage;
     }
     pub fn spin(&mut self) {
-        self.set_voltage(12.0);
+        self.set_voltage(1.0);
     }
     pub fn spin_reverse(&mut self) {
-        self.set_voltage(-12.0)
+        self.set_voltage(-1.0)
     }
     pub fn stop(&mut self) {
         self.voltage = 0.0;
@@ -123,8 +123,8 @@ impl Intake {
             motor_group.set_target_all(MotorControl::Brake(BrakeMode::Coast));
         } else {
             motor_group.set_voltage_all_for_types(
-                voltage,
-                voltage * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
+                voltage * Motor::V5_MAX_VOLTAGE,
+                voltage * Motor::EXP_MAX_VOLTAGE,
             );
         }
     }
@@ -324,8 +324,8 @@ impl Intake {
         {
             if !self.was_sort_on_previous_epoch {
                 motor_group.set_voltage_all_for_types(
-                    -0.1,
-                    -0.1 * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
+                    -0.05 * Motor::V5_MAX_VOLTAGE,
+                    -0.05 * Motor::EXP_MAX_VOLTAGE,
                 );
             }
             if should_sort_on_current_epoch {
