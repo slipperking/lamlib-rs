@@ -101,11 +101,14 @@ impl Intake {
             optical_callback: default_optical_callback!(),
         }
     }
-    pub fn spin(&mut self, voltage: f64) {
+    pub fn set_voltage(&mut self, voltage: f64) {
         self.voltage = voltage;
     }
-    pub fn spin_reverse(&mut self, voltage: f64) {
-        self.voltage = -voltage;
+    pub fn spin(&mut self) {
+        self.set_voltage(12.0);
+    }
+    pub fn spin_reverse(&mut self) {
+        self.set_voltage(-12.0)
     }
     pub fn stop(&mut self) {
         self.voltage = 0.0;
@@ -344,12 +347,12 @@ impl Intake {
                 self.previous_intake_button_state = IntakeButtonState::None;
             } else if self.previous_intake_button_state != IntakeButtonState::Spin {
                 self.previous_intake_button_state = IntakeButtonState::Spin;
-                self.spin(12.0);
+                self.spin();
             }
         } else if controller_state.button_r2.is_pressed() {
             if self.previous_intake_button_state != IntakeButtonState::Reverse {
                 self.previous_intake_button_state = IntakeButtonState::Reverse;
-                self.spin_reverse(12.0);
+                self.spin_reverse();
             }
         } else if self.previous_intake_button_state != IntakeButtonState::None {
             self.previous_intake_button_state = IntakeButtonState::None;

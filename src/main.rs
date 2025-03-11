@@ -7,7 +7,7 @@ extern crate nalgebra;
 pub mod controllers;
 pub mod devices;
 pub mod differential;
-pub mod particle_flter;
+pub mod particle_filter;
 pub mod subsystems;
 pub mod tracking;
 pub mod utils;
@@ -21,32 +21,45 @@ use core::{
 
 use controllers::pid::PID;
 use devices::motor_group::MotorGroup;
-//use vexide_motorgroup::MotorGroup;
 use differential::{
     chassis::{Chassis, Drivetrain, MotionSettings},
     drive_curve::ExponentialDriveCurve,
-    motions::MotionHandler,
+    motions::ExitCondition,
 };
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
-use particle_flter::{
+use particle_filter::{
     sensors::{
         distance::{LiDAR, LiDARPrecomputedData},
         ParticleFilterSensor,
     },
     ParticleFilter,
 };
-use subsystems::{arm_state_machine::ArmStateMachine, intake::Intake};
+use subsystems::{intake::Intake, ladybrown::LadyBrown, pneumatics::PneumaticWrapper};
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use utils::AllianceColor;
-use vexide::{prelude::*, sync::Mutex, time, time::Instant};
+use vexide::{
+    devices::adi::digital::LogicLevel,
+    prelude::*,
+    sync::Mutex,
+    time::{self, Instant},
+};
 struct Robot {
     #[allow(dead_code)]
     alliance_color: Rc<RefCell<AllianceColor>>,
     #[warn(dead_code)]
     controller: Controller,
     chassis: Chassis<OdomTracking>,
-    intake_arm: Rc<Mutex<ArmStateMachine>>,
+
+    ladybrown_arm: Rc<RefCell<LadyBrown>>,
+
+    /// A Mutex containing the intake wrapped within a shared pointer.
+    ///
+    /// Mutex for async closures. Anything async should use Mutex so that
+    /// borrows are not held across await points.
     intake: Rc<Mutex<Intake>>,
+    doinker_left: PneumaticWrapper,
+    doinker_right: PneumaticWrapper,
+    clamp_main: PneumaticWrapper,
 }
 impl Robot {
     async fn new(peripherals: Peripherals) -> Self {
@@ -141,12 +154,20 @@ impl Robot {
         let motion_settings = MotionSettings::new(
             Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)),
             Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)),
+            vec![
+                ExitCondition::new(1.0, Duration::from_millis(150)),
+                ExitCondition::new(3.0, Duration::from_millis(500)),
+            ],
+            vec![
+                ExitCondition::new(1.0, Duration::from_millis(150)),
+                ExitCondition::new(3.0, Duration::from_millis(500)),
+            ],
         );
         let chassis = Chassis::new(
             drivetrain.clone(),
             tracking,
-            ExponentialDriveCurve::new(0.5, 1.0, 1.01),
-            ExponentialDriveCurve::new(0.5, 1.0, 1.01),
+            ExponentialDriveCurve::new(0.1, 0.1, 1.01),
+            ExponentialDriveCurve::new(0.1, 0.1, 1.01),
             motion_settings,
         );
 
@@ -160,7 +181,7 @@ impl Robot {
             Motor::new_exp(peripherals.port_19, Direction::Reverse),
             Motor::new_exp(peripherals.port_20, Direction::Forward),
         ])));
-        let intake_arm = Rc::new(Mutex::new(ArmStateMachine::new(
+        let ladybrown_arm = Rc::new(RefCell::new(LadyBrown::new(
             arm_state_machine_motors,
             rotation_arm_state_machine.clone(),
             1.0,
@@ -173,16 +194,17 @@ impl Robot {
         )])));
         let optical_sorter = Rc::new(RefCell::new(OpticalSensor::new(peripherals.port_15)));
         let distance_sorter = Rc::new(DistanceSensor::new(peripherals.port_21));
-        let intake_arm_clone = intake_arm.clone();
+        let ladybrown_arm_clone = ladybrown_arm.clone();
         let intake = Rc::new(Mutex::new(Intake::new(
             intake_motors,
             Some(optical_sorter),
             Some(distance_sorter),
             alliance_color.clone(),
             Some(alloc::boxed::Box::new(move || {
-                let intake_arm = intake_arm_clone.clone();
+                let ladybrown_arm = ladybrown_arm_clone.clone();
                 alloc::boxed::Box::pin(async move {
-                    intake_arm.lock().await.state() != subsystems::arm_state_machine::ArmState::Load
+                    ladybrown_arm.borrow_mut().state()
+                        != subsystems::ladybrown::LadyBrownState::Load
                 })
             })),
             Some(Duration::from_millis(20)),
@@ -191,7 +213,7 @@ impl Robot {
 
         chassis.calibrate().await;
         {
-            intake_arm.lock().await.init(intake_arm.clone()).await;
+            ladybrown_arm.borrow_mut().init(ladybrown_arm.clone());
         }
         {
             intake.lock().await.init(intake.clone()).await
@@ -199,12 +221,22 @@ impl Robot {
         chassis.set_pose(Vector3::new(0.0, 0.0, 0.0), true).await;
         let mut controller = peripherals.primary_controller;
         let _ = controller.rumble("._.").await;
+
         Self {
             alliance_color,
             controller,
             chassis,
-            intake_arm,
+            ladybrown_arm,
             intake,
+            doinker_left: PneumaticWrapper::new(Rc::new(RefCell::new(AdiDigitalOut::new(
+                peripherals.adi_f,
+            )))),
+            doinker_right: PneumaticWrapper::new(Rc::new(RefCell::new(AdiDigitalOut::new(
+                peripherals.adi_g,
+            )))),
+            clamp_main: PneumaticWrapper::new(Rc::new(RefCell::new(AdiDigitalOut::new(
+                peripherals.adi_h,
+            )))),
         }
     }
 }
@@ -219,10 +251,19 @@ impl Compete for Robot {
             {
                 let state = self.controller.state().unwrap_or_default();
                 self.chassis
-                    .arcade(state.left_stick.y(), state.right_stick.x(), true, 0.5);
+                    .arcade(state.left_stick.y(), state.right_stick.x(), true);
                 // Put in scopes to free mutexes.
                 {
-                    self.intake_arm.lock().await.driver(&state);
+                    self.ladybrown_arm.borrow_mut().driver(&state);
+                    self.doinker_left.driver_toggle(state.button_b.is_pressed());
+                    self.doinker_right
+                        .driver_toggle(state.button_up.is_pressed());
+                    self.clamp_main.driver_explicit(
+                        state.button_l1.is_pressed(),
+                        state.button_l2.is_pressed(),
+                        LogicLevel::High,
+                        LogicLevel::Low,
+                    );
                 }
                 {
                     self.intake.lock().await.driver(&state);

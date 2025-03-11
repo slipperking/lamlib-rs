@@ -11,7 +11,7 @@ use vexide::{
 use super::odom_wheels::OdomWheel;
 use crate::{
     avg_valid,
-    particle_flter::{sensors::ParticleFilterSensor, ParticleFilter},
+    particle_filter::{sensors::ParticleFilterSensor, ParticleFilter},
     tracking::*,
 };
 pub struct OdomInertial {
@@ -352,8 +352,7 @@ impl Tracking for OdomTracking {
             .scatter_particles(
                 &Vector3::<f32>::new(position.x as f32, position.y as f32, position.z as f32),
                 2.0,
-            )
-            .await;
+            );
         self.tracked_pose = *position;
     }
 
@@ -397,8 +396,7 @@ impl Tracking for OdomTracking {
                             .run_filter(
                                 self_lock.delta_global_pose,
                                 self_lock.particle_filter_sensors.clone(),
-                            )
-                            .await;
+                            );
                         if let Some(position) = mcl_output {
                             self_lock
                                 .set_position_no_filter(&Vector3::new(

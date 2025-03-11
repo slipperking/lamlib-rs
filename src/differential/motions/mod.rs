@@ -1,5 +1,6 @@
 pub mod boomerang;
 pub mod ramsete;
+
 use alloc::{collections::VecDeque, rc::Rc};
 use core::{cell::RefCell, time::Duration};
 
@@ -99,5 +100,43 @@ impl MotionHandler {
 impl Default for MotionHandler {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub struct ExitCondition {
+    range: f64,
+    timeout: Duration,
+    start_time: Option<Instant>,
+    done: bool,
+}
+
+impl ExitCondition {
+    pub fn new(range: f64, timeout: Duration) -> Self {
+        Self {
+            range,
+            timeout,
+            start_time: None,
+            done: false,
+        }
+    }
+
+    pub fn exit_state(&self) -> bool {
+        self.done
+    }
+
+    pub fn update(&mut self, error: f64) {
+        if error.abs() > self.range {
+            self.start_time = None;
+        } else if let Some(start_time) = self.start_time {
+            if Instant::now() > start_time + self.timeout {
+                self.done = true;
+            }
+        } else {
+            self.start_time = Some(Instant::now());
+        }
+    }
+    pub fn reset(&mut self) {
+        self.start_time = None;
+        self.done = false;
     }
 }

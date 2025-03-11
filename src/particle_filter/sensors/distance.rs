@@ -48,7 +48,7 @@ pub struct LiDAR {
     global_angles: RowDVector<f32>,
     precompute_data: Rc<RefCell<LiDARPrecomputedData>>,
 
-    /// The amount to scale the LiDAR reading by. 
+    /// The amount to scale the LiDAR reading by.
     /// This is in case your mounting is not perfectly straight,
     /// and this is the cosine value of the angular offset.
     scalar: f32,
@@ -177,7 +177,7 @@ impl ParticleFilterSensor<3> for LiDAR {
                 );
 
             let detected_distance = detected_distance_mm * 0.03937008;
-            let errors = shortest.map(|distance| distance - detected_distance);
+            let mut errors = shortest.map(|distance| distance - detected_distance);
             let final_std_dev = if detected_distance_mm > 200.0 {
                 lerp!(
                     self.max_std_dev,
@@ -190,16 +190,18 @@ impl ParticleFilterSensor<3> for LiDAR {
             } else {
                 0.5
             };
-
-            *weights *= normal_pdf_row_vector(&errors, 0.0, final_std_dev);
+            apply_normal_pdf_row_vector(&mut errors, 0.0, final_std_dev);
+            *weights *= errors
         }
     }
 }
 
-fn normal_pdf_row_vector(errors: &Matrix1xX<f32>, mean: f32, std_dev: f32) -> Matrix1xX<f32> {
+fn apply_normal_pdf_row_vector(errors: &mut Matrix1xX<f32>, mean: f32, std_dev: f32) {
     let variance = std_dev * std_dev;
     let scale = 1.0 / (2.0 * PI * variance).sqrt();
-    errors.map(|x| scale * (-0.5 * (x - mean).powi(2) / variance).exp())
+    errors.apply(|x| {
+        *x = scale * (-0.5 * (*x - mean).powi(2) / variance).exp();
+    });
 }
 
 const FIELD_WALL: f32 = 100.0; // Example value, replace with actual field wall distance

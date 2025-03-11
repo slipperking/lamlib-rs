@@ -1,10 +1,13 @@
-use alloc::{boxed::Box, rc::Rc};
+use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::{cell::RefCell, time::Duration};
 
 use nalgebra::Vector3;
 use vexide::{prelude::Motor, sync::Mutex};
 
-use super::{drive_curve::ExponentialDriveCurve, motions::MotionHandler};
+use super::{
+    drive_curve::ExponentialDriveCurve,
+    motions::{ExitCondition, MotionHandler},
+};
 use crate::{controllers::ControllerMethod, devices::motor_group::MotorGroup, tracking::*};
 
 pub struct Drivetrain {
@@ -27,16 +30,33 @@ impl Drivetrain {
 pub struct MotionSettings {
     pub lateral_pid: Box<dyn ControllerMethod<f64>>,
     pub angular_pid: Box<dyn ControllerMethod<f64>>,
+
+    pub lateral_exit_conditions: Vec<ExitCondition>,
+    pub angular_exit_conditions: Vec<ExitCondition>,
 }
 
 impl MotionSettings {
     pub fn new(
         lateral_pid: Box<dyn ControllerMethod<f64>>,
         angular_pid: Box<dyn ControllerMethod<f64>>,
+        lateral_exit_conditions: Vec<ExitCondition>,
+        angular_exit_conditions: Vec<ExitCondition>,
     ) -> Self {
         Self {
             lateral_pid,
             angular_pid,
+            lateral_exit_conditions,
+            angular_exit_conditions,
+        }
+    }
+    pub fn reset(&mut self) {
+        self.lateral_pid.reset();
+        self.angular_pid.reset();
+        for exit_condition in self.lateral_exit_conditions.iter_mut() {
+            exit_condition.reset();
+        }
+        for exit_condition in self.angular_exit_conditions.iter_mut() {
+            exit_condition.reset();
         }
     }
 }
@@ -110,50 +130,24 @@ impl<T: Tracking> Chassis<T> {
         pose
     }
 
-    pub fn arcade(
-        &self,
-        mut throttle: f64,
-        mut steer: f64,
-        use_drive_curve: bool,
-        throttle_over_steer_prioritization: f64,
-    ) {
-        throttle *= Motor::V5_MAX_VOLTAGE;
-        steer *= Motor::V5_MAX_VOLTAGE;
-        if !use_drive_curve {
-            throttle = self.throttle_curve.update(throttle, Motor::V5_MAX_VOLTAGE);
-            steer = self.steer_curve.update(steer, Motor::V5_MAX_VOLTAGE);
-        }
-        if throttle.abs() + steer.abs() > Motor::V5_MAX_VOLTAGE {
-            let original_throttle = throttle;
-            let original_steer = steer;
-            throttle *= 1.0
-                - throttle_over_steer_prioritization
-                    * (original_steer / Motor::V5_MAX_VOLTAGE).abs();
-            steer *= 1.0
-                - (1.0 - throttle_over_steer_prioritization)
-                    * (original_throttle / Motor::V5_MAX_VOLTAGE).abs();
-
-            if steer.abs() + throttle.abs() == Motor::V5_MAX_VOLTAGE {
-                if throttle_over_steer_prioritization < 0.5 {
-                    throttle += throttle.signum();
-                } else {
-                    steer += steer.signum();
-                }
-            }
+    pub fn arcade(&self, mut throttle: f64, mut steer: f64, use_drive_curve: bool) {
+        if use_drive_curve {
+            throttle = self.throttle_curve.update(throttle, 1.0);
+            steer = self.steer_curve.update(steer, 1.0);
         }
         self.drivetrain
             .left_motors
             .borrow_mut()
             .set_voltage_all_for_types(
-                throttle + steer,
-                (throttle + steer) * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
+                (throttle + steer) * Motor::V5_MAX_VOLTAGE,
+                (throttle + steer) * Motor::EXP_MAX_VOLTAGE,
             );
         self.drivetrain
             .right_motors
             .borrow_mut()
             .set_voltage_all_for_types(
-                throttle - steer,
-                (throttle - steer) * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
+                (throttle - steer) * Motor::V5_MAX_VOLTAGE,
+                (throttle - steer) * Motor::EXP_MAX_VOLTAGE,
             );
     }
 

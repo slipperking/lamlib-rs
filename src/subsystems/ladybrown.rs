@@ -4,14 +4,13 @@ use core::{cell::RefCell, time::Duration};
 use vexide::{
     devices::controller::ControllerState,
     prelude::{BrakeMode, Motor, MotorControl, Position, RotationSensor, SmartDevice, Task},
-    sync::Mutex,
     time::Instant,
 };
 
 use crate::{controllers::ControllerMethod, devices::motor_group::MotorGroup};
 
 #[derive(PartialEq, Clone, Copy, PartialOrd, Ord, Eq)]
-pub enum ArmState {
+pub enum LadyBrownState {
     Off,
 
     /// Used to override the state machine, such as manual control.
@@ -19,7 +18,7 @@ pub enum ArmState {
 
     FreeStopHold,
 
-    /// Used to tare positions.
+    /// Used to reset positions.
     FreeTimedReset,
     Load,
     LoadUp,
@@ -39,89 +38,99 @@ pub enum ArmButtonCycle {
     None,
 }
 
-pub struct ArmStateMachine {
-    state: ArmState,
-    last_arm_state: ArmState,
+pub struct LadyBrown {
+    state: LadyBrownState,
+    last_arm_state: LadyBrownState,
     state_reached: bool,
     state_reached_threshold: f64,
     controller: Rc<RefCell<dyn ControllerMethod<f64>>>,
 
     /// A map between a cycle and a cycle pair.
-    /// The pair involves an ArmState, or the default,
+    /// The pair involves an LadyBrownState, or the default,
     /// and a shared pointer to the sequence (a vector) itself.
-    cycle_orders: BTreeMap<ArmButtonCycle, (ArmState, Rc<Vec<ArmState>>)>,
-    arm_state_positions: Rc<BTreeMap<ArmState, f64>>,
+    cycle_orders: BTreeMap<ArmButtonCycle, (LadyBrownState, Rc<Vec<LadyBrownState>>)>,
+    arm_state_positions: Rc<BTreeMap<LadyBrownState, f64>>,
     free_start_time: Option<Instant>,
     last_intake_button: ArmButtonCycle,
     motor_group: Rc<RefCell<MotorGroup>>,
     rotation_sensor: Rc<RefCell<RotationSensor>>,
 
     /// The max speed for each state.
-    max_speeds: BTreeMap<ArmState, Option<f64>>,
+    max_speeds: BTreeMap<LadyBrownState, Option<f64>>,
 
     /// This is the ratio from the rotation sensor to the arm.
     gear_ratio: f64,
     task: Option<Task<()>>,
 }
 
-impl ArmStateMachine {
+impl LadyBrown {
     pub fn new(
         motor_group: Rc<RefCell<MotorGroup>>,
         rotation_sensor: Rc<RefCell<RotationSensor>>,
         gear_ratio: f64,
         controller: Rc<RefCell<dyn ControllerMethod<f64>>>,
     ) -> Self {
-        let arm_state_positions: Rc<BTreeMap<ArmState, f64>> = Rc::new(BTreeMap::from([
-            (ArmState::Off, 0.0),
-            (ArmState::Load, 13.0),
-            (ArmState::LoadUp, 46.0),
-            (ArmState::NeutralStakeHold, 135.0),
-            (ArmState::Neutral, 135.0),
-            (ArmState::Alliance, 195.0),
-            (ArmState::ManualMax, 215.0),
-            (ArmState::ManualMin, 0.0),
+        let arm_state_positions: Rc<BTreeMap<LadyBrownState, f64>> = Rc::new(BTreeMap::from([
+            (LadyBrownState::Off, 0.0),
+            (LadyBrownState::Load, 13.0),
+            (LadyBrownState::LoadUp, 46.0),
+            (LadyBrownState::NeutralStakeHold, 135.0),
+            (LadyBrownState::Neutral, 135.0),
+            (LadyBrownState::Alliance, 195.0),
+            (LadyBrownState::ManualMax, 215.0),
+            (LadyBrownState::ManualMin, 0.0),
         ]));
 
         Self {
             controller,
-            state: ArmState::Off,
+            state: LadyBrownState::Off,
             state_reached: true,
-            last_arm_state: ArmState::Off,
+            last_arm_state: LadyBrownState::Off,
             cycle_orders: BTreeMap::from([
                 (
                     ArmButtonCycle::Default,
                     (
-                        ArmState::Neutral,
-                        Rc::new(vec![ArmState::Off, ArmState::Load, ArmState::Neutral]),
+                        LadyBrownState::Neutral,
+                        Rc::new(vec![
+                            LadyBrownState::Off,
+                            LadyBrownState::Load,
+                            LadyBrownState::Neutral,
+                        ]),
                     ),
                 ),
                 (
                     ArmButtonCycle::Full,
                     (
-                        ArmState::Load,
+                        LadyBrownState::Load,
                         Rc::new(vec![
-                            ArmState::Off,
-                            ArmState::Load,
-                            ArmState::LoadUp,
-                            ArmState::NeutralStakeHold,
-                            ArmState::Neutral,
-                            ArmState::Alliance,
+                            LadyBrownState::Off,
+                            LadyBrownState::Load,
+                            LadyBrownState::LoadUp,
+                            LadyBrownState::NeutralStakeHold,
+                            LadyBrownState::Neutral,
+                            LadyBrownState::Alliance,
                         ]),
                     ),
                 ),
                 (
                     ArmButtonCycle::ManualForward,
-                    (ArmState::ManualMax, Rc::new(vec![ArmState::ManualMax])),
+                    (
+                        LadyBrownState::ManualMax,
+                        Rc::new(vec![LadyBrownState::ManualMax]),
+                    ),
                 ),
                 (
                     ArmButtonCycle::ManualReverse,
-                    (ArmState::ManualMin, Rc::new(vec![ArmState::ManualMin])),
+                    (
+                        LadyBrownState::ManualMin,
+                        Rc::new(vec![LadyBrownState::ManualMin]),
+                    ),
                 ),
             ]),
             arm_state_positions,
             max_speeds: BTreeMap::from([
-                (ArmState::ManualMax, Some(8.0)),
-                (ArmState::ManualMin, Some(8.0)),
+                (LadyBrownState::ManualMax, Some(8.0)),
+                (LadyBrownState::ManualMin, Some(8.0)),
             ]),
             free_start_time: None,
             last_intake_button: ArmButtonCycle::None,
@@ -132,13 +141,17 @@ impl ArmStateMachine {
             task: None,
         }
     }
-    pub fn set_state(&mut self, state: ArmState) {
+    pub fn set_state(&mut self, state: LadyBrownState) {
         self.state = state;
     }
-    pub fn state(&self) -> ArmState {
+    pub fn state(&self) -> LadyBrownState {
         self.state
     }
-    pub fn next_arm_state(&self, current_state: ArmState, button: ArmButtonCycle) -> ArmState {
+    pub fn next_arm_state(
+        &self,
+        current_state: LadyBrownState,
+        button: ArmButtonCycle,
+    ) -> LadyBrownState {
         if let Some((default, state_cycle)) = self.cycle_orders.get(&button) {
             for (i, state) in state_cycle.iter().enumerate() {
                 if *state == current_state {
@@ -147,7 +160,7 @@ impl ArmStateMachine {
             }
             return *default;
         }
-        ArmState::Off
+        LadyBrownState::Off
     }
 
     pub fn reset_all(&self) {
@@ -161,15 +174,15 @@ impl ArmStateMachine {
             .set_position(Position::from_degrees(0.0));
     }
     pub fn update(&mut self) {
-        if self.state == ArmState::Free
-            || self.state == ArmState::FreeTimedReset
-            || self.state == ArmState::FreeStopHold
+        if self.state == LadyBrownState::Free
+            || self.state == LadyBrownState::FreeTimedReset
+            || self.state == LadyBrownState::FreeStopHold
         {
             if self.last_arm_state != self.state {
                 self.motor_group
                     .borrow_mut()
                     .set_target_all(MotorControl::Brake(
-                        if self.state == ArmState::FreeStopHold {
+                        if self.state == LadyBrownState::FreeStopHold {
                             BrakeMode::Hold
                         } else {
                             BrakeMode::Coast
@@ -180,10 +193,10 @@ impl ArmStateMachine {
             }
             if let Some(free_start_time) = self.free_start_time {
                 if Instant::elapsed(&free_start_time).as_millis() > 1200
-                    && self.state == ArmState::FreeTimedReset
+                    && self.state == LadyBrownState::FreeTimedReset
                 {
                     self.reset_all();
-                    self.set_state(ArmState::Off);
+                    self.set_state(LadyBrownState::Off);
                     return;
                 }
             }
@@ -214,8 +227,8 @@ impl ArmStateMachine {
                     );
                 }
                 if error.abs() < self.state_reached_threshold {
-                    if self.state == ArmState::Neutral {
-                        self.state = ArmState::Off;
+                    if self.state == LadyBrownState::Neutral {
+                        self.state = LadyBrownState::Off;
                     } else {
                         self.state_reached = true;
                     }
@@ -259,21 +272,21 @@ impl ArmStateMachine {
             if self.last_intake_button == ArmButtonCycle::ManualForward
                 || self.last_intake_button == ArmButtonCycle::ManualReverse
             {
-                self.set_state(ArmState::FreeStopHold);
+                self.set_state(LadyBrownState::FreeStopHold);
             }
             self.last_intake_button = ArmButtonCycle::None;
         }
     }
-    pub async fn init(&mut self, async_self_rc: Rc<Mutex<Self>>) {
+    pub fn init(&mut self, self_rc_refcell: Rc<RefCell<Self>>) {
         self.reset_all();
         self.task = Some(vexide::task::spawn({
-            let async_self_rc = async_self_rc.clone();
+            let self_rc_refcell = self_rc_refcell.clone();
             async move {
                 vexide::time::sleep(Motor::UPDATE_INTERVAL).await;
                 loop {
                     let start_time = Instant::now();
                     {
-                        async_self_rc.lock().await.update();
+                        self_rc_refcell.borrow_mut().update();
                     }
                     vexide::time::sleep({
                         let mut duration = Instant::elapsed(&start_time).as_secs_f64() * 1000.0;

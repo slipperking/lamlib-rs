@@ -13,15 +13,14 @@ use rand::{
 };
 use sensors::ParticleFilterSensor;
 use veranda::SystemRng;
-use vexide::sync::Mutex;
 
 use crate::utils::samplers::{multivariate_gaussian_sampler::GaussianSampler, AbstractSampler};
 pub struct ParticleFilter {
     enabled: bool,
     estimate_position: Rc<RefCell<Vector3<f32>>>,
-    positions: Rc<Mutex<Matrix3xX<f32>>>,
+    positions: Rc<RefCell<Matrix3xX<f32>>>,
     new_positions: RefCell<Matrix3xX<f32>>,
-    weights: Rc<Mutex<RowDVector<f32>>>,
+    weights: Rc<RefCell<RowDVector<f32>>>,
     sampler: RefCell<GaussianSampler<3, 20000>>,
     particle_count: usize,
     generator: Rc<RefCell<SystemRng>>,
@@ -37,58 +36,54 @@ impl ParticleFilter {
         ParticleFilter {
             enabled: false,
             estimate_position: Rc::new(RefCell::new(Vector3::zeros())),
-            positions: Rc::new(Mutex::new(positions)),
+            positions: Rc::new(RefCell::new(positions)),
             new_positions: RefCell::new(new_positions),
-            weights: Rc::new(Mutex::new(weights)),
+            weights: Rc::new(RefCell::new(weights)),
             sampler: RefCell::new(sampler),
             particle_count,
             generator: Rc::new(RefCell::new(SystemRng::new())),
         }
     }
 
-    pub async fn set_filter_state(&mut self, state: bool, position: Option<Vector3<f32>>) {
+    pub fn set_filter_state(&mut self, state: bool, position: Option<Vector3<f32>>) {
         self.enabled = state;
         if state {
             if let Some(pos) = position {
-                self.scatter_particles(&pos, 2.0).await;
+                self.scatter_particles(&pos, 2.0);
             }
         }
     }
 
-    pub async fn filter_state(&self) -> bool {
+    pub fn filter_state(&self) -> bool {
         self.enabled
     }
 
-    pub async fn predict(&self, delta_odometry: &Vector3<f32>) {
-        let mut positions = self.positions.lock().await;
+    pub fn predict(&self, delta_odometry: &Vector3<f32>) {
+        let mut positions = self.positions.borrow_mut();
         let noise = { self.sampler.borrow_mut().sample_batch(self.particle_count) };
 
         *positions += *delta_odometry;
         *positions += noise;
     }
 
-    pub async fn update(&self, sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>) {
-        {
-            let positions = self.positions.lock().await;
-            let mut weights = self.weights.lock().await;
-
-            for sensor in sensors.iter() {
-                let mut sensor_mut = sensor.borrow_mut();
-                sensor_mut.precompute(&positions);
-                sensor_mut.update(&positions, &mut weights);
-            }
-
-            for sensor in sensors.iter() {
-                let mut sensor_mut = sensor.borrow_mut();
-                sensor_mut.cleanup_precomputed();
-            }
+    pub fn update(&self, sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>) {
+        for sensor in sensors.iter() {
+            let mut sensor_mut = sensor.borrow_mut();
+            let positions = self.positions.borrow_mut();
+            sensor_mut.precompute(&positions);
+            sensor_mut.update(&positions, &mut self.weights.borrow_mut());
+            drop(positions);
+            self.normalize_weights();
         }
-        self.normalize_weights().await;
+
+        for sensor in sensors.iter() {
+            sensor.borrow_mut().cleanup_precomputed();
+        }
     }
 
-    pub async fn resample(&self) {
-        let mut positions = self.positions.lock().await;
-        let mut weights = self.weights.lock().await;
+    pub fn resample(&self) {
+        let mut positions = self.positions.borrow_mut();
+        let mut weights = self.weights.borrow_mut();
 
         let sum = weights.iter().map(|&w| w * w).sum::<f32>();
         if sum <= 0.0 {
@@ -127,15 +122,15 @@ impl ParticleFilter {
         Matrix::fill(weights.deref_mut(), 1.0 / self.particle_count as f32);
     }
 
-    pub async fn calculate_mean(&self) {
-        let positions = self.positions.lock().await;
-        let weights = self.weights.lock().await;
+    pub fn calculate_mean(&self) {
+        let positions = self.positions.borrow_mut();
+        let weights = self.weights.borrow_mut();
         let mut estimate_position = self.estimate_position.borrow_mut();
 
         *estimate_position = positions.deref() * weights.deref().transpose();
     }
 
-    pub async fn scatter_particles(&self, center: &Vector3<f32>, distance: f32) {
+    pub fn scatter_particles(&self, center: &Vector3<f32>, distance: f32) {
         let noise = {
             let mut rng = self.generator.borrow_mut();
             Matrix2xX::from_fn(self.particle_count, |_, _| {
@@ -143,33 +138,33 @@ impl ParticleFilter {
             })
         };
 
-        let mut positions = self.positions.lock().await;
+        let mut positions = self.positions.borrow_mut();
 
         for i in 0..positions.ncols() {
             positions.set_column(i, center);
         }
         positions.fixed_rows_mut::<2>(0).add_assign(&noise);
         core::mem::drop(positions);
-        let mut weights = self.weights.lock().await;
+        let mut weights = self.weights.borrow_mut();
         Matrix::fill(weights.deref_mut(), 1.0 / self.particle_count as f32);
     }
 
-    async fn normalize_weights(&self) {
-        let mut weights = self.weights.lock().await;
+    fn normalize_weights(&self) {
+        let mut weights = self.weights.borrow_mut();
         let sum = weights.sum() + f32::MIN_POSITIVE * self.particle_count as f32;
         *weights = (weights.clone().map(|x| x + f32::MIN_POSITIVE)) / sum;
     }
 
-    pub async fn run_filter(
+    pub fn run_filter(
         &self,
         delta_odometry: Vector3<f32>,
         sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>,
     ) -> Option<nalgebra::Vector3<f32>> {
         if self.enabled {
-            self.predict(&delta_odometry).await;
-            self.update(sensors.clone()).await;
-            self.resample().await;
-            self.calculate_mean().await;
+            self.predict(&delta_odometry);
+            self.update(sensors.clone());
+            self.resample();
+            self.calculate_mean();
             Some(*self.estimate_position.borrow())
         } else {
             None

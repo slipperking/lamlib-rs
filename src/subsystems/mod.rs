@@ -1,2 +1,3 @@
-pub mod arm_state_machine;
+pub mod ladybrown;
 pub mod intake;
+pub mod pneumatics;
