@@ -7,6 +7,7 @@ use vexide::{prelude::Motor, sync::Mutex};
 use super::{
     drive_curve::ExponentialDriveCurve,
     motions::{ExitCondition, MotionHandler},
+    pose::Pose,
 };
 use crate::{controllers::ControllerMethod, devices::motor_group::MotorGroup, tracking::*};
 
@@ -68,7 +69,7 @@ pub struct Chassis<T: Tracking> {
     pub(super) steer_curve: ExponentialDriveCurve,
     pub(super) motion_handler: MotionHandler,
     pub(super) motion_settings: RefCell<MotionSettings>,
-    pub(super) distance_traveled: Option<f64>,
+    pub(super) distance_traveled: RefCell<Option<f64>>,
 }
 
 impl<T: Tracking> Chassis<T> {
@@ -85,7 +86,7 @@ impl<T: Tracking> Chassis<T> {
             throttle_curve,
             steer_curve,
             motion_handler: MotionHandler::new(),
-            distance_traveled: None,
+            distance_traveled: RefCell::new(None),
             motion_settings: RefCell::new(motion_settings),
         }
     }
@@ -96,7 +97,7 @@ impl<T: Tracking> Chassis<T> {
     pub async fn wait_until(&self, distance: f64) {
         loop {
             vexide::time::sleep(Duration::from_millis(10)).await;
-            if match self.distance_traveled {
+            if match *self.distance_traveled.borrow() {
                 Some(distance_traveled) => distance_traveled >= distance,
                 None => true,
             } {
@@ -107,29 +108,23 @@ impl<T: Tracking> Chassis<T> {
     pub async fn wait_until_complete(&self) {
         loop {
             vexide::time::sleep(Duration::from_millis(10)).await;
-            if self.distance_traveled.is_none() {
+            if self.distance_traveled.borrow().is_none() {
                 break;
             }
         }
     }
 
-    pub async fn set_pose(&self, mut position: Vector3<f64>, radians: bool) {
-        position.z = if radians {
-            position.z
-        } else {
-            position.z.to_radians()
-        };
-        self.tracking.lock().await.set_position(&position).await;
+    pub async fn set_pose(&self, pose: Pose) {
+        self.tracking
+            .lock()
+            .await
+            .set_position(&Vector3::from(pose))
+            .await;
     }
-    pub async fn pose(&self, radians: bool) -> Vector3<f64> {
+    pub async fn pose(&self) -> Pose {
         let mut tracking_lock = self.tracking.lock().await;
-        let mut pose = tracking_lock.position();
-        if !radians {
-            pose.z = pose.z.to_degrees()
-        };
-        pose
+        Pose::from(tracking_lock.position())
     }
-
     pub fn arcade(&self, mut throttle: f64, mut steer: f64, use_drive_curve: bool) {
         if use_drive_curve {
             throttle = self.throttle_curve.update(throttle, 1.0);

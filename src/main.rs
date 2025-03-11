@@ -6,6 +6,7 @@ extern crate approx;
 extern crate nalgebra;
 pub mod controllers;
 pub mod devices;
+#[macro_use]
 pub mod differential;
 pub mod particle_filter;
 pub mod subsystems;
@@ -218,7 +219,14 @@ impl Robot {
         {
             intake.lock().await.init(intake.clone()).await
         }
-        chassis.set_pose(Vector3::new(0.0, 0.0, 0.0), true).await;
+        chassis
+            .set_pose(differential::pose::pose_radians! {
+                x => 0.0;
+                y => 0.0;
+                orientation => 0.0;
+                standard => true;
+            })
+            .await;
         let mut controller = peripherals.primary_controller;
         let _ = controller.rumble("._.").await;
 

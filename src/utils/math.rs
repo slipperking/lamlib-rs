@@ -1,15 +1,35 @@
-use core::f32::consts as f32_consts;
+use core::ops::{Add, Div, Mul, Neg, Rem, Sub};
+
+use num::{FromPrimitive, Zero};
 use vexide::float::Float;
 
 pub enum AngularDirection {
-    CW,
-    CCW,
-    AUTO,
+    Clockwise,
+    CounterClockwise,
+    Auto,
 }
 
-pub fn gaussian_pdf(x: f32, mu: f32, sigma: f32) -> f32 {
-    let exponent = -(x - mu) * (x - mu) / (2.0f32 * sigma * sigma);
-    (1.0 / (sigma * (2.0 * f32_consts::PI).sqrt())) * exponent.exp()
+pub fn gaussian_pdf<
+    T: FromPrimitive
+        + Copy
+        + Float
+        + Mul<Output = T>
+        + Div<Output = T>
+        + Neg<Output = T>
+        + Default
+        + Sub<Output = T>,
+>(
+    x: T,
+    mu: T,
+    sigma: T,
+) -> T {
+    let exponent = -(x - mu) * (x - mu) / (T::from_u8(2).unwrap_or_default() * sigma * sigma);
+    (T::from_f32(1.0).unwrap_or_default()
+        / (sigma
+            * (T::from_u8(2).unwrap_or_default()
+                * T::from_f64(core::f64::consts::PI).unwrap_or_default())
+            .sqrt()))
+        * exponent.exp()
 }
 
 #[macro_export]
@@ -48,46 +68,71 @@ macro_rules! avg_valid {
     }};
 }
 
+pub use avg_valid;
 pub use ilerp;
 pub use lerp;
 pub use signed_mod;
-pub use avg_valid;
 
-pub fn delta_clamp(value: f32, prev: f32, max_delta: f32) -> f32 {
-    if max_delta == 0.0 {
+pub fn delta_clamp<
+    T: Neg<Output = T> + Zero + Copy + PartialEq + num_traits::Float + Sub<Output = T>,
+>(
+    value: T,
+    prev: T,
+    max_delta: T,
+) -> T {
+    if max_delta == T::zero() {
         return value;
     }
     prev + (value - prev).clamp(-max_delta.abs(), max_delta.abs())
 }
 
-pub fn sanitize_angle(angle: f32, radians: bool) -> f32 {
+pub fn sanitize_angle<T: FromPrimitive + Rem<Output = T> + Add<Output = T> + Default>(
+    angle: T,
+    radians: bool,
+) -> T {
     if radians {
-        signed_mod!(angle, f32_consts::TAU)
+        signed_mod!(
+            angle,
+            T::from_f64(core::f64::consts::TAU).unwrap_or_default()
+        )
     } else {
-        signed_mod!(angle, 360.0f32)
+        signed_mod!(angle, T::from_u16(360).unwrap_or_default())
     }
 }
 
-pub fn angle_error(
-    mut target: f32,
-    current: f32,
+pub fn angle_error<
+    T: Copy
+        + FromPrimitive
+        + Default
+        + Sub<Output = T>
+        + Add<Output = T>
+        + Zero
+        + PartialOrd
+        + Rem<Output = T>,
+>(
+    mut target: T,
+    current: T,
     radians: bool,
     direction: AngularDirection,
-) -> f32 {
+) -> T {
     target = sanitize_angle(target, radians);
     target = sanitize_angle(target, radians);
-    let max: f32 = if radians { f32_consts::TAU } else { 360.0f32 };
-    let raw_error: f32 = target - current;
+    let max: T = if radians {
+        T::from_f64(core::f64::consts::TAU).unwrap_or_default()
+    } else {
+        T::from_f64(360.0).unwrap_or_default()
+    };
+    let raw_error: T = target - current;
     match direction {
-        AngularDirection::CW => {
-            if raw_error < 0.0f32 {
+        AngularDirection::Clockwise => {
+            if raw_error < T::zero() {
                 raw_error + max
             } else {
                 raw_error
             }
         }
-        AngularDirection::CCW => {
-            if raw_error > 0.0f32 {
+        AngularDirection::CounterClockwise => {
+            if raw_error > T::zero() {
                 raw_error - max
             } else {
                 raw_error

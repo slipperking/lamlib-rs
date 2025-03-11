@@ -103,6 +103,7 @@ impl Default for MotionHandler {
     }
 }
 
+#[derive(PartialEq, PartialOrd)]
 pub struct ExitCondition {
     range: f64,
     timeout: Duration,
@@ -124,7 +125,7 @@ impl ExitCondition {
         self.done
     }
 
-    pub fn update(&mut self, error: f64) {
+    pub fn update(&mut self, error: f64) -> bool {
         if error.abs() > self.range {
             self.start_time = None;
         } else if let Some(start_time) = self.start_time {
@@ -134,6 +135,7 @@ impl ExitCondition {
         } else {
             self.start_time = Some(Instant::now());
         }
+        self.done
     }
     pub fn reset(&mut self) {
         self.start_time = None;
