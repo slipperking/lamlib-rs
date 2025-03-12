@@ -1,9 +1,10 @@
-use alloc::rc::Rc;
+use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::{f64::consts::PI, time::Duration};
 
 use vexide::prelude::{BrakeMode, Float, Motor};
 
 use crate::{
+    controllers::ControllerMethod,
     differential::{chassis::Chassis, pose::Pose},
     tracking::Tracking,
     utils::math::{angle_error, arcade_desaturate, delta_clamp, AngularDirection},
@@ -20,6 +21,13 @@ pub struct BoomerangParameters {
     pub lateral_slew: Option<f64>,
     pub angular_slew: Option<f64>,
     pub horizontal_drift_compensation: Option<f64>,
+}
+pub struct BoomerangSettings {
+    pub lateral_controller: Box<dyn ControllerMethod<f64>>,
+    pub angular_controller: Box<dyn ControllerMethod<f64>>,
+
+    pub lateral_exit_conditions: Vec<ExitCondition>,
+    pub angular_exit_conditions: Vec<ExitCondition>,
 }
 
 #[macro_export]
@@ -72,6 +80,9 @@ macro_rules! boomerang {
 }
 pub use boomerang;
 
+use super::ExitCondition;
+
+// Todo: maybe make a separate struct for settings enterable.
 impl<T: Tracking + 'static> Chassis<T> {
     /// Consider boomerang to be lateral; distance traveled, etc. will be distance in inches.
     pub async fn boomerang(
@@ -227,9 +238,7 @@ impl<T: Tracking + 'static> Chassis<T> {
                 raw_output = delta_clamp(
                     raw_output,
                     previous_angular_output,
-                    unwrapped_params
-                        .angular_slew
-                        .unwrap_or(motion_settings.angular_slew.unwrap_or(0.0)),
+                    unwrapped_params.angular_slew.unwrap_or(0.0),
                     None,
                 );
                 previous_angular_output = raw_output;
@@ -245,9 +254,7 @@ impl<T: Tracking + 'static> Chassis<T> {
                     raw_output = delta_clamp(
                         raw_output,
                         previous_lateral_output,
-                        unwrapped_params
-                            .lateral_slew
-                            .unwrap_or(motion_settings.lateral_slew.unwrap_or(0.0)),
+                        unwrapped_params.lateral_slew.unwrap_or(0.0),
                         None,
                     )
                 }

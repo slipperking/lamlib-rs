@@ -13,6 +13,8 @@ pub struct PID<T: Float + FromPrimitive + AddAssign> {
     windup_range: T,          // Range where integral starts accumulating
     reset_on_sign_flip: bool, // Whether or not to reset integral when sign flips
 }
+
+#[derive(Clone)]
 pub struct PIDGains<T: Float + FromPrimitive + AddAssign> {
     kp: T, // Proportional gain
     ki: T, // Integral gain
@@ -23,6 +25,16 @@ impl<T: Float + FromPrimitive + AddAssign> PID<T> {
     pub fn new(kp: T, ki: T, kd: T, windup_range: T, reset_on_sign_flip: bool) -> Self {
         PID {
             gains: PIDGains { kp, ki, kd },
+            prev_error: T::zero(),
+            integral: T::zero(),
+            prev_time: None,
+            reset_on_sign_flip,
+            windup_range,
+        }
+    }
+    pub fn from_pid_gains(gains: PIDGains<T>, windup_range: T, reset_on_sign_flip: bool) -> Self {
+        Self {
+            gains,
             prev_error: T::zero(),
             integral: T::zero(),
             prev_time: None,

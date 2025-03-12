@@ -34,9 +34,6 @@ pub struct MotionSettings {
 
     pub lateral_exit_conditions: Vec<ExitCondition>,
     pub angular_exit_conditions: Vec<ExitCondition>,
-
-    pub lateral_slew: Option<f64>,
-    pub angular_slew: Option<f64>,
 }
 
 impl MotionSettings {
@@ -45,17 +42,12 @@ impl MotionSettings {
         angular_pid: Box<dyn ControllerMethod<f64>>,
         lateral_exit_conditions: Vec<ExitCondition>,
         angular_exit_conditions: Vec<ExitCondition>,
-
-        lateral_slew: Option<f64>,
-        angular_slew: Option<f64>,
     ) -> Self {
         Self {
             lateral_pid,
             angular_pid,
             lateral_exit_conditions,
             angular_exit_conditions,
-            lateral_slew,
-            angular_slew,
         }
     }
     pub fn reset(&mut self) {

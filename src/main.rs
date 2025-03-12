@@ -163,8 +163,6 @@ impl Robot {
                 ExitCondition::new(1.0, Duration::from_millis(150)),
                 ExitCondition::new(3.0, Duration::from_millis(500)),
             ],
-            None,
-            None,
         );
         let chassis = Chassis::new(
             drivetrain.clone(),

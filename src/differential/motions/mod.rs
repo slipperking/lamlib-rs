@@ -1,7 +1,8 @@
+pub mod angular;
 pub mod boomerang;
 pub mod ramsete;
 
-use alloc::{collections::VecDeque, rc::Rc};
+use alloc::{collections::VecDeque, rc::Rc, vec::Vec};
 use core::{cell::RefCell, time::Duration};
 
 use vexide::{sync::Mutex, time::Instant};
@@ -140,5 +141,22 @@ impl ExitCondition {
     pub fn reset(&mut self) {
         self.start_time = None;
         self.done = false;
+    }
+}
+
+pub struct ExitConditionGroup {
+    exit_condition_group: Vec<ExitCondition>,
+}
+
+impl ExitConditionGroup {
+    pub fn new(exit_condition_group: Vec<ExitCondition>) -> Self {
+        Self {
+            exit_condition_group,
+        }
+    }
+    pub fn reset(&mut self) {
+        for exit_condition in self.exit_condition_group.iter_mut() {
+            exit_condition.reset();
+        }
     }
 }
