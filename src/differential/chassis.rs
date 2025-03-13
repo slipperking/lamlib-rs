@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, rc::Rc, vec::Vec};
+use alloc::rc::Rc;
 use core::{cell::RefCell, time::Duration};
 
 use nalgebra::Vector3;
@@ -6,10 +6,10 @@ use vexide::{prelude::Motor, sync::Mutex};
 
 use super::{
     drive_curve::ExponentialDriveCurve,
-    motions::{ExitCondition, MotionHandler},
+    motions::{boomerang::BoomerangSettings, MotionHandler},
     pose::Pose,
 };
-use crate::{controllers::ControllerMethod, devices::motor_group::MotorGroup, tracking::*};
+use crate::{devices::motor_group::MotorGroup, tracking::*};
 
 pub struct Drivetrain {
     pub(super) left_motors: Rc<RefCell<MotorGroup>>,
@@ -29,36 +29,12 @@ impl Drivetrain {
 }
 
 pub struct MotionSettings {
-    pub lateral_pid: Box<dyn ControllerMethod<f64>>,
-    pub angular_pid: Box<dyn ControllerMethod<f64>>,
-
-    pub lateral_exit_conditions: Vec<ExitCondition>,
-    pub angular_exit_conditions: Vec<ExitCondition>,
+    pub boomerang_settings: RefCell<BoomerangSettings>,
 }
 
 impl MotionSettings {
-    pub fn new(
-        lateral_pid: Box<dyn ControllerMethod<f64>>,
-        angular_pid: Box<dyn ControllerMethod<f64>>,
-        lateral_exit_conditions: Vec<ExitCondition>,
-        angular_exit_conditions: Vec<ExitCondition>,
-    ) -> Self {
-        Self {
-            lateral_pid,
-            angular_pid,
-            lateral_exit_conditions,
-            angular_exit_conditions,
-        }
-    }
-    pub fn reset(&mut self) {
-        self.lateral_pid.reset();
-        self.angular_pid.reset();
-        for exit_condition in self.lateral_exit_conditions.iter_mut() {
-            exit_condition.reset();
-        }
-        for exit_condition in self.angular_exit_conditions.iter_mut() {
-            exit_condition.reset();
-        }
+    pub fn new(boomerang_settings: RefCell<BoomerangSettings>) -> Self {
+        Self { boomerang_settings }
     }
 }
 
@@ -68,7 +44,7 @@ pub struct Chassis<T: Tracking> {
     pub(super) throttle_curve: ExponentialDriveCurve,
     pub(super) steer_curve: ExponentialDriveCurve,
     pub(super) motion_handler: MotionHandler,
-    pub(super) motion_settings: RefCell<MotionSettings>,
+    pub(super) motion_settings: MotionSettings,
     pub(super) distance_traveled: RefCell<Option<f64>>,
 }
 
@@ -87,7 +63,7 @@ impl<T: Tracking> Chassis<T> {
             steer_curve,
             motion_handler: MotionHandler::new(),
             distance_traveled: RefCell::new(None),
-            motion_settings: RefCell::new(motion_settings),
+            motion_settings,
         }
     }
     pub async fn calibrate(&self) {

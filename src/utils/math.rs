@@ -8,8 +8,7 @@ use vexide::float::Float;
 
 pub enum AngularDirection {
     Clockwise,
-    CounterClockwise,
-    Auto,
+    Counterclockwise,
 }
 
 pub fn gaussian_pdf<
@@ -123,6 +122,22 @@ pub fn sanitize_angle<T: FromPrimitive + Rem<Output = T> + Add<Output = T> + Def
     }
 }
 
+/// Calculates the error between two angles. Useful when calculating the difference between two headings.
+///
+/// # Parameters
+/// - `target`: The target angle.
+/// - `current`: The current angle.
+/// - `radians`: Whether the angles are in radians.
+/// - `direction`: A [`AngularDirection`] of the direction to calculate the error in.
+///
+/// # Returns
+/// The signed angle difference, wrapped within the valid range.
+///
+/// # Examples
+/// ```
+/// assert_eq!(angle_error(10.0, 350.0, false, AngularDirection::Auto), 20.0);
+/// assert_eq!(angle_error(350.0, 10.0, false, AngularDirection::Auto), -20.0);
+/// ```
 pub fn angle_error<
     T: Copy
         + Float
@@ -137,34 +152,37 @@ pub fn angle_error<
         + Mul<Output = T>,
 >(
     mut target: T,
-    current: T,
+    mut current: T,
     radians: bool,
-    direction: AngularDirection,
+    direction: Option<AngularDirection>,
 ) -> T {
     target = sanitize_angle(target, radians);
-    target = sanitize_angle(target, radians);
+    current = sanitize_angle(current, radians);
     let max: T = if radians {
         T::from_f64(core::f64::consts::TAU).unwrap_or_default()
     } else {
         T::from_u16(360).unwrap_or_default()
     };
     let raw_error: T = target - current;
-    match direction {
-        AngularDirection::Clockwise => {
-            if raw_error < T::zero() {
-                raw_error + max
-            } else {
-                raw_error
+    if let Some(direction) = direction {
+        match direction {
+            AngularDirection::Clockwise => {
+                if raw_error > T::zero() {
+                    raw_error - max
+                } else {
+                    raw_error
+                }
+            }
+            AngularDirection::Counterclockwise => {
+                if raw_error < T::zero() {
+                    raw_error + max
+                } else {
+                    raw_error
+                }
             }
         }
-        AngularDirection::CounterClockwise => {
-            if raw_error > T::zero() {
-                raw_error - max
-            } else {
-                raw_error
-            }
-        }
-        _ => remainder(raw_error, max),
+    } else {
+        remainder(raw_error, max)
     }
 }
 

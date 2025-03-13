@@ -1,5 +1,5 @@
 [package]
-name = "V5_Rust_Experiments"
+name = "v5_rust_shenanigans"
 version = "0.1.0"
 edition = "2021"
 
@@ -25,3 +25,4 @@ num-traits = { version = "0.2.19", default-features = false }
 num = { version = "0.4.3", default-features = false }
 veranda = "0.1.5"
 autons = "0.1.0"
+dyn-clone = { version = "1.0.19", default-features = false }

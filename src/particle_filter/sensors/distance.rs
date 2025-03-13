@@ -10,6 +10,12 @@ use crate::utils::{
     samplers::{multivariate_gaussian_sampler::GaussianSampler, AbstractSampler},
 };
 
+/// A struct containing shared data between LiDARs.
+/// 
+/// Multiple LiDARs can share data that is computed every epoch.
+/// If for example there are eight LiDARs and four of them use the same
+/// global data and the other four use a different one, then make two
+/// [`LiDARPrecomputedData`]s.
 pub struct LiDARPrecomputedData {
     precomputed: bool,
     transformed_heading_cosines: RowDVector<f32>,
@@ -129,55 +135,36 @@ impl ParticleFilterSensor<3> for LiDAR {
             );
 
             let pos_array = positions.fixed_rows::<2>(0) + &self.transformed_sensor_offsets;
-
+            let detected_distance = detected_distance_mm * 0.03937008;
             let x_divisors = self.sensor_unit_vectors.row(0);
             let y_divisors = self.sensor_unit_vectors.row(1);
-            let tx1 = (pos_array.row(0).map(|x| FIELD_WALL - x)).component_div(&x_divisors);
-            let tx2 = (pos_array.row(0).map(|x| -FIELD_WALL - x)).component_div(&x_divisors);
-            let ty1 = (pos_array.row(1).map(|y| FIELD_WALL - y)).component_div(&y_divisors);
-            let ty2 = (pos_array.row(1).map(|y| -FIELD_WALL - y)).component_div(&y_divisors);
+            let x_error_1 = (pos_array.row(0).map(|x| FIELD_WALL - x))
+                .component_div(&x_divisors)
+                .map(|element| (element - detected_distance).abs()); // Right wall
+            let x_error_2 = (pos_array.row(0).map(|x| -FIELD_WALL - x))
+                .component_div(&x_divisors)
+                .map(|element| (element - detected_distance).abs()); // Left wall
+            let y_error_1 = (pos_array.row(1).map(|y| FIELD_WALL - y))
+                .component_div(&y_divisors)
+                .map(|element| (element - detected_distance).abs()); // Top wall
+            let y_error_2 = (pos_array.row(1).map(|y| -FIELD_WALL - y))
+                .component_div(&y_divisors)
+                .map(|element| (element - detected_distance).abs()); // Bottom wall
 
-            let shortest: Matrix1xX<f32> = tx1
-                .map(|element| {
-                    if element > 0.0 {
-                        element
-                    } else {
-                        f32::INFINITY
-                    }
-                })
-                .zip_map(
-                    &tx2.map(|element| {
-                        if element > 0.0 {
-                            element
-                        } else {
-                            f32::INFINITY
-                        }
-                    }),
-                    |a, b| a.min(b),
-                )
-                .zip_map(
-                    &ty1.map(|element| {
-                        if element > 0.0 {
-                            element
-                        } else {
-                            f32::INFINITY
-                        }
-                    }),
-                    |a, b| a.min(b),
-                )
-                .zip_map(
-                    &ty2.map(|element| {
-                        if element > 0.0 {
-                            element
-                        } else {
-                            f32::INFINITY
-                        }
-                    }),
-                    |a, b| a.min(b),
-                );
+            let x_errors: Matrix1xX<f32> = x_error_1.zip_map(&x_error_2, |a, b| a.min(b));
+            let y_errors: Matrix1xX<f32> = y_error_1.zip_map(&y_error_2, |a, b| a.min(b));
 
-            let detected_distance = detected_distance_mm * 0.03937008;
-            let mut errors = shortest.map(|distance| distance - detected_distance);
+            let mut errors = Matrix1xX::zeros(positions.ncols());
+            for i in 0..positions.ncols() {
+                let x = x_errors[i];
+                let y = y_errors[i];
+                errors[i] = if x < y {
+                    x / self.sensor_unit_vectors.column(i).x.abs()
+                } else {
+                    y / self.sensor_unit_vectors.column(i).y.abs()
+                };
+            }
+
             let final_std_dev = if detected_distance_mm > 200.0 {
                 lerp!(
                     self.max_std_dev,
@@ -190,18 +177,28 @@ impl ParticleFilterSensor<3> for LiDAR {
             } else {
                 0.5
             };
-            apply_normal_pdf_row_vector(&mut errors, 0.0, final_std_dev);
+            apply_normal_pdf_row_vector(
+                &mut errors,
+                0.0,
+                final_std_dev,
+                Some(positions.ncols() as f32),
+            );
             *weights *= errors
         }
     }
 }
 
-fn apply_normal_pdf_row_vector(errors: &mut Matrix1xX<f32>, mean: f32, std_dev: f32) {
+fn apply_normal_pdf_row_vector(
+    errors: &mut Matrix1xX<f32>,
+    mean: f32,
+    std_dev: f32,
+    scalar: Option<f32>,
+) {
     let variance = std_dev * std_dev;
     let scale = 1.0 / (2.0 * PI * variance).sqrt();
     errors.apply(|x| {
-        *x = scale * (-0.5 * (*x - mean).powi(2) / variance).exp();
+        *x = scale * (-0.5 * (*x - mean).powi(2) / variance).exp() * scalar.unwrap_or(1.0);
     });
 }
 
-const FIELD_WALL: f32 = 100.0; // Example value, replace with actual field wall distance
+const FIELD_WALL: f32 = 70.20462;

@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, rc::Rc, vec::Vec};
+use alloc::{boxed::Box, rc::Rc};
 use core::{f64::consts::PI, time::Duration};
 
 use vexide::prelude::{BrakeMode, Float, Motor};
@@ -7,7 +7,7 @@ use crate::{
     controllers::ControllerMethod,
     differential::{chassis::Chassis, pose::Pose},
     tracking::Tracking,
-    utils::math::{angle_error, arcade_desaturate, delta_clamp, AngularDirection},
+    utils::math::{angle_error, arcade_desaturate, delta_clamp},
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -26,24 +26,58 @@ pub struct BoomerangSettings {
     pub lateral_controller: Box<dyn ControllerMethod<f64>>,
     pub angular_controller: Box<dyn ControllerMethod<f64>>,
 
-    pub lateral_exit_conditions: Vec<ExitCondition>,
-    pub angular_exit_conditions: Vec<ExitCondition>,
+    pub lateral_exit_conditions: ExitConditionGroup<f64>,
+    pub angular_exit_conditions: ExitConditionGroup<f64>,
+}
+
+impl Clone for BoomerangSettings {
+    fn clone(&self) -> Self {
+        Self {
+            lateral_controller: dyn_clone::clone_box(&*self.lateral_controller),
+            angular_controller: dyn_clone::clone_box(&*self.angular_controller),
+            lateral_exit_conditions: self.lateral_exit_conditions.clone(),
+            angular_exit_conditions: self.angular_exit_conditions.clone(),
+        }
+    }
+}
+impl BoomerangSettings {
+    pub fn new(
+        lateral_controller: Box<dyn ControllerMethod<f64>>,
+        angular_controller: Box<dyn ControllerMethod<f64>>,
+        lateral_exit_conditions: ExitConditionGroup<f64>,
+        angular_exit_conditions: ExitConditionGroup<f64>,
+    ) -> Self {
+        Self {
+            lateral_controller,
+            angular_controller,
+            lateral_exit_conditions,
+            angular_exit_conditions,
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.lateral_controller.reset();
+        self.lateral_controller.reset();
+        self.lateral_exit_conditions.reset();
+        self.angular_exit_conditions.reset();
+    }
 }
 
 #[macro_export]
-macro_rules! boomerang {
+macro_rules! params_boomerang {
     (
-        $(forwards => $forwards:expr;)?
-        $(lead => $lead:expr;)?
-        $(min_lateral_speed => $min_lateral_speed:expr;)?
-        $(max_lateral_speed => $max_lateral_speed:expr;)?
-        $(max_angular_speed => $max_angular_speed:expr;)?
-        $(early_exit_range => $early_exit_range:expr;)?
-        $(lateral_slew => $lateral_slew:expr;)?
-        $(angular_slew => $angular_slew:expr;)?
-        $(horizontal_drift_compensation => $horizontal_drift_compensation:expr;)?
+        $(forwards: $forwards:expr,)?
+        $(lead: $lead:expr,)?
+        $(min_lateral_speed: $min_lateral_speed:expr,)?
+        $(max_lateral_speed: $max_lateral_speed:expr,)?
+        $(max_angular_speed: $max_angular_speed:expr,)?
+        $(early_exit_range: $early_exit_range:expr,)?
+        $(lateral_slew: $lateral_slew:expr,)?
+        $(angular_slew: $angular_slew:expr,)?
+        $(horizontal_drift_compensation: $horizontal_drift_compensation:expr,)?
     ) => {
         #[allow(unused_mut)]
+        #[allow(unused_assignments)]
         {
             let mut forwards = true;
             let mut lead = 0.6;
@@ -78,9 +112,9 @@ macro_rules! boomerang {
         }
     }
 }
-pub use boomerang;
+pub use params_boomerang;
 
-use super::ExitCondition;
+use super::ExitConditionGroup;
 
 // Todo: maybe make a separate struct for settings enterable.
 impl<T: Tracking + 'static> Chassis<T> {
@@ -90,9 +124,10 @@ impl<T: Tracking + 'static> Chassis<T> {
         boomerang_target: Pose,
         timeout: Option<Duration>,
         params: Option<BoomerangParameters>,
+        mut settings: Option<BoomerangSettings>,
         run_async: bool,
     ) {
-        let mut unwrapped_params = params.unwrap_or(boomerang!());
+        let mut unwrapped_params = params.unwrap_or(params_boomerang!());
         self.motion_handler.wait_for_motions_end().await;
         if self.motion_handler.in_motion() {
             return;
@@ -103,7 +138,7 @@ impl<T: Tracking + 'static> Chassis<T> {
                 let self_clone = self.clone();
                 async move {
                     self_clone
-                        .boomerang(boomerang_target, timeout, params, false)
+                        .boomerang(boomerang_target, timeout, params, settings.clone(), false)
                         .await
                 }
             })
@@ -113,8 +148,10 @@ impl<T: Tracking + 'static> Chassis<T> {
             return;
         }
         {
-            let mut motion_settings = self.motion_settings.borrow_mut();
-            motion_settings.reset();
+            self.motion_settings.boomerang_settings.borrow_mut().reset();
+        }
+        if let Some(ref mut settings) = settings {
+            settings.reset();
         }
         let mut previous_pose = self.pose().await;
         {
@@ -151,13 +188,8 @@ impl<T: Tracking + 'static> Chassis<T> {
                 (carrot_point.y - pose.position.y).atan2(carrot_point.x - pose.position.x);
             let lateral_error = {
                 // Find the cosine of the signed angle between.
-                let cos_angle_difference = angle_error(
-                    pose.orientation,
-                    carrot_pose_angle,
-                    true,
-                    AngularDirection::Auto,
-                )
-                .cos();
+                let cos_angle_difference =
+                    angle_error(pose.orientation, carrot_pose_angle, true, None).cos();
                 if is_near {
                     distance_to_target * cos_angle_difference
                 } else {
@@ -170,42 +202,35 @@ impl<T: Tracking + 'static> Chassis<T> {
                 } else {
                     pose.orientation + PI
                 };
+                // Counterclockwise is positive.
                 if is_near {
                     angle_error(
                         adjusted_orientation,
                         boomerang_target.orientation,
                         true,
-                        AngularDirection::Auto,
+                        None,
                     )
                 } else {
-                    angle_error(
-                        adjusted_orientation,
-                        carrot_pose_angle,
-                        true,
-                        AngularDirection::Auto,
-                    )
+                    angle_error(adjusted_orientation, carrot_pose_angle, true, None)
                 }
             };
+
+            if if let Some(settings) = &mut settings {
+                let lateral_done = settings.lateral_exit_conditions.update_all(lateral_error);
+                let angular_done = settings.angular_exit_conditions.update_all(angular_error);
+                lateral_done && angular_done
+            } else {
+                let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
+                let lateral_done = motion_settings
+                    .lateral_exit_conditions
+                    .update_all(lateral_error);
+                let angular_done = motion_settings
+                    .angular_exit_conditions
+                    .update_all(angular_error);
+                lateral_done && angular_done
+            } && is_near
             {
-                let mut motion_settings = self.motion_settings.borrow_mut();
-                if ('lateral_checks: {
-                    for lateral_exit_condition in &mut motion_settings.lateral_exit_conditions {
-                        if lateral_exit_condition.update(lateral_error) {
-                            break 'lateral_checks true;
-                        }
-                    }
-                    false
-                } && 'angular_checks: {
-                    for angular_exit_condition in &mut motion_settings.angular_exit_conditions {
-                        if angular_exit_condition.update(angular_error) {
-                            break 'angular_checks true;
-                        }
-                    }
-                    false
-                } && is_near)
-                {
-                    break;
-                }
+                break;
             }
             {
                 let is_robot_side: bool = (pose.position.y - boomerang_target.position.y)
@@ -230,8 +255,15 @@ impl<T: Tracking + 'static> Chassis<T> {
                 previous_was_same_side = is_same_side;
             }
             let angular_output = {
-                let mut motion_settings = self.motion_settings.borrow_mut();
-                let mut raw_output = motion_settings.angular_pid.update(angular_error).clamp(
+                let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
+                let mut raw_output = if let Some(settings) = &mut settings {
+                    settings
+                } else {
+                    &mut *motion_settings
+                }
+                .angular_controller
+                .update(angular_error)
+                .clamp(
                     -unwrapped_params.max_angular_speed,
                     unwrapped_params.max_angular_speed,
                 );
@@ -245,8 +277,15 @@ impl<T: Tracking + 'static> Chassis<T> {
                 raw_output
             };
             let lateral_output = {
-                let mut motion_settings = self.motion_settings.borrow_mut();
-                let mut raw_output = motion_settings.lateral_pid.update(lateral_error).clamp(
+                let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
+                let mut raw_output = if let Some(settings) = &mut settings {
+                    settings
+                } else {
+                    &mut motion_settings
+                }
+                .lateral_controller
+                .update(lateral_error)
+                .clamp(
                     -unwrapped_params.max_lateral_speed,
                     unwrapped_params.max_lateral_speed,
                 );
@@ -271,7 +310,7 @@ impl<T: Tracking + 'static> Chassis<T> {
                 }
 
                 let overturn: f64 =
-                    angular_output + raw_output.abs() - unwrapped_params.max_lateral_speed;
+                    angular_output.abs() + raw_output.abs() - unwrapped_params.max_lateral_speed;
                 if overturn > 0.0 {
                     raw_output -= if raw_output > 0.0 {
                         overturn

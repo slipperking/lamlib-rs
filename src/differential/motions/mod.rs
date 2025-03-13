@@ -103,17 +103,30 @@ impl Default for MotionHandler {
         Self::new()
     }
 }
-
-#[derive(PartialEq, PartialOrd)]
-pub struct ExitCondition {
-    range: f64,
+pub struct ExitCondition<T> {
+    range: T,
     timeout: Duration,
     start_time: Option<Instant>,
     done: bool,
 }
 
-impl ExitCondition {
-    pub fn new(range: f64, timeout: Duration) -> Self {
+impl<T: num_traits::Float + Copy> ExitCondition<T> {
+    pub fn update(&mut self, error: T) -> bool {
+        if error.abs() > self.range {
+            self.start_time = None;
+        } else if let Some(start_time) = self.start_time {
+            if Instant::now() > start_time + self.timeout {
+                self.done = true;
+            }
+        } else {
+            self.start_time = Some(Instant::now());
+        }
+        self.done
+    }
+}
+
+impl<T> ExitCondition<T> {
+    pub fn new(range: T, timeout: Duration) -> Self {
         Self {
             range,
             timeout,
@@ -126,30 +139,29 @@ impl ExitCondition {
         self.done
     }
 
-    pub fn update(&mut self, error: f64) -> bool {
-        if error.abs() > self.range {
-            self.start_time = None;
-        } else if let Some(start_time) = self.start_time {
-            if Instant::now() > start_time + self.timeout {
-                self.done = true;
-            }
-        } else {
-            self.start_time = Some(Instant::now());
-        }
-        self.done
-    }
     pub fn reset(&mut self) {
         self.start_time = None;
         self.done = false;
     }
 }
 
-pub struct ExitConditionGroup {
-    exit_condition_group: Vec<ExitCondition>,
+impl<T: Copy> Clone for ExitCondition<T> {
+    fn clone(&self) -> Self {
+        Self {
+            range: self.range,
+            timeout: self.timeout,
+            start_time: None,
+            done: false,
+        }
+    }
+}
+#[derive(Clone)]
+pub struct ExitConditionGroup<T: Copy> {
+    pub exit_condition_group: Vec<ExitCondition<T>>,
 }
 
-impl ExitConditionGroup {
-    pub fn new(exit_condition_group: Vec<ExitCondition>) -> Self {
+impl<T: Copy> ExitConditionGroup<T> {
+    pub fn new(exit_condition_group: Vec<ExitCondition<T>>) -> Self {
         Self {
             exit_condition_group,
         }
@@ -158,5 +170,16 @@ impl ExitConditionGroup {
         for exit_condition in self.exit_condition_group.iter_mut() {
             exit_condition.reset();
         }
+    }
+}
+impl<T: Copy + num_traits::Float + Copy> ExitConditionGroup<T> {
+    pub fn update_all(&mut self, error: T) -> bool {
+        let mut done = false;
+        for exit_condition in self.exit_condition_group.iter_mut() {
+            if exit_condition.update(error) {
+                done = true;
+            }
+        }
+        done
     }
 }

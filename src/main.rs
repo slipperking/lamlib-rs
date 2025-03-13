@@ -4,15 +4,6 @@
 extern crate alloc;
 extern crate approx;
 extern crate nalgebra;
-pub mod controllers;
-pub mod devices;
-#[macro_use]
-pub mod differential;
-pub mod particle_filter;
-pub mod subsystems;
-pub mod tracking;
-pub mod utils;
-
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use core::{
     cell::RefCell,
@@ -38,12 +29,11 @@ use particle_filter::{
 use subsystems::{intake::Intake, ladybrown::LadyBrown, pneumatics::PneumaticWrapper};
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use utils::AllianceColor;
-use vexide::{
-    devices::adi::digital::LogicLevel,
-    prelude::*,
-    sync::Mutex,
-    time::{self, Instant},
+use v5_rust_shenanigans::{
+    differential::motions::{boomerang::BoomerangSettings, ExitConditionGroup},
+    *,
 };
+use vexide::{devices::adi::digital::LogicLevel, prelude::*, sync::Mutex, time};
 struct Robot {
     #[allow(dead_code)]
     alliance_color: Rc<RefCell<AllianceColor>>,
@@ -152,18 +142,18 @@ impl Robot {
             Motor::new(peripherals.port_3, Gearset::Blue, Direction::Forward),
         ])));
         let drivetrain = Rc::new(Drivetrain::new(left_motors, right_motors));
-        let motion_settings = MotionSettings::new(
+        let motion_settings = MotionSettings::new(RefCell::new(BoomerangSettings::new(
             Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)),
             Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)),
-            vec![
+            ExitConditionGroup::new(vec![
                 ExitCondition::new(1.0, Duration::from_millis(150)),
                 ExitCondition::new(3.0, Duration::from_millis(500)),
-            ],
-            vec![
+            ]),
+            ExitConditionGroup::new(vec![
                 ExitCondition::new(1.0, Duration::from_millis(150)),
                 ExitCondition::new(3.0, Duration::from_millis(500)),
-            ],
-        );
+            ]),
+        )));
         let chassis = Chassis::new(
             drivetrain.clone(),
             tracking,
@@ -220,12 +210,11 @@ impl Robot {
             intake.lock().await.init(intake.clone()).await
         }
         chassis
-            .set_pose(differential::pose::pose_radians! {
-                x => 0.0;
-                y => 0.0;
-                orientation => 0.0;
-                standard => true;
-            })
+            .set_pose(differential::pose::Pose::new(
+                0.0,
+                0.0,
+                angle!(degrees: 0.0,),
+            ))
             .await;
         let mut controller = peripherals.primary_controller;
         let _ = controller.rumble("._.").await;

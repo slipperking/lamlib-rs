@@ -5,17 +5,17 @@ use num_traits::Float;
 use vexide::time::Instant;
 
 use super::ControllerMethod;
-pub struct PID<T: Float + FromPrimitive + AddAssign> {
+pub struct PID<T> {
     gains: PIDGains<T>,
     prev_error: T, // Previous error for derivative calculation
-    prev_time: Option<crate::Instant>,
+    prev_time: Option<Instant>,
     integral: T,              // Integral sum for integral term
     windup_range: T,          // Range where integral starts accumulating
     reset_on_sign_flip: bool, // Whether or not to reset integral when sign flips
 }
 
 #[derive(Clone)]
-pub struct PIDGains<T: Float + FromPrimitive + AddAssign> {
+pub struct PIDGains<T> {
     kp: T, // Proportional gain
     ki: T, // Integral gain
     kd: T, // Derivative gain
@@ -76,5 +76,18 @@ impl<T: Float + FromPrimitive + AddAssign> ControllerMethod<T> for PID<T> {
         self.integral = T::zero();
         self.prev_error = T::zero();
         self.prev_time = None;
+    }
+}
+
+impl<T: num_traits::Float> Clone for PID<T> {
+    fn clone(&self) -> Self {
+        Self {
+            gains: self.gains.clone(),
+            prev_error: T::zero(),
+            prev_time: None,
+            integral: T::zero(),
+            windup_range: self.windup_range,
+            reset_on_sign_flip: self.reset_on_sign_flip,
+        }
     }
 }

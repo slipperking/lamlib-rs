@@ -13,58 +13,43 @@ pub mod pose {
     }
 
     #[macro_export]
-    macro_rules! pose_radians {
+    macro_rules! angle {
         (
-            x => $x:expr;
-            y => $y:expr;
-            orientation => $orientation:expr;
-            $(standard => $standard:expr;)?
+            $(degrees: $degrees:expr,)?
+            $(radians: $radians:expr,)?
+            $(standard: $standard:expr,)?
         ) => {
-            #[allow(unused_assignments)]
+            #[allow(unused_mut, unused_assignments)]
             {
-                let mut standard = true;
+                let mut degrees: Option<f64> = None;
+                let mut radians: Option<f64> = None;
+                let mut standard = false;
+                $(degrees = Some($degrees);)?
+                $(radians = Some($radians);)?
                 $(standard = $standard;)?
 
-                differential::pose::Pose::new(
-                    $x,
-                    $y,
+                if let Some(degrees) = degrees {
                     if standard {
-                        $orientation
-                    } else {
-                        core::f64::consts::FRAC_PI_2 - $orientation
-                    },
-                )
-            }
-        }
-    }
-    #[macro_export]
-    macro_rules! pose_degrees {
-        (
-            x => $x:expr;
-            y => $y:expr;
-            orientation => $orientation:expr;
-            $(standard => $standard:expr;)?
-        ) => {
-            #[allow(unused_assignments)]
-            {
-                let orientation = ($orientation as f64).to_radians();
-                let mut standard = true;
-                $(standard = $standard;)?
-
-                differential::pose::Pose::new(
-                    $x,
-                    $y,
+                        degrees.to_radians()
+                    }
+                    else {
+                        (90.0 - degrees).to_radians()
+                    }
+                }
+                else if let Some(radians) = radians {
                     if standard {
-                        orientation
-                    } else {
-                        core::f64::consts::FRAC_PI_2 - orientation
-                    },
-                )
+                        radians
+                    }
+                    else {
+                        core::f64::consts::FRAC_PI_2 - radians
+                    }
+                }
+                else {
+                    0.0
+                }
             }
-        }
+        };
     }
-    pub use pose_degrees;
-    pub use pose_radians;
     impl Pose {
         pub fn new(x: f64, y: f64, orientation: f64) -> Self {
             Self {
