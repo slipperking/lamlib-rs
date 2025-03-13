@@ -22,23 +22,13 @@ pub struct BoomerangParameters {
     pub angular_slew: Option<f64>,
     pub horizontal_drift_compensation: Option<f64>,
 }
+#[derive(Clone)]
 pub struct BoomerangSettings {
     pub lateral_controller: Box<dyn ControllerMethod<f64>>,
     pub angular_controller: Box<dyn ControllerMethod<f64>>,
 
     pub lateral_exit_conditions: ExitConditionGroup<f64>,
     pub angular_exit_conditions: ExitConditionGroup<f64>,
-}
-
-impl Clone for BoomerangSettings {
-    fn clone(&self) -> Self {
-        Self {
-            lateral_controller: dyn_clone::clone_box(&*self.lateral_controller),
-            angular_controller: dyn_clone::clone_box(&*self.angular_controller),
-            lateral_exit_conditions: self.lateral_exit_conditions.clone(),
-            angular_exit_conditions: self.angular_exit_conditions.clone(),
-        }
-    }
 }
 impl BoomerangSettings {
     pub fn new(
