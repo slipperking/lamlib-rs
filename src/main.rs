@@ -30,7 +30,9 @@ use subsystems::{intake::Intake, ladybrown::LadyBrown, pneumatics::PneumaticWrap
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use utils::AllianceColor;
 use v5_rust_shenanigans::{
-    differential::motions::{boomerang::BoomerangSettings, ExitConditionGroup},
+    differential::motions::{
+        angular::TurnToSettings, boomerang::BoomerangSettings, ExitConditionGroup,
+    },
     *,
 };
 use vexide::{devices::adi::digital::LogicLevel, prelude::*, sync::Mutex, time};
@@ -142,18 +144,30 @@ impl Robot {
             Motor::new(peripherals.port_3, Gearset::Blue, Direction::Forward),
         ])));
         let drivetrain = Rc::new(Drivetrain::new(left_motors, right_motors));
-        let motion_settings = MotionSettings::new(RefCell::new(BoomerangSettings::new(
-            Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)),
-            Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)),
-            ExitConditionGroup::new(vec![
-                ExitCondition::new(1.0, Duration::from_millis(150)),
-                ExitCondition::new(3.0, Duration::from_millis(500)),
-            ]),
-            ExitConditionGroup::new(vec![
-                ExitCondition::new(1.0, Duration::from_millis(150)),
-                ExitCondition::new(3.0, Duration::from_millis(500)),
-            ]),
-        )));
+        let lateral_exit_conditions = ExitConditionGroup::new(vec![
+            ExitCondition::new(1.0, Duration::from_millis(150)),
+            ExitCondition::new(3.0, Duration::from_millis(500)),
+        ]);
+        let angular_exit_conditions = ExitConditionGroup::new(vec![
+            ExitCondition::new(1.0, Duration::from_millis(150)),
+            ExitCondition::new(3.0, Duration::from_millis(500)),
+        ]);
+        let lateral_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
+        let angular_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
+
+        let motion_settings = MotionSettings::new(
+            RefCell::new(TurnToSettings::new(
+                angular_controller.clone(),
+                Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)),
+                angular_exit_conditions.clone(),
+            )),
+            RefCell::new(BoomerangSettings::new(
+                lateral_controller.clone(),
+                angular_controller.clone(),
+                lateral_exit_conditions.clone(),
+                angular_exit_conditions.clone(),
+            )),
+        );
         let chassis = Chassis::new(
             drivetrain.clone(),
             tracking,
@@ -240,6 +254,7 @@ impl Robot {
 
 impl Compete for Robot {
     async fn autonomous(&mut self) {
+        params_swing!(locked_side: differential::motions::angular::DriveSide::Left, forwards: false, direction: utils::math::AngularDirection::Counterclockwise,);
         println!("Autonomous!");
     }
     async fn driver(&mut self) {

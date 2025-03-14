@@ -6,11 +6,46 @@ use core::{
 use num::{FromPrimitive, Zero};
 use vexide::float::Float;
 
+/// Represents the direction for angular calculations.
+#[derive(Clone, Copy, PartialEq)]
 pub enum AngularDirection {
+    /// Clockwise rotation direction.
     Clockwise,
+    /// Counterclockwise rotation direction.
     Counterclockwise,
 }
+/// Computes the remainder of `a` divided by `b`.
+///
+/// This function is similar to the modulo operation but ensures the result is closer to 0
+/// than the value on the other side of 0.
+///
+/// # Examples
+/// ```
+/// use crate::math::remainder;
+/// assert_eq!(remainder(7.0, 4.0), -1.0);
+/// assert_eq!(remainder(-7.0, 4.0), -3.0);
+/// ```
+pub fn remainder<T: Div<Output = T> + Sub<Output = T> + Float + Copy + Mul<Output = T>>(
+    a: T,
+    b: T,
+) -> T {
+    let n = (a / b).round();
+    a - b * n
+}
 
+/// Computes the probability density function (PDF) of a Gaussian distribution at `x`.
+///
+/// # Arguments
+/// * `x` - The point to evaluate the PDF at.
+/// * `mu` - The mean (μ) of the distribution.
+/// * `sigma` - The standard deviation (σ) of the distribution.
+///
+/// # Examples
+/// ```
+/// use crate::math::gaussian_pdf;
+/// let value = gaussian_pdf(0.0, 0.0, 1.0);
+/// assert!((value - 0.3989422804).abs() < 1e-9);
+/// ```
 pub fn gaussian_pdf<
     T: FromPrimitive
         + Copy
@@ -26,20 +61,38 @@ pub fn gaussian_pdf<
     sigma: T,
 ) -> T {
     let exponent = -(x - mu) * (x - mu) / (T::from_u8(2).unwrap_or_default() * sigma * sigma);
-    (T::from_f32(1.0).unwrap_or_default()
+    T::from_f32(1.0).unwrap_or_default()
         / (sigma
             * (T::from_u8(2).unwrap_or_default()
                 * T::from_f64(core::f64::consts::PI).unwrap_or_default())
-            .sqrt()))
+            .sqrt())
         * exponent.exp()
 }
 
+/// Computes the unsigned modulus, ensuring the result is positive.
+///
+/// # Examples
+/// ```
+/// # use crate::unsigned_mod;
+/// assert_eq!(unsigned_mod!(-1, 3), 2);
+/// assert_eq!(unsigned_mod!(5, 3), 2);
+/// ```
 #[macro_export]
-macro_rules! signed_mod {
+macro_rules! unsigned_mod {
     ($dividend:expr, $divisor:expr) => {
         (($dividend % $divisor) + $divisor) % $divisor
     };
 }
+
+/// Linearly interpolates between two values.
+///
+/// When `t` is 0.0, returns `value1`; when `t` is 1.0, returns `value2`.
+///
+/// # Examples
+/// ```
+/// # use crate::lerp;
+/// assert_eq!(lerp!(1.0, 3.0, 0.5), 2.0);
+/// ```
 #[macro_export]
 macro_rules! lerp {
     ($value1:expr, $value2:expr, $t:expr) => {
@@ -47,6 +100,13 @@ macro_rules! lerp {
     };
 }
 
+/// Computes the inverse linear interpolation parameter `t` between two values.
+///
+/// # Examples
+/// ```
+/// # use crate::ilerp;
+/// assert_eq!(ilerp!(1.0, 3.0, 2.0), 0.5);
+/// ```
 #[macro_export]
 macro_rules! ilerp {
     ($value1:expr, $value2:expr, $inter:expr) => {
@@ -54,6 +114,16 @@ macro_rules! ilerp {
     };
 }
 
+/// Computes the average of non-`None` values in a vector.
+///
+/// Returns `None` if there are no valid values.
+///
+/// # Examples
+/// ```
+/// # use crate::avg_valid;
+/// let values = vec![Some(2.0), None, Some(4.0)];
+/// assert_eq!(avg_valid!(values), Some(3.0));
+/// ```
 #[macro_export]
 macro_rules! avg_valid {
     ($vec:expr) => {{
@@ -73,16 +143,23 @@ macro_rules! avg_valid {
 pub use avg_valid;
 pub use ilerp;
 pub use lerp;
-pub use signed_mod;
+pub use unsigned_mod;
 
-fn remainder<T: Div<Output = T> + Sub<Output = T> + Float + Copy + Mul<Output = T>>(
-    a: T,
-    b: T,
-) -> T {
-    let n = (a / b).round();
-    a - b * n
-}
-
+/// Clamps the change from `current` towards `target` by `max_delta` scaled by `delta_time`.
+///
+/// # Arguments
+/// * `target` - The value to approach.
+/// * `current` - The current value.
+/// * `max_delta` - The maximum allowed change per unit time.
+/// * `delta_time` - Optional time elapsed since the last update.
+///
+/// # Examples
+/// ```
+/// use core::time::Duration;
+/// use crate::math::delta_clamp;
+/// let result = delta_clamp(10.0, 5.0, 2.0, Some(Duration::from_secs(1)));
+/// assert_eq!(result, 7.0);
+/// ```
 pub fn delta_clamp<
     T: Neg<Output = T>
         + Zero
@@ -108,35 +185,40 @@ pub fn delta_clamp<
     current + (target - current).clamp(-max_delta.abs() * delta_time, max_delta.abs() * delta_time)
 }
 
+/// Normalizes an angle to [0, 2π) radians or [0, 360) degrees.
+///
+/// # Arguments
+/// * `radians` - If `true`, uses radians; degrees otherwise.
+///
+/// # Examples
+/// ```
+/// use crate::math::sanitize_angle;
+/// assert_eq!(sanitize_angle(450.0, false), 90.0);
+/// ```
 pub fn sanitize_angle<T: FromPrimitive + Rem<Output = T> + Add<Output = T> + Default>(
     angle: T,
     radians: bool,
 ) -> T {
     if radians {
-        signed_mod!(
+        unsigned_mod!(
             angle,
             T::from_f64(core::f64::consts::TAU).unwrap_or_default()
         )
     } else {
-        signed_mod!(angle, T::from_u16(360).unwrap_or_default())
+        unsigned_mod!(angle, T::from_u16(360).unwrap_or_default())
     }
 }
 
-/// Calculates the error between two angles. Useful when calculating the difference between two headings.
+/// Calculates the shortest signed angular difference between two angles.
 ///
-/// # Parameters
-/// - `target`: The target angle.
-/// - `current`: The current angle.
-/// - `radians`: Whether the angles are in radians.
-/// - `direction`: A [`AngularDirection`] of the direction to calculate the error in.
-///
-/// # Returns
-/// The signed angle difference, wrapped within the valid range.
+/// # Arguments
+/// * `direction` - Optional [`AngularDirection`] to force error direction.
 ///
 /// # Examples
 /// ```
-/// assert_eq!(angle_error(10.0, 350.0, false, AngularDirection::Auto), 20.0);
-/// assert_eq!(angle_error(350.0, 10.0, false, AngularDirection::Auto), -20.0);
+/// use crate::math::{angle_error, AngularDirection};
+/// assert_eq!(angle_error(10.0, 350.0, false, None), 20.0);
+/// assert_eq!(angle_error(350.0, 10.0, false, None), -20.0);
 /// ```
 pub fn angle_error<
     T: Copy
@@ -186,6 +268,16 @@ pub fn angle_error<
     }
 }
 
+/// Adjusts lateral and angular inputs to prevent motor saturation.
+///
+/// Returns normalized (left, right) motor values.
+///
+/// # Examples
+/// ```
+/// use crate::math::arcade_desaturate;
+/// let (left, right) = arcade_desaturate(0.8, 0.6);
+/// assert_eq!(left, (0.8 - 0.6) / 1.4);
+/// ```
 pub fn arcade_desaturate<
     T: Copy
         + Sub<Output = T>

@@ -7,7 +7,10 @@ use crate::{
     controllers::ControllerMethod,
     differential::{chassis::Chassis, pose::Pose},
     tracking::Tracking,
-    utils::math::{angle_error, arcade_desaturate, delta_clamp},
+    utils::{
+        math::{angle_error, arcade_desaturate, delta_clamp},
+        timer::Timer,
+    },
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -47,7 +50,7 @@ impl BoomerangSettings {
 
     pub fn reset(&mut self) {
         self.lateral_controller.reset();
-        self.lateral_controller.reset();
+        self.angular_controller.reset();
         self.lateral_exit_conditions.reset();
         self.angular_exit_conditions.reset();
     }
@@ -66,8 +69,7 @@ macro_rules! params_boomerang {
         $(angular_slew: $angular_slew:expr,)?
         $(horizontal_drift_compensation: $horizontal_drift_compensation:expr,)?
     ) => {
-        #[allow(unused_mut)]
-        #[allow(unused_assignments)]
+        #[allow(unused_mut, unused_assignments)]
         {
             let mut forwards = true;
             let mut lead = 0.6;
@@ -88,7 +90,7 @@ macro_rules! params_boomerang {
             $(angular_slew = $angular_slew;)?
             $(horizontal_drift_compensation = $horizontal_drift_compensation;)?
 
-            BoomerangParameters {
+            $crate::differential::motions::boomerang::BoomerangParameters {
                 forwards,
                 lead,
                 min_lateral_speed,
@@ -98,6 +100,7 @@ macro_rules! params_boomerang {
                 lateral_slew,
                 angular_slew,
                 horizontal_drift_compensation
+
             }
         }
     }
@@ -106,7 +109,7 @@ pub use params_boomerang;
 
 use super::ExitConditionGroup;
 
-// Todo: maybe make a separate struct for settings enterable.
+// TODO: ~~Add timeouts~~ potentially use RAMSETE to arrive at the carrot point.
 impl<T: Tracking + 'static> Chassis<T> {
     /// Consider boomerang to be lateral; distance traveled, etc. will be distance in inches.
     pub async fn boomerang(
@@ -137,11 +140,10 @@ impl<T: Tracking + 'static> Chassis<T> {
             vexide::time::sleep(Duration::from_millis(10)).await;
             return;
         }
-        {
-            self.motion_settings.boomerang_settings.borrow_mut().reset();
-        }
         if let Some(ref mut settings) = settings {
             settings.reset();
+        } else {
+            self.motion_settings.boomerang_settings.borrow_mut().reset();
         }
         let mut previous_pose = self.pose().await;
         {
@@ -151,7 +153,8 @@ impl<T: Tracking + 'static> Chassis<T> {
         let mut previous_was_same_side = false;
         let mut previous_lateral_output: f64 = 0.0;
         let mut previous_angular_output: f64 = 0.0;
-        loop {
+        let mut timer = Timer::new(timeout.unwrap_or(Duration::MAX));
+        while !timer.is_done() {
             let pose = self.pose().await;
             {
                 if let Some(distance) = self.distance_traveled.borrow_mut().as_mut() {
