@@ -3,6 +3,7 @@ use core::{f64::consts::PI, time::Duration};
 
 use vexide::prelude::{BrakeMode, Float, Motor};
 
+use super::ExitConditionGroup;
 use crate::{
     controllers::ControllerMethod,
     differential::{chassis::Chassis, pose::Pose},
@@ -86,8 +87,8 @@ macro_rules! params_boomerang {
             $(min_lateral_speed = $min_lateral_speed;)?
             $(max_lateral_speed = $max_lateral_speed;)?
             $(early_exit_range = $early_exit_range;)?
-            $(lateral_slew = $lateral_slew;)?
-            $(angular_slew = $angular_slew;)?
+            $(lateral_slew = Some($lateral_slew);)?
+            $(angular_slew = Some($angular_slew);)?
             $(horizontal_drift_compensation = $horizontal_drift_compensation;)?
 
             $crate::differential::motions::boomerang::BoomerangParameters {
@@ -106,8 +107,6 @@ macro_rules! params_boomerang {
     }
 }
 pub use params_boomerang;
-
-use super::ExitConditionGroup;
 
 // TODO: ~~Add timeouts~~ potentially use RAMSETE to arrive at the carrot point.
 impl<T: Tracking + 'static> Chassis<T> {

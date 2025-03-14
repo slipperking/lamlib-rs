@@ -91,7 +91,7 @@ macro_rules! params_swing {
             $(max_speed = $max_speed;)?
             $(direction = Some($direction);)?
             $(early_exit_range = $early_exit_range;)?
-            $(angular_slew = $angular_slew;)?
+            $(angular_slew = Some($angular_slew);)?
 
             $crate::differential::motions::angular::TurnToParameters {
                 forwards,

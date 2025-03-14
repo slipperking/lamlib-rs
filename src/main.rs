@@ -255,6 +255,7 @@ impl Robot {
 impl Compete for Robot {
     async fn autonomous(&mut self) {
         params_swing!(locked_side: differential::motions::angular::DriveSide::Left, forwards: false, direction: utils::math::AngularDirection::Counterclockwise,);
+        params_ramsete_h!(k_lateral: 1.0, forwards: false, angular_slew: 0.8,);
         println!("Autonomous!");
     }
     async fn driver(&mut self) {
