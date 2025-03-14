@@ -1,15 +1,18 @@
 use alloc::{boxed::Box, rc::Rc};
-use core::time::Duration;
+use core::{f64::consts::FRAC_PI_2, time::Duration};
 
 use nalgebra::Vector2;
-use vexide::prelude::{Float, Motor};
+use vexide::prelude::{BrakeMode, Float, Motor, MotorControl};
 
 use super::ExitConditionGroup;
 use crate::{
     controllers::ControllerMethod,
     differential::{chassis::Chassis, pose::Pose},
     tracking::Tracking,
-    utils::{math::AngularDirection, timer::Timer},
+    utils::{
+        math::{angle_error, arcade_desaturate, delta_clamp, AngularDirection},
+        timer::Timer,
+    },
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -211,18 +214,72 @@ impl<T: Tracking + 'static> Chassis<T> {
         } else {
             self.motion_settings.turn_to_settings.borrow_mut().reset();
         }
-        let mut previous_pose = self.pose().await;
         {
             *self.distance_traveled.borrow_mut() = Some(0.0);
         }
+        {
+            self.drivetrain
+                .left_motors
+                .borrow_mut()
+                .set_target_all(MotorControl::Brake(BrakeMode::Brake));
+            self.drivetrain
+                .right_motors
+                .borrow_mut()
+                .set_target_all(MotorControl::Brake(BrakeMode::Brake));
+        }
+        let mut previous_pose = self.pose().await;
+        let mut previous_raw_error: Option<f64> = None;
         let mut oscillations_begin = false;
+        let mut previous_output: f64 = 0.0;
         let mut timer = Timer::new(timeout.unwrap_or(Duration::MAX));
+
         while !timer.is_done() {
             let pose = self.pose().await;
-            let error = turn_target.error(pose, unwrapped_params.direction);
-            // Add settling logic here.
+            if let Some(distance) = self.distance_traveled.borrow_mut().as_mut() {
+                *distance +=
+                    (angle_error(pose.orientation, previous_pose.orientation, true, None)).abs();
+            }
+            previous_pose = pose;
 
-            let raw_output = if unwrapped_params.locked_side.is_some() {
+            let raw_error = turn_target.error(pose, None);
+            if previous_raw_error.is_none() {
+                previous_raw_error = Some(raw_error);
+            }
+
+            // If it crosses error being 0, then drop the `direction` parameter.
+            if !oscillations_begin
+                && previous_raw_error.unwrap().signum() != raw_error.signum()
+                // Make sure the crossing is actually on low error:
+                && (0.0..FRAC_PI_2).contains(&previous_raw_error.unwrap().abs())
+                && (0.0..FRAC_PI_2).contains(&raw_error.abs())
+            {
+                oscillations_begin = true;
+            }
+
+            if unwrapped_params.min_speed != 0.0 && oscillations_begin
+                || raw_error.abs() < unwrapped_params.early_exit_range
+            {
+                break;
+            }
+            let error = if oscillations_begin {
+                raw_error
+            } else {
+                turn_target.error(pose, unwrapped_params.direction)
+            };
+            if if let Some(settings) = &mut settings {
+                settings.angular_exit_conditions.update_all(error)
+            } else {
+                self.motion_settings
+                    .boomerang_settings
+                    .borrow_mut()
+                    .angular_exit_conditions
+                    .update_all(error)
+            } {
+                break;
+            }
+
+            // Apply controllers.
+            let mut raw_output = if unwrapped_params.locked_side.is_some() {
                 if let Some(settings) = &mut settings {
                     settings.swing_controller.update(error)
                 } else {
@@ -240,9 +297,61 @@ impl<T: Tracking + 'static> Chassis<T> {
                     .borrow_mut()
                     .angular_controller
                     .update(error)
-            };
+            }
+            .clamp(-unwrapped_params.max_speed, unwrapped_params.max_speed);
+            raw_output = delta_clamp(
+                raw_output,
+                previous_output,
+                unwrapped_params.angular_slew.unwrap_or(0.0),
+                None,
+            );
+            if (-unwrapped_params.min_speed..0.0).contains(&raw_output) {
+                raw_output = -unwrapped_params.min_speed;
+            } else if (0.0..unwrapped_params.min_speed).contains(&raw_output) {
+                raw_output = unwrapped_params.min_speed;
+            }
+            previous_output = raw_output;
+            let (left, right) = arcade_desaturate(
+                if let Some(locked_side) = unwrapped_params.locked_side {
+                    match locked_side {
+                        DriveSide::Left => raw_output,
+                        DriveSide::Right => -raw_output,
+                    }
+                } else {
+                    0.0
+                },
+                raw_output,
+            );
+            {
+                self.drivetrain
+                    .left_motors
+                    .borrow_mut()
+                    .set_voltage_all_for_types(
+                        left * Motor::V5_MAX_VOLTAGE,
+                        left * Motor::EXP_MAX_VOLTAGE,
+                    );
+                self.drivetrain
+                    .right_motors
+                    .borrow_mut()
+                    .set_voltage_all_for_types(
+                        right * Motor::V5_MAX_VOLTAGE,
+                        right * Motor::EXP_MAX_VOLTAGE,
+                    );
+            }
 
             vexide::time::sleep(Motor::WRITE_INTERVAL).await;
         }
+        {
+            self.drivetrain
+                .left_motors
+                .borrow_mut()
+                .set_target_all(vexide::prelude::MotorControl::Brake(BrakeMode::Coast));
+            self.drivetrain
+                .right_motors
+                .borrow_mut()
+                .set_target_all(vexide::prelude::MotorControl::Brake(BrakeMode::Coast));
+            *self.distance_traveled.borrow_mut() = None;
+        }
+        self.motion_handler.end_motion().await;
     }
 }

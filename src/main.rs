@@ -149,8 +149,8 @@ impl Robot {
             ExitCondition::new(3.0, Duration::from_millis(500)),
         ]);
         let angular_exit_conditions = ExitConditionGroup::new(vec![
-            ExitCondition::new(1.0, Duration::from_millis(150)),
-            ExitCondition::new(3.0, Duration::from_millis(500)),
+            ExitCondition::new(angle!(degrees: 1.0,), Duration::from_millis(150)),
+            ExitCondition::new(angle!(degrees: 3.0,), Duration::from_millis(500)),
         ]);
         let lateral_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
         let angular_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
