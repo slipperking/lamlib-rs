@@ -1,5 +1,8 @@
 use alloc::{boxed::Box, rc::Rc};
-use core::{f64::consts::FRAC_PI_2, time::Duration};
+use core::{
+    f64::consts::{FRAC_PI_2, PI},
+    time::Duration,
+};
 
 use nalgebra::Vector2;
 use vexide::prelude::{BrakeMode, Float, Motor, MotorControl};
@@ -241,7 +244,10 @@ impl<T: Tracking + 'static> Chassis<T> {
             }
             previous_pose = pose;
 
-            let raw_error = turn_target.error(pose, None);
+            let raw_error = turn_target.error(
+                pose + Pose::new(0.0, 0.0, if unwrapped_params.forwards { 0.0 } else { PI }),
+                None,
+            );
             if previous_raw_error.is_none() {
                 previous_raw_error = Some(raw_error);
             }
@@ -264,7 +270,10 @@ impl<T: Tracking + 'static> Chassis<T> {
             let error = if oscillations_begin {
                 raw_error
             } else {
-                turn_target.error(pose, unwrapped_params.direction)
+                turn_target.error(
+                    pose + Pose::new(0.0, 0.0, if unwrapped_params.forwards { 0.0 } else { PI }),
+                    unwrapped_params.direction,
+                )
             };
             if if let Some(settings) = &mut settings {
                 settings.angular_exit_conditions.update_all(error)

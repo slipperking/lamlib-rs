@@ -3,6 +3,8 @@ pub mod drive_curve;
 pub mod motions;
 #[macro_use]
 pub mod pose {
+    use core::ops::{Add, Sub};
+
     use nalgebra::{Vector2, Vector3};
     use num_traits::AsPrimitive;
 
@@ -10,6 +12,28 @@ pub mod pose {
     pub struct Pose {
         pub position: Vector2<f64>,
         pub orientation: f64,
+    }
+
+    impl Sub for Pose {
+        type Output = Self;
+
+        fn sub(self, rhs: Self) -> Self {
+            Self {
+                position: self.position - rhs.position,
+                orientation: self.orientation - rhs.orientation,
+            }
+        }
+    }
+
+    impl Add for Pose {
+        type Output = Self;
+
+        fn add(self, rhs: Self) -> Self {
+            Self {
+                position: self.position + rhs.position,
+                orientation: self.orientation + rhs.orientation,
+            }
+        }
     }
 
     #[macro_export]
