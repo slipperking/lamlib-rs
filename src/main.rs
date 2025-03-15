@@ -31,7 +31,10 @@ use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use utils::AllianceColor;
 use v5_rust_shenanigans::{
     differential::motions::{
-        angular::TurnToSettings, boomerang::BoomerangSettings, ExitConditionGroup,
+        angular::{self, TurnToSettings},
+        boomerang::BoomerangSettings,
+        ramsete::RAMSETEHybridSettings,
+        ExitConditionGroup,
     },
     *,
 };
@@ -56,7 +59,7 @@ struct Robot {
 }
 impl Robot {
     async fn new(peripherals: Peripherals) -> Self {
-        // TODO: impleemnt color.
+        // TODO: implement color.
         let alliance_color = Rc::new(RefCell::new(AllianceColor::Red));
 
         let rotation_vertical_odom_wheel: Rc<RefCell<RotationSensor>> = Rc::new(RefCell::new(
@@ -167,6 +170,13 @@ impl Robot {
                 lateral_exit_conditions.clone(),
                 angular_exit_conditions.clone(),
             )),
+            RefCell::new(RAMSETEHybridSettings::new(
+                lateral_controller.clone(),
+                angular_controller.clone(),
+                lateral_exit_conditions.clone(),
+                angular_exit_conditions.clone(),
+                1.0,
+            )),
         );
         let chassis = Chassis::new(
             drivetrain.clone(),
@@ -255,7 +265,7 @@ impl Robot {
 impl Compete for Robot {
     async fn autonomous(&mut self) {
         params_swing!(locked_side: differential::motions::angular::DriveSide::Left, forwards: false, direction: utils::math::AngularDirection::Counterclockwise,);
-        params_ramsete_h!(k_lateral: 1.0, forwards: false, angular_slew: 0.8,);
+        params_ramsete_h!(b: 1.0, forwards: false, angular_slew: 0.8,);
         println!("Autonomous!");
     }
     async fn driver(&mut self) {

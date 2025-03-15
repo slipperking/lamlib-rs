@@ -186,7 +186,7 @@ impl Intake {
 
         while let Some((_, timestamp)) = self.optical_color_history.front() {
             // Remove entries older than delay_time.
-            if now.duration_since(*timestamp) >= Duration::from_secs_f64(delay_time) {
+            if now.duration_since(*timestamp) <= Duration::from_secs_f64(delay_time) {
                 break;
             }
             self.optical_color_history.pop_front();
@@ -233,7 +233,7 @@ impl Intake {
 
         while let Some((_, timestamp)) = self.distance_color_history.front() {
             // Remove entries older than delay_time.
-            if now.duration_since(*timestamp) >= Duration::from_secs_f64(delay_time) {
+            if now.duration_since(*timestamp) <= Duration::from_secs_f64(delay_time) {
                 break;
             }
             self.distance_color_history.pop_front();

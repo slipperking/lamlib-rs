@@ -192,7 +192,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         mut settings: Option<TurnToSettings>,
         run_async: bool,
     ) {
-        let mut unwrapped_params = params.unwrap_or(params_turn_to!());
+        let unwrapped_params = params.unwrap_or(params_turn_to!());
         self.motion_handler.wait_for_motions_end().await;
         if self.motion_handler.in_motion() {
             return;
@@ -220,16 +220,21 @@ impl<T: Tracking + 'static> Chassis<T> {
         {
             *self.distance_traveled.borrow_mut() = Some(0.0);
         }
-        {
-            self.drivetrain
-                .left_motors
-                .borrow_mut()
-                .set_target_all(MotorControl::Brake(BrakeMode::Brake));
-            self.drivetrain
-                .right_motors
-                .borrow_mut()
-                .set_target_all(MotorControl::Brake(BrakeMode::Brake));
-        }
+        match unwrapped_params.locked_side {
+            Some(DriveSide::Left) => {
+                self.drivetrain
+                    .left_motors
+                    .borrow_mut()
+                    .set_target_all(MotorControl::Brake(BrakeMode::Brake));
+            }
+            Some(DriveSide::Right) => {
+                self.drivetrain
+                    .right_motors
+                    .borrow_mut()
+                    .set_target_all(MotorControl::Brake(BrakeMode::Brake));
+            }
+            None => {}
+        };
         let mut previous_pose = self.pose().await;
         let mut previous_raw_error: Option<f64> = None;
         let mut oscillations_begin = false;

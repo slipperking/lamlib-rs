@@ -6,7 +6,10 @@ use vexide::{prelude::Motor, sync::Mutex};
 
 use super::{
     drive_curve::ExponentialDriveCurve,
-    motions::{angular::TurnToSettings, boomerang::BoomerangSettings, MotionHandler},
+    motions::{
+        angular::TurnToSettings, boomerang::BoomerangSettings, ramsete::RAMSETEHybridSettings,
+        MotionHandler,
+    },
     pose::Pose,
 };
 use crate::{devices::motor_group::MotorGroup, tracking::*};
@@ -31,16 +34,19 @@ impl Drivetrain {
 pub struct MotionSettings {
     pub turn_to_settings: RefCell<TurnToSettings>,
     pub boomerang_settings: RefCell<BoomerangSettings>,
+    pub ramsete_hybrid_settings: RefCell<RAMSETEHybridSettings>,
 }
 
 impl MotionSettings {
     pub fn new(
         turn_to_settings: RefCell<TurnToSettings>,
         boomerang_settings: RefCell<BoomerangSettings>,
+        ramsete_hybrid_settings: RefCell<RAMSETEHybridSettings>,
     ) -> Self {
         Self {
             turn_to_settings,
             boomerang_settings,
+            ramsete_hybrid_settings,
         }
     }
 }
