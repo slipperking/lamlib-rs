@@ -1,7 +1,7 @@
 use alloc::{boxed::Box, rc::Rc};
 use core::{f64::consts::PI, time::Duration};
 
-use nalgebra::{SimdValue, Vector3};
+use nalgebra::{SimdRealField, SimdValue, Vector2, Vector3};
 use vexide::prelude::Motor;
 
 use super::ExitConditionGroup;
@@ -119,10 +119,16 @@ pub use params_ramsete_h;
 // Calculate v_d as PID(|e| * sign(cos(e_θ))).
 // Then calculate angular_output as PID(e_θ) + b * v_d * e_y * sinc(e_θ).
 // Calculate v as |cos(e_θ)| * v_d.
+
+pub enum RamseteTarget {
+    Pose(Pose),
+    Point(Vector2<f64>),
+}
+
 impl<T: Tracking + 'static> Chassis<T> {
     pub async fn ramsete_hybrid(
         self: Rc<Self>,
-        target: Pose,
+        target: RamseteTarget,
         timeout: Option<Duration>,
         params: Option<RAMSETEHybridParameters>,
         mut settings: Option<RAMSETEHybridSettings>,
@@ -180,7 +186,15 @@ impl<T: Tracking + 'static> Chassis<T> {
                 // Similar to ∇×v, by the right hand rule, a negative direction
                 // value is a clockwise rotation (negative orientation).
                 nalgebra::Rotation3::new(Vector3::<f64>::new(0.0, 0.0, -pose.orientation))
-                    * <Pose as Into<Vector3<f64>>>::into(target - pose),
+                    * <Pose as Into<Vector3<f64>>>::into(
+                        match target {
+                            RamseteTarget::Point(point) => Pose::new(point.x, point.y, {
+                                let error = point - pose.position;
+                                error.y.simd_atan2(error.x)
+                            }),
+                            RamseteTarget::Pose(pose) => pose,
+                        } - pose,
+                    ),
             );
             if !is_near && local_error.position.norm() < 5.0 {
                 is_near = true;
@@ -192,6 +206,29 @@ impl<T: Tracking + 'static> Chassis<T> {
                 true,
                 None,
             );
+
+            if if let Some(settings) = &mut settings {
+                let lateral_done = settings
+                    .lateral_exit_conditions
+                    .update_all(local_error.position.norm());
+                let angular_done = settings
+                    .angular_exit_conditions
+                    .update_all(local_error.orientation);
+                lateral_done && angular_done
+            } else {
+                let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
+                let lateral_done = motion_settings
+                    .lateral_exit_conditions
+                    .update_all(local_error.position.norm());
+                let angular_done = motion_settings
+                    .angular_exit_conditions
+                    .update_all(local_error.orientation);
+                lateral_done && angular_done
+            } && is_near
+            {
+                break;
+            }
+
             let v_d = {
                 let controller_input =
                     local_error.position.norm() * local_error.orientation.simd_cos().simd_signum();

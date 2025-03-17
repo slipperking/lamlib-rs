@@ -32,7 +32,7 @@ use utils::AllianceColor;
 use v5_rust_shenanigans::{
     differential::{
         motions::{
-            angular::TurnToSettings, boomerang::BoomerangSettings, ramsete::RAMSETEHybridSettings,
+            angular::TurnToSettings, boomerang::BoomerangSettings, ramsete::{RAMSETEHybridSettings, RamseteTarget},
             ExitConditionGroup,
         },
         pose::Pose,
@@ -269,7 +269,7 @@ impl Compete for Robot {
         self.chassis
             .clone()
             .ramsete_hybrid(
-                Pose::new(0.0, 0.0, angle!(radians: 0.0,)),
+                RamseteTarget::Pose(Pose::new(0.0, 0.0, angle!(radians: 0.0,))),
                 None,
                 Some(params_ramsete_h!(b: 1.0, forwards: false, angular_slew: 0.8,)),
                 None,

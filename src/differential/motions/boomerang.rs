@@ -1,7 +1,7 @@
 use alloc::{boxed::Box, rc::Rc};
 use core::{f64::consts::PI, time::Duration};
 
-use vexide::prelude::{BrakeMode, Float, Motor};
+use vexide::prelude::{BrakeMode, Float};
 
 use super::ExitConditionGroup;
 use crate::{
