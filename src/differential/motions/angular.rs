@@ -184,7 +184,7 @@ impl TurnTarget {
     }
 }
 impl<T: Tracking + 'static> Chassis<T> {
-    async fn turn_to(
+    pub async fn turn_to(
         self: Rc<Self>,
         turn_target: TurnTarget,
         timeout: Option<Duration>,
@@ -241,7 +241,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         let mut previous_output: f64 = 0.0;
         let mut timer = Timer::new(timeout.unwrap_or(Duration::MAX));
 
-        while !timer.is_done() {
+        while !timer.is_done() && self.motion_handler.in_motion() {
             let pose = self.pose().await;
             if let Some(distance) = self.distance_traveled.borrow_mut().as_mut() {
                 *distance +=

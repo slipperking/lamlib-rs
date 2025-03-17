@@ -108,9 +108,7 @@ macro_rules! params_boomerang {
 }
 pub use params_boomerang;
 
-// TODO: ~~Add timeouts~~ potentially use RAMSETE to arrive at the carrot point.
 impl<T: Tracking + 'static> Chassis<T> {
-    /// Consider boomerang to be lateral; distance traveled, etc. will be distance in inches.
     pub async fn boomerang(
         self: Rc<Self>,
         boomerang_target: Pose,
@@ -153,7 +151,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         let mut previous_lateral_output: f64 = 0.0;
         let mut previous_angular_output: f64 = 0.0;
         let mut timer = Timer::new(timeout.unwrap_or(Duration::MAX));
-        while !timer.is_done() {
+        while !timer.is_done() && self.motion_handler.in_motion() {
             let pose = self.pose().await;
             {
                 if let Some(distance) = self.distance_traveled.borrow_mut().as_mut() {

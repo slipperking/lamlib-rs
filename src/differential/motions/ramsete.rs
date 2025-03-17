@@ -1,10 +1,20 @@
 use alloc::{boxed::Box, rc::Rc};
-use core::time::Duration;
+use core::{f64::consts::PI, time::Duration};
 
-use nalgebra::Vector2;
+use nalgebra::{SimdValue, Vector3};
+use vexide::prelude::Motor;
 
-use super::{angular::TurnToParameters, ExitConditionGroup};
-use crate::{controllers::ControllerMethod, differential::chassis::Chassis, tracking::Tracking};
+use super::ExitConditionGroup;
+use crate::{
+    controllers::ControllerMethod,
+    differential::{chassis::Chassis, pose::Pose},
+    nalgebra::SimdComplexField,
+    tracking::Tracking,
+    utils::{
+        math::{angle_error, arcade_desaturate, delta_clamp},
+        timer::Timer,
+    },
+};
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct RAMSETEHybridParameters {
@@ -50,7 +60,9 @@ impl RAMSETEHybridSettings {
     }
 
     pub fn reset(&mut self) {
+        self.lateral_controller.reset();
         self.angular_controller.reset();
+        self.lateral_exit_conditions.reset();
         self.angular_exit_conditions.reset();
     }
 }
@@ -104,18 +116,18 @@ pub use params_ramsete_h;
 
 // Control scheme:
 // First calculate local error: rotation matrix of (-current heading) * (target - current).
-// Then calculate omega as PID(e_θ) + b * v_d * e_y * sinc(e_θ).
+// Calculate v_d as PID(|e| * sign(cos(e_θ))).
+// Then calculate angular_output as PID(e_θ) + b * v_d * e_y * sinc(e_θ).
 // Calculate v as |cos(e_θ)| * v_d.
 impl<T: Tracking + 'static> Chassis<T> {
     pub async fn ramsete_hybrid(
         self: Rc<Self>,
-        target: Vector2<f64>,
+        target: Pose,
         timeout: Option<Duration>,
         params: Option<RAMSETEHybridParameters>,
         mut settings: Option<RAMSETEHybridSettings>,
         run_async: bool,
     ) {
-        let mut unwrapped_params = params.unwrap_or(params_ramsete_h!());
         self.motion_handler.wait_for_motions_end().await;
         if self.motion_handler.in_motion() {
             return;
@@ -145,6 +157,141 @@ impl<T: Tracking + 'static> Chassis<T> {
         }
         {
             *self.distance_traveled.borrow_mut() = Some(0.0);
+        }
+        let mut unwrapped_params = params.unwrap_or(params_ramsete_h!());
+        unwrapped_params.min_lateral_speed = unwrapped_params.min_lateral_speed.simd_abs();
+        unwrapped_params.max_lateral_speed = unwrapped_params.max_lateral_speed.simd_abs();
+        unwrapped_params.max_angular_speed = unwrapped_params.max_angular_speed.simd_abs();
+        if unwrapped_params.max_angular_speed < unwrapped_params.min_lateral_speed {
+            panic!("Minimum speed may not exceed the maximum.")
+        }
+        let mut previous_pose = self.pose().await;
+        let mut is_near = false; // Possibly use settling logic.
+        let mut previous_lateral_output: f64 = 0.0;
+        let mut previous_angular_output: f64 = 0.0;
+        let mut timer = Timer::new(timeout.unwrap_or(Duration::MAX));
+        while !timer.is_done() && self.motion_handler.in_motion() {
+            let pose: Pose = self.pose().await;
+            if let Some(distance_traveled) = self.distance_traveled.borrow_mut().as_mut() {
+                *distance_traveled += pose.distance_to(&previous_pose);
+            }
+            previous_pose = pose;
+            let mut local_error = Pose::from(
+                // Similar to ∇×v, by the right hand rule, a negative direction
+                // value is a clockwise rotation (negative orientation).
+                nalgebra::Rotation3::new(Vector3::<f64>::new(0.0, 0.0, -pose.orientation))
+                    * <Pose as Into<Vector3<f64>>>::into(target - pose),
+            );
+            if !is_near && local_error.position.norm() < 5.0 {
+                is_near = true;
+                unwrapped_params.max_lateral_speed = previous_lateral_output.max(0.5);
+            }
+            local_error.orientation = angle_error(
+                local_error.orientation,
+                if unwrapped_params.forwards { 0.0 } else { PI },
+                true,
+                None,
+            );
+            let v_d = {
+                let controller_input =
+                    local_error.position.norm() * local_error.orientation.simd_cos().simd_signum();
+                if let Some(settings) = &mut settings {
+                    settings.lateral_controller.update(controller_input)
+                } else {
+                    self.motion_settings
+                        .ramsete_hybrid_settings
+                        .borrow_mut()
+                        .lateral_controller
+                        .update(controller_input)
+                }
+            };
+            let lateral_output = (v_d * local_error.orientation.simd_cos().simd_abs())
+                .clamp(
+                    -unwrapped_params.max_lateral_speed,
+                    unwrapped_params.max_lateral_speed,
+                )
+                .map_lanes(|value| {
+                    let check_1_result = if (-unwrapped_params.min_lateral_speed
+                        ..unwrapped_params.min_lateral_speed)
+                        .contains(&value)
+                    {
+                        unwrapped_params.min_lateral_speed
+                    } else {
+                        value
+                    };
+                    let check_2_result = if check_1_result < 0.0 && !is_near {
+                        0.0
+                    } else {
+                        check_1_result
+                    };
+                    delta_clamp(
+                        check_2_result,
+                        previous_lateral_output,
+                        unwrapped_params.lateral_slew.unwrap_or(0.0),
+                        None,
+                    )
+                });
+            let angular_output =
+                ({
+                    if let Some(settings) = &mut settings {
+                        settings.angular_controller.update(local_error.orientation)
+                    } else {
+                        self.motion_settings
+                            .ramsete_hybrid_settings
+                            .borrow_mut()
+                            .angular_controller
+                            .update(local_error.orientation)
+                    }
+                } + v_d * local_error.position.y * local_error.orientation.simd_sinc() * {
+                    unwrapped_params
+                        .b
+                        .unwrap_or(if let Some(settings) = &settings {
+                            settings.b
+                        } else {
+                            self.motion_settings.ramsete_hybrid_settings.borrow().b
+                        })
+                })
+                .clamp(
+                    -unwrapped_params.max_angular_speed,
+                    unwrapped_params.max_angular_speed,
+                )
+                .map_lanes(|value| {
+                    delta_clamp(
+                        value,
+                        previous_angular_output,
+                        unwrapped_params.angular_slew.unwrap_or(0.0),
+                        None,
+                    )
+                });
+            previous_lateral_output = lateral_output;
+            previous_angular_output = angular_output;
+
+            let (left, right) = arcade_desaturate(
+                if unwrapped_params.forwards {
+                    lateral_output
+                } else {
+                    -lateral_output
+                },
+                angular_output,
+            );
+            {
+                self.drivetrain
+                    .left_motors
+                    .borrow_mut()
+                    .set_voltage_all_for_types(
+                        left * Motor::V5_MAX_VOLTAGE,
+                        left * Motor::EXP_MAX_VOLTAGE,
+                    );
+                self.drivetrain
+                    .right_motors
+                    .borrow_mut()
+                    .set_voltage_all_for_types(
+                        right * Motor::V5_MAX_VOLTAGE,
+                        right * Motor::EXP_MAX_VOLTAGE,
+                    );
+            }
+
+            vexide::time::sleep(Motor::WRITE_INTERVAL).await;
         }
     }
 }

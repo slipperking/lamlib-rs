@@ -68,8 +68,8 @@ impl<T: Tracking> Chassis<T> {
         throttle_curve: ExponentialDriveCurve,
         steer_curve: ExponentialDriveCurve,
         motion_settings: MotionSettings,
-    ) -> Self {
-        Self {
+    ) -> Rc<Self> {
+        Rc::new(Self {
             drivetrain,
             tracking,
             throttle_curve,
@@ -77,7 +77,7 @@ impl<T: Tracking> Chassis<T> {
             motion_handler: MotionHandler::new(),
             distance_traveled: RefCell::new(None),
             motion_settings,
-        }
+        })
     }
     pub async fn calibrate(&self) {
         self.tracking.lock().await.init(self.tracking.clone()).await;

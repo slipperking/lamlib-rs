@@ -30,11 +30,12 @@ use subsystems::{intake::Intake, ladybrown::LadyBrown, pneumatics::PneumaticWrap
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use utils::AllianceColor;
 use v5_rust_shenanigans::{
-    differential::motions::{
-        angular::{self, TurnToSettings},
-        boomerang::BoomerangSettings,
-        ramsete::RAMSETEHybridSettings,
-        ExitConditionGroup,
+    differential::{
+        motions::{
+            angular::TurnToSettings, boomerang::BoomerangSettings, ramsete::RAMSETEHybridSettings,
+            ExitConditionGroup,
+        },
+        pose::Pose,
     },
     *,
 };
@@ -44,7 +45,7 @@ struct Robot {
     alliance_color: Rc<RefCell<AllianceColor>>,
     #[warn(dead_code)]
     controller: Controller,
-    chassis: Chassis<OdomTracking>,
+    chassis: Rc<Chassis<OdomTracking>>,
 
     ladybrown_arm: Rc<RefCell<LadyBrown>>,
 
@@ -131,7 +132,7 @@ impl Robot {
                 ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
             ]);
 
-        let tracking = Rc::new(Mutex::new(OdomTracking::new(
+        let tracking: Rc<Mutex<OdomTracking>> = Rc::new(Mutex::new(OdomTracking::new(
             Rc::new(sensors),
             localization.clone(),
             particle_filter_sensors.clone(),
@@ -265,7 +266,16 @@ impl Robot {
 impl Compete for Robot {
     async fn autonomous(&mut self) {
         params_swing!(locked_side: differential::motions::angular::DriveSide::Left, forwards: false, direction: utils::math::AngularDirection::Counterclockwise,);
-        params_ramsete_h!(b: 1.0, forwards: false, angular_slew: 0.8,);
+        self.chassis
+            .clone()
+            .ramsete_hybrid(
+                Pose::new(0.0, 0.0, angle!(radians: 0.0,)),
+                None,
+                Some(params_ramsete_h!(b: 1.0, forwards: false, angular_slew: 0.8,)),
+                None,
+                true,
+            )
+            .await;
         println!("Autonomous!");
     }
     async fn driver(&mut self) {
