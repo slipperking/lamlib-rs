@@ -1,10 +1,10 @@
 use alloc::rc::Rc;
-use core::{cell::RefCell, f32::consts::PI};
+use core::{cell::RefCell, f32::consts::PI, time::Duration};
 
 use nalgebra::{
     Matrix1xX, Matrix2, Matrix2xX, Matrix3xX, RowDVector, SimdComplexField, Vector2, Vector3,
 };
-use vexide::prelude::DistanceSensor;
+use vexide::{prelude::DistanceSensor, time::Instant};
 
 use super::ParticleFilterSensor;
 use crate::utils::{
@@ -60,6 +60,10 @@ pub struct LiDAR {
     /// This is in case your mounting is not perfectly straight,
     /// and this is the cosine value of the angular offset.
     scalar: f32,
+
+    /// Distance sensors update at approximately 30hz≈30ms/each.
+    /// This is to store the last time it was polled at.
+    last_updated: Option<Instant>,
 }
 impl LiDAR {
     pub fn new(
@@ -84,15 +88,23 @@ impl LiDAR {
             global_angles: RowDVector::zeros(1),
             precompute_data,
             scalar: scalar.unwrap_or(1.0),
+            last_updated: None,
         }
     }
 }
 
-// #[async_trait::async_trait(?Send)]
 impl ParticleFilterSensor<3> for LiDAR {
+    // TODO: logic simplication since we have timing checks.
     fn precompute(&mut self, positions: &Matrix3xX<f32>) {
+        if let Some(last_updated) = self.last_updated {
+            if last_updated.elapsed() < Duration::from_millis(30) {
+                return;
+            }
+        }
+
         let mut precompute_data = self.precompute_data.borrow_mut();
         if !precompute_data.precomputed {
+            self.last_updated = Some(Instant::now());
             precompute_data.transformed_heading_cosines = positions.row(2).map(|x| x.simd_sin());
             precompute_data.transformed_heading_sines = positions.row(2).map(|x| -x.simd_cos());
             precompute_data.precomputed = true;
@@ -104,6 +116,11 @@ impl ParticleFilterSensor<3> for LiDAR {
     }
 
     fn update(&mut self, positions: &Matrix3xX<f32>, weights: &mut RowDVector<f32>) {
+        // It returns false only if the precomputes were not computed,
+        // specifically for when it has not been 30 ms.
+        if !self.precompute_data.borrow().precomputed {
+            return;
+        }
         let detected_object = self.distance_sensor.object().unwrap_or(None);
 
         if let Some(detected_distance_mm) = detected_object.as_ref().map(|object| object.distance) {
@@ -199,7 +216,8 @@ fn apply_normal_pdf_row_vector(
     let variance = std_dev * std_dev;
     let scale = 1.0 / (2.0 * PI * variance).simd_sqrt();
     errors.apply(|x| {
-        *x = scale * (-0.5 * (*x - mean).simd_powi(2) / variance).simd_exp() * scalar.unwrap_or(1.0);
+        *x =
+            scale * (-0.5 * (*x - mean).simd_powi(2) / variance).simd_exp() * scalar.unwrap_or(1.0);
     });
 }
 
