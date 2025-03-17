@@ -35,10 +35,16 @@ impl MotorGroup {
         }
     }
     // Use this for braking.
-    pub fn set_target_all(&mut self, target: MotorControl) -> Vec<Result<(), MotorError>>{
+    pub fn set_target_all(&mut self, target: MotorControl) -> Vec<Result<(), MotorError>> {
         self.motors
             .iter_mut()
             .map(|motor| motor.set_target(target))
+            .collect()
+    }
+    pub fn set_velocity_percentage_all(&mut self, target: f64) -> Vec<Result<(), MotorError>> {
+        self.motors
+            .iter_mut()
+            .map(|motor| motor.set_velocity((motor.gearset()?.max_rpm() * target) as i32))
             .collect()
     }
     pub fn set_position_all(&mut self, position: Position) -> Vec<Result<(), MotorError>> {

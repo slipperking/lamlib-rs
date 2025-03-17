@@ -51,8 +51,8 @@ pub struct Intake {
     was_sort_on_previous_epoch: bool,
     is_sort_enabled: bool,
 
-    voltage: f64,
-    previous_intake_voltage: f64,
+    velocity: f64,
+    previous_intake_velocity: f64,
 
     previous_intake_button_state: IntakeButtonState,
     previous_intake_sort_button_state: bool,
@@ -81,8 +81,8 @@ impl Intake {
             motor_group,
             optical_sensor,
             distance_sensor,
-            voltage: 0.0,
-            previous_intake_voltage: 0.0,
+            velocity: 0.0,
+            previous_intake_velocity: 0.0,
             last_sort_time: None,
             jam_start_time: None,
             jam_detected: false,
@@ -101,31 +101,28 @@ impl Intake {
             optical_callback: default_optical_callback!(),
         }
     }
-    pub fn set_voltage(&mut self, voltage: f64) {
-        self.voltage = voltage;
+    pub fn set_velocity(&mut self, velocity: f64) {
+        self.velocity = velocity;
     }
     pub fn spin(&mut self) {
-        self.set_voltage(1.0);
+        self.set_velocity(1.0);
     }
     pub fn spin_reverse(&mut self) {
-        self.set_voltage(-1.0)
+        self.set_velocity(-1.0)
     }
     pub fn stop(&mut self) {
-        self.voltage = 0.0;
+        self.velocity = 0.0;
     }
     pub fn set_sort_state(&mut self, state: bool) {
         self.is_sort_enabled = state;
     }
 
-    /// Adds braking for 0.0 voltage.
-    fn spin_at_voltage(&self, motor_group: &mut MotorGroup, voltage: f64) {
-        if voltage == 0.0 {
+    /// Adds braking for 0.0 velocity.
+    fn spin_at_velocity(&self, motor_group: &mut MotorGroup, velocity: f64) {
+        if velocity == 0.0 {
             motor_group.set_target_all(MotorControl::Brake(BrakeMode::Coast));
         } else {
-            motor_group.set_voltage_all_for_types(
-                voltage * Motor::V5_MAX_VOLTAGE,
-                voltage * Motor::EXP_MAX_VOLTAGE,
-            );
+            motor_group.set_velocity_percentage_all(velocity);
         }
     }
     pub fn clear_optical_callback(&mut self) {
@@ -266,7 +263,7 @@ impl Intake {
         };
 
         let mut motor_group = self.motor_group.borrow_mut();
-        if self.voltage > Motor::V5_MAX_VOLTAGE * 2.0 / 3.0 {
+        if self.velocity > 2.0 / 3.0 {
             let actual_velocities = motor_group
                 .velocity_all()
                 .into_iter()
@@ -297,10 +294,10 @@ impl Intake {
                         if (MIN_ANTI_JAM_REVERSE_TIME..MAX_ANTI_JAM_REVERSE_TIME).contains(&elapsed)
                         {
                             self.jam_detected = true;
-                            self.spin_at_voltage(&mut motor_group, -Motor::V5_MAX_VOLTAGE);
+                            self.spin_at_velocity(&mut motor_group, -1.0);
                             return; // Early brake.
                         } else if self.jam_detected && elapsed >= MAX_ANTI_JAM_REVERSE_TIME {
-                            self.spin_at_voltage(&mut motor_group, self.voltage);
+                            self.spin_at_velocity(&mut motor_group, self.velocity);
 
                             self.jam_detected = false;
                             self.jam_start_time = None;
@@ -323,19 +320,16 @@ impl Intake {
                 .is_some_and(|time| time.elapsed().as_secs_f64() * 1000.0 < SORT_DURATION))
         {
             if !self.was_sort_on_previous_epoch {
-                motor_group.set_voltage_all_for_types(
-                    -0.05 * Motor::V5_MAX_VOLTAGE,
-                    -0.05 * Motor::EXP_MAX_VOLTAGE,
-                );
+                self.spin_at_velocity(&mut motor_group, -0.05);
             }
             if should_sort_on_current_epoch {
                 self.last_sort_time = Some(Instant::now())
             }
             should_sort_on_current_epoch = true;
-        } else if self.previous_intake_voltage != self.voltage || self.was_sort_on_previous_epoch {
-            self.spin_at_voltage(&mut motor_group, self.voltage);
+        } else if self.previous_intake_velocity != self.velocity || self.was_sort_on_previous_epoch {
+            self.spin_at_velocity(&mut motor_group, self.velocity);
         }
-        self.previous_intake_voltage = self.voltage;
+        self.previous_intake_velocity = self.velocity;
         self.was_sort_on_previous_epoch = should_sort_on_current_epoch;
     }
     pub fn driver(&mut self, controller_state: &vexide::devices::controller::ControllerState) {

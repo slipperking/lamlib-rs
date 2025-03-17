@@ -278,17 +278,11 @@ impl<T: Tracking + 'static> Chassis<T> {
                 self.drivetrain
                     .left_motors
                     .borrow_mut()
-                    .set_voltage_all_for_types(
-                        left * Motor::V5_MAX_VOLTAGE,
-                        left * Motor::EXP_MAX_VOLTAGE,
-                    );
+                    .set_velocity_percentage_all(left);
                 self.drivetrain
                     .right_motors
                     .borrow_mut()
-                    .set_voltage_all_for_types(
-                        right * Motor::V5_MAX_VOLTAGE,
-                        right * Motor::EXP_MAX_VOLTAGE,
-                    );
+                    .set_velocity_percentage_all(right);
             }
 
             vexide::time::sleep(Motor::WRITE_INTERVAL).await;
