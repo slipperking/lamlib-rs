@@ -1,5 +1,4 @@
 use alloc::boxed::Box;
-use core::time::Duration;
 
 use async_trait::async_trait;
 use nalgebra::Vector2;
@@ -8,7 +7,7 @@ use vexide::io::println;
 use super::AutonRoutine;
 use crate::{
     differential::{motions::ramsete::RamseteTarget, pose::Pose},
-    params_boomerang, Robot,
+    Robot,
 };
 pub struct Test;
 
