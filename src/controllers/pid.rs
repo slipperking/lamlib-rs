@@ -1,8 +1,7 @@
-use core::ops::AddAssign;
+use core::ops::{AddAssign, Mul};
 
-use num::FromPrimitive;
-use num_traits::Float;
-use vexide::time::Instant;
+use num_traits::{FromPrimitive, Zero};
+use vexide::{float::Float, time::Instant};
 
 use super::ControllerMethod;
 pub struct PID<T> {
@@ -21,7 +20,7 @@ pub struct PIDGains<T> {
     kd: T, // Derivative gain
 }
 
-impl<T: Float + FromPrimitive + AddAssign> PID<T> {
+impl<T: Float + FromPrimitive + AddAssign + Zero> PID<T> {
     pub fn new(kp: T, ki: T, kd: T, windup_range: T, reset_on_sign_flip: bool) -> Self {
         PID {
             gains: PIDGains { kp, ki, kd },
@@ -43,7 +42,9 @@ impl<T: Float + FromPrimitive + AddAssign> PID<T> {
         }
     }
 }
-impl<T: Float + FromPrimitive + AddAssign> ControllerMethod<T> for PID<T> {
+impl<T: Float + Zero + FromPrimitive + AddAssign + num_traits::Float> ControllerMethod<T>
+    for PID<T>
+{
     fn update(&mut self, error: T) -> T {
         let current_time = Instant::now();
         let delta_time = match self.prev_time {
@@ -55,8 +56,8 @@ impl<T: Float + FromPrimitive + AddAssign> ControllerMethod<T> for PID<T> {
         .unwrap_or(T::zero());
         self.prev_time = Some(current_time);
         self.integral += error * delta_time;
-        if error.signum() != self.prev_error.signum() && self.reset_on_sign_flip
-            || self.windup_range != T::zero() && error.abs() > self.windup_range
+        if Float::signum(error) != Float::signum(self.prev_error) && self.reset_on_sign_flip
+            || self.windup_range != T::zero() && Float::abs(error) > self.windup_range
         {
             self.integral = T::zero();
         }

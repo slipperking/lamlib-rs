@@ -90,7 +90,7 @@ pub mod pose {
             Pose::new(T::as_(vector[0]), T::as_(vector[1]), T::as_(vector[2]))
         }
     }
-    impl<T: num::FromPrimitive + core::default::Default> From<Pose> for Vector3<T> {
+    impl<T: num_traits::FromPrimitive + core::default::Default> From<Pose> for Vector3<T> {
         fn from(pose: Pose) -> Self {
             Vector3::new(
                 T::from_f64(pose.position.x).unwrap_or_default(),

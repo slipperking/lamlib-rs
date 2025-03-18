@@ -22,7 +22,7 @@ nalgebra = { version = "0.33.2", default-features = false, features = [
 approx = { version = "0.5.1", default-features = false }
 rand = { version = "0.9.0", default-features = false }
 num-traits = { version = "0.2.19", default-features = false }
-num = { version = "0.4.3", default-features = false }
 veranda = "0.1.5"
 autons = "0.1.0"
 dyn-clone = { version = "1.0.19", default-features = false }
+vexide-slint = "0.1.0"

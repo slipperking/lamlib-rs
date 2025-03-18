@@ -3,7 +3,7 @@ use core::{
     time::Duration,
 };
 
-use num::{FromPrimitive, Zero};
+use num_traits::{FromPrimitive, Zero};
 use vexide::float::Float;
 
 /// Represents the direction for angular calculations.

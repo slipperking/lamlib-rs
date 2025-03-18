@@ -13,3 +13,5 @@ pub mod particle_filter;
 pub mod subsystems;
 pub mod tracking;
 pub mod utils;
+
+pub mod auton_wrapper;
