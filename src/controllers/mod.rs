@@ -1,6 +1,6 @@
 use core::ops::AddAssign;
 
-use num_traits::{FromPrimitive, Zero};
+use num_traits::FromPrimitive;
 use vexide::float::Float;
 
 dyn_clone::clone_trait_object!(<T> ControllerMethod<T>);

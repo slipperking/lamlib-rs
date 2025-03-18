@@ -222,7 +222,7 @@ impl<T: Tracking + 'static> Chassis<T> {
             {
                 break;
             }
-            {
+            if false {
                 let is_robot_side: bool = (pose.position.y - boomerang_target.position.y)
                     * -boomerang_target.orientation.sin()
                     <= (pose.position.x - boomerang_target.position.x)

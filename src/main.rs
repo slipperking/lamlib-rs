@@ -4,6 +4,18 @@
 extern crate alloc;
 extern crate approx;
 extern crate nalgebra;
+
+pub mod controllers;
+pub mod devices;
+
+#[macro_use]
+pub mod differential;
+pub mod particle_filter;
+pub mod subsystems;
+pub mod tracking;
+pub mod utils;
+
+pub mod auton_routines;
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use core::{
     cell::RefCell,
@@ -11,13 +23,16 @@ use core::{
     time::Duration,
 };
 
-use autons::{prelude::*, route, simple::SimpleSelect};
+use autons::{prelude::*, simple::SimpleSelect};
 use controllers::pid::PID;
 use devices::motor_group::MotorGroup;
 use differential::{
     chassis::{Chassis, Drivetrain, MotionSettings},
     drive_curve::ExponentialDriveCurve,
-    motions::ExitCondition,
+    motions::{
+        angular::TurnToSettings, boomerang::BoomerangSettings, ramsete::RAMSETEHybridSettings,
+        ExitCondition, ExitConditionGroup,
+    },
 };
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
 use particle_filter::{
@@ -30,20 +45,8 @@ use particle_filter::{
 use subsystems::{intake::Intake, ladybrown::LadyBrown, pneumatics::PneumaticWrapper};
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use utils::AllianceColor;
-use v5_rust_shenanigans::{
-    differential::{
-        motions::{
-            angular::TurnToSettings,
-            boomerang::BoomerangSettings,
-            ramsete::{RAMSETEHybridSettings, RamseteTarget},
-            ExitConditionGroup,
-        },
-        pose::Pose,
-    },
-    *,
-};
 use vexide::{devices::adi::digital::LogicLevel, prelude::*, sync::Mutex, time};
-struct Robot {
+pub struct Robot {
     #[allow(dead_code)]
     pub alliance_color: Rc<RefCell<AllianceColor>>,
     #[warn(dead_code)]
@@ -298,7 +301,8 @@ async fn main(peripherals: Peripherals) {
     robot
         .compete(SimpleSelect::new(
             peripherals.display,
-            [route!("Main", Robot::driver /* Placeholder */)],
+            // TODO: Add on-switch controller screen updates.
+            create_routine_array!(),
         ))
         .await;
 }

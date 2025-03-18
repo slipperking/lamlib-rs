@@ -1,14 +1,13 @@
 use alloc::{boxed::Box, rc::Rc};
 use core::{f64::consts::PI, time::Duration};
 
-use nalgebra::{SimdRealField, SimdValue, Vector2, Vector3};
-use vexide::prelude::Motor;
+use nalgebra::{Vector2, Vector3};
+use vexide::{float::Float, prelude::Motor};
 
 use super::ExitConditionGroup;
 use crate::{
     controllers::ControllerMethod,
     differential::{chassis::Chassis, pose::Pose},
-    nalgebra::SimdComplexField,
     tracking::Tracking,
     utils::{
         math::{angle_error, arcade_desaturate, delta_clamp},
@@ -165,9 +164,9 @@ impl<T: Tracking + 'static> Chassis<T> {
             *self.distance_traveled.borrow_mut() = Some(0.0);
         }
         let mut unwrapped_params = params.unwrap_or(params_ramsete_h!());
-        unwrapped_params.min_lateral_speed = unwrapped_params.min_lateral_speed.simd_abs();
-        unwrapped_params.max_lateral_speed = unwrapped_params.max_lateral_speed.simd_abs();
-        unwrapped_params.max_angular_speed = unwrapped_params.max_angular_speed.simd_abs();
+        unwrapped_params.min_lateral_speed = unwrapped_params.min_lateral_speed.abs();
+        unwrapped_params.max_lateral_speed = unwrapped_params.max_lateral_speed.abs();
+        unwrapped_params.max_angular_speed = unwrapped_params.max_angular_speed.abs();
         if unwrapped_params.max_angular_speed < unwrapped_params.min_lateral_speed {
             panic!("Minimum speed may not exceed the maximum.")
         }
@@ -190,7 +189,7 @@ impl<T: Tracking + 'static> Chassis<T> {
                         match target {
                             RamseteTarget::Point(point) => Pose::new(point.x, point.y, {
                                 let error = point - pose.position;
-                                error.y.simd_atan2(error.x)
+                                error.y.atan2(error.x)
                             }),
                             RamseteTarget::Pose(pose) => pose,
                         } - pose,
@@ -231,7 +230,7 @@ impl<T: Tracking + 'static> Chassis<T> {
 
             let v_d = {
                 let controller_input =
-                    local_error.position.norm() * local_error.orientation.simd_cos().simd_signum();
+                    local_error.position.norm() * local_error.orientation.cos().signum();
                 if let Some(settings) = &mut settings {
                     settings.lateral_controller.update(controller_input)
                 } else {
@@ -242,44 +241,48 @@ impl<T: Tracking + 'static> Chassis<T> {
                         .update(controller_input)
                 }
             };
-            let lateral_output = (v_d * local_error.orientation.simd_cos().simd_abs())
-                .clamp(
-                    -unwrapped_params.max_lateral_speed,
-                    unwrapped_params.max_lateral_speed,
+            let lateral_output = (v_d * local_error.orientation.cos().abs()).clamp(
+                -unwrapped_params.max_lateral_speed,
+                unwrapped_params.max_lateral_speed,
+            );
+            let lateral_output = {
+                let check_1_result = if (-unwrapped_params.min_lateral_speed
+                    ..unwrapped_params.min_lateral_speed)
+                    .contains(&lateral_output)
+                {
+                    unwrapped_params.min_lateral_speed
+                } else {
+                    lateral_output
+                };
+                let check_2_result = if check_1_result < 0.0 && !is_near {
+                    0.0
+                } else {
+                    check_1_result
+                };
+                delta_clamp(
+                    check_2_result,
+                    previous_lateral_output,
+                    unwrapped_params.lateral_slew.unwrap_or(0.0),
+                    None,
                 )
-                .map_lanes(|value| {
-                    let check_1_result = if (-unwrapped_params.min_lateral_speed
-                        ..unwrapped_params.min_lateral_speed)
-                        .contains(&value)
-                    {
-                        unwrapped_params.min_lateral_speed
-                    } else {
-                        value
-                    };
-                    let check_2_result = if check_1_result < 0.0 && !is_near {
-                        0.0
-                    } else {
-                        check_1_result
-                    };
-                    delta_clamp(
-                        check_2_result,
-                        previous_lateral_output,
-                        unwrapped_params.lateral_slew.unwrap_or(0.0),
-                        None,
-                    )
-                });
-            let angular_output =
-                ({
-                    if let Some(settings) = &mut settings {
-                        settings.angular_controller.update(local_error.orientation)
-                    } else {
-                        self.motion_settings
-                            .ramsete_hybrid_settings
-                            .borrow_mut()
-                            .angular_controller
-                            .update(local_error.orientation)
-                    }
-                } + v_d * local_error.position.y * local_error.orientation.simd_sinc() * {
+            };
+            let angular_output = ({
+                if let Some(settings) = &mut settings {
+                    settings.angular_controller.update(local_error.orientation)
+                } else {
+                    self.motion_settings
+                        .ramsete_hybrid_settings
+                        .borrow_mut()
+                        .angular_controller
+                        .update(local_error.orientation)
+                }
+            } + v_d
+                * local_error.position.y
+                * {
+                    use nalgebra::ComplexField;
+                    local_error.orientation.sinc()
+                }
+                * {
                     unwrapped_params
                         .b
                         .unwrap_or(if let Some(settings) = &settings {
@@ -288,18 +291,16 @@ impl<T: Tracking + 'static> Chassis<T> {
                             self.motion_settings.ramsete_hybrid_settings.borrow().b
                         })
                 })
-                .clamp(
-                    -unwrapped_params.max_angular_speed,
-                    unwrapped_params.max_angular_speed,
-                )
-                .map_lanes(|value| {
-                    delta_clamp(
-                        value,
-                        previous_angular_output,
-                        unwrapped_params.angular_slew.unwrap_or(0.0),
-                        None,
-                    )
-                });
+            .clamp(
+                -unwrapped_params.max_angular_speed,
+                unwrapped_params.max_angular_speed,
+            );
+            let angular_output = delta_clamp(
+                angular_output,
+                previous_angular_output,
+                unwrapped_params.angular_slew.unwrap_or(0.0),
+                None,
+            );
             previous_lateral_output = lateral_output;
             previous_angular_output = angular_output;
 

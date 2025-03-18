@@ -48,8 +48,8 @@ pub mod pose {
                 let mut degrees: Option<f64> = None;
                 let mut radians: Option<f64> = None;
                 let mut standard = false;
-                $(degrees = Some($degrees);)?
-                $(radians = Some($radians);)?
+                $(degrees = Some($degrees as f64);)?
+                $(radians = Some($radians as f64);)?
                 $(standard = $standard;)?
 
                 if let Some(degrees) = degrees {

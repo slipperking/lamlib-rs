@@ -1,4 +1,4 @@
-use core::ops::{AddAssign, Mul};
+use core::ops::AddAssign;
 
 use num_traits::{FromPrimitive, Zero};
 use vexide::{float::Float, time::Instant};
