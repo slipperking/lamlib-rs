@@ -1,9 +1,6 @@
 #![no_main]
 #![no_std]
-
 extern crate alloc;
-extern crate approx;
-extern crate nalgebra;
 
 pub mod controllers;
 pub mod devices;

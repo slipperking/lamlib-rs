@@ -178,9 +178,9 @@ impl ParticleFilterSensor<3> for LiDAR {
                 let x = x_errors[i];
                 let y = y_errors[i];
                 errors[i] = if x < y {
-                    x / self.sensor_unit_vectors.column(i).x.abs()
+                    x * self.sensor_unit_vectors.column(i).x.abs()
                 } else {
-                    y / self.sensor_unit_vectors.column(i).y.abs()
+                    y * self.sensor_unit_vectors.column(i).y.abs()
                 };
             }
 
