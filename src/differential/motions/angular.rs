@@ -19,7 +19,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum DriveSide {
+pub enum DifferentialDriveSide {
     Left,
     Right,
 }
@@ -36,7 +36,7 @@ pub struct TurnToParameters {
     pub direction: Option<AngularDirection>,
 
     /// The locked side for a swing turn.
-    pub locked_side: Option<DriveSide>,
+    pub locked_side: Option<DifferentialDriveSide>,
 }
 
 #[derive(Clone)]
@@ -221,13 +221,13 @@ impl<T: Tracking + 'static> Chassis<T> {
             *self.distance_traveled.borrow_mut() = Some(0.0);
         }
         match unwrapped_params.locked_side {
-            Some(DriveSide::Left) => {
+            Some(DifferentialDriveSide::Left) => {
                 self.drivetrain
                     .left_motors
                     .borrow_mut()
                     .set_target_all(MotorControl::Brake(BrakeMode::Brake));
             }
-            Some(DriveSide::Right) => {
+            Some(DifferentialDriveSide::Right) => {
                 self.drivetrain
                     .right_motors
                     .borrow_mut()
@@ -328,8 +328,8 @@ impl<T: Tracking + 'static> Chassis<T> {
             let (left, right) = arcade_desaturate(
                 if let Some(locked_side) = unwrapped_params.locked_side {
                     match locked_side {
-                        DriveSide::Left => raw_output,
-                        DriveSide::Right => -raw_output,
+                        DifferentialDriveSide::Left => raw_output,
+                        DifferentialDriveSide::Right => -raw_output,
                     }
                 } else {
                     0.0

@@ -10,6 +10,8 @@ pub enum AllianceColor {
     Blue,
 }
 
+pub static TILE_LENGTH: f64 = 23.576533; 
+
 impl AllianceColor {
     pub fn get_name(&self) -> &'static str {
         match self {

@@ -1,6 +1,8 @@
 #[macro_use]
 pub mod angular;
 #[macro_use]
+pub mod lateral;
+#[macro_use]
 pub mod boomerang;
 #[macro_use]
 pub mod ramsete;
