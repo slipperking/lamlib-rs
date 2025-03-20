@@ -5,7 +5,6 @@ use vexide::io::println;
 
 use super::AutonRoutine;
 use crate::{
-    angle,
     differential::{
         motions::{angular::TurnTarget, ramsete::RAMSETETarget},
         pose::Pose,

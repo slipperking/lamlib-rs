@@ -349,6 +349,8 @@ pub trait AngleExt: num_traits::Float {
     fn std_deg(self) -> Self;
     fn hdg_rad(self) -> Self;
     fn hdg_deg(self) -> Self;
+    fn rad(self) -> Self;
+    fn deg(self) -> Self;
 }
 
 impl<T: num_traits::Float> AngleExt for T {
@@ -366,5 +368,13 @@ impl<T: num_traits::Float> AngleExt for T {
 
     fn hdg_deg(self) -> Self {
         T::from(90.0).unwrap() - self
+    }
+
+    fn rad(self) -> Self {
+        self
+    }
+
+    fn deg(self) -> Self {
+        self.to_radians()
     }
 }

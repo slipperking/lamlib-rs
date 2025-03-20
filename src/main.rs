@@ -43,7 +43,7 @@ use particle_filter::{
 };
 use subsystems::{intake::Intake, ladybrown::LadyBrown, pneumatics::PneumaticWrapper};
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
-use utils::AllianceColor;
+use utils::{math::AngleExt, AllianceColor};
 use vexide::{devices::adi::digital::LogicLevel, prelude::*, sync::Mutex, time};
 
 pub struct Robot {
@@ -202,8 +202,8 @@ async fn main(peripherals: Peripherals) {
         ExitCondition::new(3.0, Duration::from_millis(500)),
     ]);
     let angular_exit_conditions = ExitConditionGroup::new(vec![
-        ExitCondition::new(angle!(degrees: 1.0,), Duration::from_millis(150)),
-        ExitCondition::new(angle!(degrees: 3.0,), Duration::from_millis(500)),
+        ExitCondition::new(1.0.deg(), Duration::from_millis(150)),
+        ExitCondition::new(3.0.deg(), Duration::from_millis(500)),
     ]);
     let lateral_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
     let angular_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
@@ -289,11 +289,7 @@ async fn main(peripherals: Peripherals) {
         intake.lock().await.init(intake.clone()).await
     }
     chassis
-        .set_pose(differential::pose::Pose::new(
-            0.0,
-            0.0,
-            angle!(degrees: 0.0,),
-        ))
+        .set_pose(differential::pose::Pose::new(0.0, 0.0, 0.0.hdg_deg()))
         .await;
     let mut controller = peripherals.primary_controller;
     let _ = controller.rumble("._.").await;

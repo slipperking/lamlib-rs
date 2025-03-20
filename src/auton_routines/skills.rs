@@ -1,5 +1,4 @@
 use alloc::boxed::Box;
-use core::time::Duration;
 
 use async_trait::async_trait;
 use vexide::io::println;
@@ -31,11 +30,7 @@ impl AutonRoutine for Skills {
             .chassis
             .clone()
             .boomerang()
-            .target(Pose::new(
-                -50.0,
-                -10.0,
-                angle!(degrees: 0.0, standard: false,),
-            ))
+            .target(Pose::new(-50.0, -10.0, 0.0.hdg_deg()))
             .params(params_boomerang!(max_lateral_speed: 0.8,))
             .call()
             .await;
