@@ -7,11 +7,11 @@ use super::AutonRoutine;
 use crate::{
     angle,
     differential::{
-        motions::{angular::TurnTarget, ramsete::RamseteTarget},
+        motions::{angular::TurnTarget, ramsete::RAMSETETarget},
         pose::Pose,
     },
     params_ramsete_h, params_turn_to,
-    utils::{math::AngleExt, TILE_LENGTH},
+    utils::{math::AngleExt, TILE_SIZE},
     Robot,
 };
 pub struct Test;
@@ -23,7 +23,7 @@ pub enum TestMode {
     Default,
 }
 
-static TEST_MODE: TestMode = TestMode::Lateral(TILE_LENGTH);
+static TEST_MODE: TestMode = TestMode::Lateral(TILE_SIZE);
 
 #[async_trait(?Send)]
 impl AutonRoutine for Test {
@@ -78,7 +78,7 @@ impl AutonRoutine for Test {
                 chassis
                     .clone()
                     .ramsete_hybrid()
-                    .target(RamseteTarget::pose(TILE_LENGTH, TILE_LENGTH, 0.0.hdg_deg()))
+                    .target(RAMSETETarget::pose(TILE_SIZE, TILE_SIZE, 0.0.hdg_deg()))
                     .run_async(false)
                     .call()
                     .await;
@@ -86,11 +86,7 @@ impl AutonRoutine for Test {
                 chassis
                     .clone()
                     .ramsete_hybrid()
-                    .target(RamseteTarget::pose(
-                        -TILE_LENGTH,
-                        TILE_LENGTH,
-                        180.0.hdg_deg(),
-                    ))
+                    .target(RAMSETETarget::pose(-TILE_SIZE, TILE_SIZE, 180.0.hdg_deg()))
                     .params(params_ramsete_h!(forwards: false,))
                     .call()
                     .await;

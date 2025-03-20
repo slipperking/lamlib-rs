@@ -120,12 +120,12 @@ pub use params_ramsete_h;
 // Then calculate angular_output as PID(e_θ) + b * v_d * e_y * sinc(e_θ).
 // Calculate v as |cos(e_θ)| * v_d.
 
-pub enum RamseteTarget {
+pub enum RAMSETETarget {
     Pose(Pose),
     Point(Vector2<f64>),
 }
 
-impl RamseteTarget {
+impl RAMSETETarget {
     pub fn pose(x: f64, y: f64, orientation: f64) -> Self {
         Self::Pose(Pose::new(x, y, orientation))
     }
@@ -139,7 +139,7 @@ impl<T: Tracking + 'static> Chassis<T> {
     #[builder]
     pub async fn ramsete_hybrid(
         self: Rc<Self>,
-        target: RamseteTarget,
+        target: RAMSETETarget,
         timeout: Option<Duration>,
         params: Option<RAMSETEHybridParameters>,
         mut settings: Option<RAMSETEHybridSettings>,
@@ -205,11 +205,11 @@ impl<T: Tracking + 'static> Chassis<T> {
                 nalgebra::Rotation3::new(Vector3::<f64>::new(0.0, 0.0, -pose.orientation))
                     * <Pose as Into<Vector3<f64>>>::into(
                         match target {
-                            RamseteTarget::Point(point) => Pose::new(point.x, point.y, {
+                            RAMSETETarget::Point(point) => Pose::new(point.x, point.y, {
                                 let error = point - pose.position;
                                 error.y.atan2(error.x)
                             }),
-                            RamseteTarget::Pose(pose) => pose,
+                            RAMSETETarget::Pose(pose) => pose,
                         } - pose,
                     ),
             );
