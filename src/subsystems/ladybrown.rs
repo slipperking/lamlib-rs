@@ -7,7 +7,7 @@ use vexide::{
     time::Instant,
 };
 
-use crate::{controllers::ControllerMethod, devices::motor_group::MotorGroup};
+use crate::{controllers::FeedbackController, devices::motor_group::MotorGroup};
 
 #[derive(PartialEq, Clone, Copy, PartialOrd, Ord, Eq)]
 pub enum LadyBrownState {
@@ -43,7 +43,7 @@ pub struct LadyBrown {
     last_arm_state: LadyBrownState,
     state_reached: bool,
     state_reached_threshold: f64,
-    controller: Rc<RefCell<dyn ControllerMethod<f64>>>,
+    controller: Rc<RefCell<dyn FeedbackController<f64>>>,
 
     /// A map between a cycle and a cycle pair.
     /// The pair involves an LadyBrownState, or the default,
@@ -68,7 +68,7 @@ impl LadyBrown {
         motor_group: Rc<RefCell<MotorGroup>>,
         rotation_sensor: Rc<RefCell<RotationSensor>>,
         gear_ratio: f64,
-        controller: Rc<RefCell<dyn ControllerMethod<f64>>>,
+        controller: Rc<RefCell<dyn FeedbackController<f64>>>,
     ) -> Self {
         let arm_state_positions: Rc<BTreeMap<LadyBrownState, f64>> = Rc::new(BTreeMap::from([
             (LadyBrownState::Off, 0.0),

@@ -1,9 +1,7 @@
 use alloc::boxed::Box;
-use core::f64::consts::{FRAC_PI_2, PI};
 
 use async_trait::async_trait;
-use nalgebra::Vector2;
-use vexide::{io::println, prelude::Float};
+use vexide::io::println;
 
 use super::AutonRoutine;
 use crate::{
@@ -11,16 +9,17 @@ use crate::{
         motions::{angular::TurnTarget, ramsete::RamseteTarget},
         pose::Pose,
     },
-    params_turn_to,
+    params_ramsete_h, params_turn_to,
     utils::TILE_LENGTH,
     Robot,
 };
 pub struct Test;
-enum TestMode {
+pub enum TestMode {
     Lateral(f64),
     Angular(f64),
     TrackingCenter,
     ImuScalar,
+    Default,
 }
 
 static TEST_MODE: TestMode = TestMode::Lateral(TILE_LENGTH);
@@ -42,11 +41,20 @@ impl AutonRoutine for Test {
     async fn run(&self, robot: &mut Robot) {
         robot
             .chassis
-            .set_pose(Pose::new(0.0, 0.0, angle!(degrees: 0.0, standard: false,)))
+            .set_pose(Pose::new(0.0, 0.0, angle!(degrees: 0.0,)))
             .await;
         match TEST_MODE {
             TestMode::Lateral(distance) => {
-                robot.chassis.clone();
+                // Also tests concurrent actions.
+                robot
+                    .chassis
+                    .clone()
+                    .move_relative(distance, None, None, None, false)
+                    .await;
+                robot.intake.lock().await.spin();
+                robot.chassis.wait_until_complete().await;
+
+                robot.intake.lock().await.stop();
             }
             TestMode::Angular(angle) => {
                 robot
@@ -63,6 +71,39 @@ impl AutonRoutine for Test {
             }
             TestMode::TrackingCenter => {}
             TestMode::ImuScalar => {}
+            TestMode::Default => {
+                robot
+                    .chassis
+                    .clone()
+                    .ramsete_hybrid(
+                        RamseteTarget::Pose(Pose::new(
+                            TILE_LENGTH,
+                            TILE_LENGTH,
+                            angle!(degrees: 0.0,),
+                        )),
+                        None,
+                        None,
+                        None,
+                        false,
+                    )
+                    .await;
+
+                robot
+                    .chassis
+                    .clone()
+                    .ramsete_hybrid(
+                        RamseteTarget::Pose(Pose::new(
+                            -TILE_LENGTH,
+                            TILE_LENGTH,
+                            angle!(degrees: 180.0,),
+                        )),
+                        None,
+                        Some(params_ramsete_h!(forwards: false,)),
+                        None,
+                        true,
+                    )
+                    .await;
+            }
         }
         println!("{}", Test::color().get_name());
     }

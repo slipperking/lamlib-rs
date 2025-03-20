@@ -9,7 +9,7 @@ use vexide::prelude::{BrakeMode, Float, Motor, MotorControl};
 
 use super::ExitConditionGroup;
 use crate::{
-    controllers::ControllerMethod,
+    controllers::FeedbackController,
     differential::{chassis::Chassis, pose::Pose},
     tracking::Tracking,
     utils::{
@@ -41,15 +41,15 @@ pub struct TurnToParameters {
 
 #[derive(Clone)]
 pub struct TurnToSettings {
-    pub angular_controller: Box<dyn ControllerMethod<f64>>,
-    pub swing_controller: Box<dyn ControllerMethod<f64>>,
+    pub angular_controller: Box<dyn FeedbackController<f64>>,
+    pub swing_controller: Box<dyn FeedbackController<f64>>,
 
     pub angular_exit_conditions: ExitConditionGroup<f64>,
 }
 impl TurnToSettings {
     pub fn new(
-        angular_controller: Box<dyn ControllerMethod<f64>>,
-        swing_controller: Box<dyn ControllerMethod<f64>>,
+        angular_controller: Box<dyn FeedbackController<f64>>,
+        swing_controller: Box<dyn FeedbackController<f64>>,
         angular_exit_conditions: ExitConditionGroup<f64>,
     ) -> Self {
         Self {

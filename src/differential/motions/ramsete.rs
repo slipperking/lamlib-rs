@@ -6,7 +6,7 @@ use vexide::{float::Float, prelude::Motor};
 
 use super::ExitConditionGroup;
 use crate::{
-    controllers::ControllerMethod,
+    controllers::FeedbackController,
     differential::{chassis::Chassis, pose::Pose},
     tracking::Tracking,
     utils::{
@@ -32,8 +32,8 @@ pub struct RAMSETEHybridParameters {
 /// Uses a hybrid between a RAMSETE controller and a closed loop feedback controller
 /// such as PID.
 pub struct RAMSETEHybridSettings {
-    lateral_controller: Box<dyn ControllerMethod<f64>>,
-    angular_controller: Box<dyn ControllerMethod<f64>>,
+    lateral_controller: Box<dyn FeedbackController<f64>>,
+    angular_controller: Box<dyn FeedbackController<f64>>,
 
     lateral_exit_conditions: ExitConditionGroup<f64>,
     angular_exit_conditions: ExitConditionGroup<f64>,
@@ -43,8 +43,8 @@ pub struct RAMSETEHybridSettings {
 
 impl RAMSETEHybridSettings {
     pub fn new(
-        lateral_controller: Box<dyn ControllerMethod<f64>>,
-        angular_controller: Box<dyn ControllerMethod<f64>>,
+        lateral_controller: Box<dyn FeedbackController<f64>>,
+        angular_controller: Box<dyn FeedbackController<f64>>,
         lateral_exit_conditions: ExitConditionGroup<f64>,
         angular_exit_conditions: ExitConditionGroup<f64>,
         b: f64,
@@ -325,5 +325,6 @@ impl<T: Tracking + 'static> Chassis<T> {
 
             vexide::time::sleep(Motor::WRITE_INTERVAL).await;
         }
+        self.motion_handler.end_motion().await;
     }
 }

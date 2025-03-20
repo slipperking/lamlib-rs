@@ -3,7 +3,7 @@ use core::ops::AddAssign;
 use num_traits::{FromPrimitive, Zero};
 use vexide::{float::Float, time::Instant};
 
-use super::ControllerMethod;
+use super::FeedbackController;
 pub struct PID<T> {
     gains: PIDGains<T>,
     prev_error: T, // Previous error for derivative calculation
@@ -42,7 +42,7 @@ impl<T: Float + FromPrimitive + AddAssign + Zero> PID<T> {
         }
     }
 }
-impl<T: Float + Zero + FromPrimitive + AddAssign + num_traits::Float> ControllerMethod<T>
+impl<T: Float + Zero + FromPrimitive + AddAssign + num_traits::Float> FeedbackController<T>
     for PID<T>
 {
     fn update(&mut self, error: T) -> T {

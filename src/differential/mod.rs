@@ -36,6 +36,7 @@ pub mod pose {
         }
     }
 
+    /// Default is heading, `standard` defaults to false.
     #[macro_export]
     macro_rules! angle {
         (

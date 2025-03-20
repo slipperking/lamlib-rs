@@ -5,7 +5,7 @@ use vexide::prelude::{BrakeMode, Float};
 
 use super::ExitConditionGroup;
 use crate::{
-    controllers::ControllerMethod,
+    controllers::FeedbackController,
     differential::{chassis::Chassis, pose::Pose},
     tracking::Tracking,
     utils::{
@@ -28,16 +28,16 @@ pub struct BoomerangParameters {
 }
 #[derive(Clone)]
 pub struct BoomerangSettings {
-    pub lateral_controller: Box<dyn ControllerMethod<f64>>,
-    pub angular_controller: Box<dyn ControllerMethod<f64>>,
+    pub lateral_controller: Box<dyn FeedbackController<f64>>,
+    pub angular_controller: Box<dyn FeedbackController<f64>>,
 
     pub lateral_exit_conditions: ExitConditionGroup<f64>,
     pub angular_exit_conditions: ExitConditionGroup<f64>,
 }
 impl BoomerangSettings {
     pub fn new(
-        lateral_controller: Box<dyn ControllerMethod<f64>>,
-        angular_controller: Box<dyn ControllerMethod<f64>>,
+        lateral_controller: Box<dyn FeedbackController<f64>>,
+        angular_controller: Box<dyn FeedbackController<f64>>,
         lateral_exit_conditions: ExitConditionGroup<f64>,
         angular_exit_conditions: ExitConditionGroup<f64>,
     ) -> Self {
@@ -153,10 +153,8 @@ impl<T: Tracking + 'static> Chassis<T> {
         let mut timer = Timer::new(timeout.unwrap_or(Duration::MAX));
         while !timer.is_done() && self.motion_handler.in_motion() {
             let pose = self.pose().await;
-            {
-                if let Some(distance) = self.distance_traveled.borrow_mut().as_mut() {
-                    *distance += pose.distance_to(&previous_pose);
-                }
+            if let Some(distance) = self.distance_traveled.borrow_mut().as_mut() {
+                *distance += pose.distance_to(&previous_pose);
             }
             let distance_to_target = pose.distance_to(&boomerang_target);
             previous_pose = pose;
@@ -299,15 +297,6 @@ impl<T: Tracking + 'static> Chassis<T> {
                     raw_output = raw_output.clamp(-anti_drift_max_speed, anti_drift_max_speed);
                 }
 
-                let overturn: f64 =
-                    angular_output.abs() + raw_output.abs() - unwrapped_params.max_lateral_speed;
-                if overturn > 0.0 {
-                    raw_output -= if raw_output > 0.0 {
-                        overturn
-                    } else {
-                        -overturn
-                    };
-                }
                 // Prevent moving in the wrong direction.
                 if !unwrapped_params.forwards && !is_near {
                     raw_output = raw_output.min(0.0);

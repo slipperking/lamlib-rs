@@ -27,8 +27,8 @@ use differential::{
     chassis::{Chassis, Drivetrain, MotionSettings},
     drive_curve::ExponentialDriveCurve,
     motions::{
-        angular::TurnToSettings, boomerang::BoomerangSettings, ramsete::RAMSETEHybridSettings,
-        ExitCondition, ExitConditionGroup,
+        angular::TurnToSettings, boomerang::BoomerangSettings, lateral::MoveToPointSettings,
+        ramsete::RAMSETEHybridSettings, ExitCondition, ExitConditionGroup,
     },
 };
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
@@ -196,9 +196,15 @@ async fn main(peripherals: Peripherals) {
     let angular_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
 
     let motion_settings = MotionSettings::new(
+        RefCell::new(MoveToPointSettings::new(
+            lateral_controller.clone(),
+            angular_controller.clone(),
+            lateral_exit_conditions.clone(),
+            angular_exit_conditions.clone(),
+        )),
         RefCell::new(TurnToSettings::new(
             angular_controller.clone(),
-            Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)),
+            Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)), // Swing constants.
             angular_exit_conditions.clone(),
         )),
         RefCell::new(BoomerangSettings::new(
