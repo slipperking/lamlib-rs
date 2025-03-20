@@ -1,6 +1,7 @@
 use alloc::{boxed::Box, rc::Rc};
 use core::{f64::consts::PI, time::Duration};
 
+use bon::bon;
 use nalgebra::Vector2;
 use vexide::prelude::{Float, Motor};
 
@@ -110,26 +111,34 @@ pub struct MoveRelativeParameters {
 
 type MoveRelativeSettings = MoveToPointSettings;
 
+#[bon]
 impl<T: Tracking + 'static> Chassis<T> {
+    #[builder]
     pub async fn move_to_point(
         self: Rc<Self>,
         target: Vector2<f64>,
         timeout: Option<Duration>,
         params: Option<MoveToPointParameters>,
         mut settings: Option<MoveToPointSettings>,
-        run_async: bool,
+        run_async: Option<bool>,
     ) {
         self.motion_handler.wait_for_motions_end().await;
         if self.motion_handler.in_motion() {
             return;
         }
-        if run_async {
+        if run_async.unwrap_or(true) {
             // Spawn vexide task
             vexide::task::spawn({
                 let self_clone = self.clone();
                 async move {
                     self_clone
-                        .move_to_point(target, timeout, params, settings.clone(), false)
+                        .move_to_point()
+                        .target(target)
+                        .maybe_timeout(timeout)
+                        .maybe_params(params)
+                        .maybe_settings(settings)
+                        .run_async(false)
+                        .call()
                         .await
                 }
             })
@@ -278,13 +287,14 @@ impl<T: Tracking + 'static> Chassis<T> {
         self.motion_handler.end_motion().await;
     }
 
+    #[builder]
     pub async fn move_relative(
         self: Rc<Self>,
         distance: f64,
         timeout: Option<Duration>,
         params: Option<MoveRelativeParameters>,
         settings: Option<MoveRelativeSettings>,
-        run_async: bool,
+        run_async: Option<bool>,
     ) {
         // Wait until the motion is done. before calculating angles.
         if self.motion_handler.in_motion() {
@@ -307,13 +317,13 @@ impl<T: Tracking + 'static> Chassis<T> {
                 params_move_to_point!(forwards: distance > 0.0,)
             }
         };
-        self.move_to_point(
-            pose.position + displacement_vector,
-            timeout,
-            Some(move_to_point_params),
-            settings,
-            run_async,
-        )
-        .await;
+        self.move_to_point()
+            .target(pose.position + displacement_vector)
+            .maybe_timeout(timeout)
+            .params(move_to_point_params)
+            .maybe_settings(settings)
+            .maybe_run_async(run_async)
+            .call()
+            .await;
     }
 }

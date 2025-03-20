@@ -1,6 +1,7 @@
 use alloc::{boxed::Box, rc::Rc};
 use core::{f64::consts::PI, time::Duration};
 
+use bon::bon;
 use vexide::prelude::{BrakeMode, Float};
 
 use super::ExitConditionGroup;
@@ -107,28 +108,35 @@ macro_rules! params_boomerang {
     }
 }
 pub use params_boomerang;
-
+#[bon]
 impl<T: Tracking + 'static> Chassis<T> {
+    #[builder]
     pub async fn boomerang(
         self: Rc<Self>,
-        boomerang_target: Pose,
+        target: Pose,
         timeout: Option<Duration>,
         params: Option<BoomerangParameters>,
         mut settings: Option<BoomerangSettings>,
-        run_async: bool,
+        run_async: Option<bool>,
     ) {
         let mut unwrapped_params = params.unwrap_or(params_boomerang!());
         self.motion_handler.wait_for_motions_end().await;
         if self.motion_handler.in_motion() {
             return;
         }
-        if run_async {
+        if run_async.unwrap_or(true) {
             // Spawn vexide task
             vexide::task::spawn({
                 let self_clone = self.clone();
                 async move {
                     self_clone
-                        .boomerang(boomerang_target, timeout, params, settings.clone(), false)
+                        .boomerang()
+                        .target(target)
+                        .maybe_timeout(timeout)
+                        .maybe_params(params)
+                        .maybe_settings(settings.clone())
+                        .run_async(false)
+                        .call()
                         .await
                 }
             })
@@ -156,20 +164,18 @@ impl<T: Tracking + 'static> Chassis<T> {
             if let Some(distance) = self.distance_traveled.borrow_mut().as_mut() {
                 *distance += pose.distance_to(&previous_pose);
             }
-            let distance_to_target = pose.distance_to(&boomerang_target);
+            let distance_to_target = pose.distance_to(&target);
             previous_pose = pose;
             if distance_to_target < 7.5 && !is_near {
                 is_near = true;
                 unwrapped_params.max_lateral_speed = previous_lateral_output.max(0.5);
             }
-            let robot_vectors_normalized = nalgebra::Vector2::<f64>::new(
-                boomerang_target.orientation.cos(),
-                boomerang_target.orientation.sin(),
-            );
+            let robot_vectors_normalized =
+                nalgebra::Vector2::<f64>::new(target.orientation.cos(), target.orientation.sin());
             let carrot_point = if is_near {
-                boomerang_target.position
+                target.position
             } else {
-                boomerang_target.position
+                target.position
                     - robot_vectors_normalized * unwrapped_params.lead * distance_to_target
             };
             let carrot_pose_angle =
@@ -192,12 +198,7 @@ impl<T: Tracking + 'static> Chassis<T> {
                 };
                 // Counterclockwise is positive.
                 if is_near {
-                    angle_error(
-                        adjusted_orientation,
-                        boomerang_target.orientation,
-                        true,
-                        None,
-                    )
+                    angle_error(adjusted_orientation, target.orientation, true, None)
                 } else {
                     angle_error(adjusted_orientation, carrot_pose_angle, true, None)
                 }
@@ -221,15 +222,13 @@ impl<T: Tracking + 'static> Chassis<T> {
                 break;
             }
             if false {
-                let is_robot_side: bool = (pose.position.y - boomerang_target.position.y)
-                    * -boomerang_target.orientation.sin()
-                    <= (pose.position.x - boomerang_target.position.x)
-                        * boomerang_target.orientation.cos()
+                let is_robot_side: bool = (pose.position.y - target.position.y)
+                    * -target.orientation.sin()
+                    <= (pose.position.x - target.position.x) * target.orientation.cos()
                         + unwrapped_params.early_exit_range;
-                let is_carrot_side: bool = (carrot_point.y - boomerang_target.position.y)
-                    * -boomerang_target.orientation.sin()
-                    <= (carrot_point.x - boomerang_target.position.x)
-                        * boomerang_target.orientation.cos()
+                let is_carrot_side: bool = (carrot_point.y - target.position.y)
+                    * -target.orientation.sin()
+                    <= (carrot_point.x - target.position.x) * target.orientation.cos()
                         + unwrapped_params.early_exit_range;
                 let is_same_side: bool = is_robot_side == is_carrot_side;
 

@@ -303,3 +303,68 @@ pub fn arcade_desaturate<
     };
     (left / sum, right / sum)
 }
+
+/// Default is heading, `standard` defaults to false.
+#[macro_export]
+macro_rules! angle {
+    (
+        $(degrees: $degrees:expr,)?
+        $(radians: $radians:expr,)?
+        $(standard: $standard:expr,)?
+    ) => {
+        #[allow(unused_mut, unused_assignments)]
+        {
+            let mut degrees: Option<f64> = None;
+            let mut radians: Option<f64> = None;
+            let mut standard = false;
+            $(degrees = Some($degrees as f64);)?
+            $(radians = Some($radians as f64);)?
+            $(standard = $standard;)?
+
+            if let Some(degrees) = degrees {
+                if standard {
+                    degrees.to_radians()
+                }
+                else {
+                    (90.0 - degrees).to_radians()
+                }
+            }
+            else if let Some(radians) = radians {
+                if standard {
+                    radians
+                }
+                else {
+                    core::f64::consts::FRAC_PI_2 - radians
+                }
+            }
+            else {
+                0.0
+            }
+        }
+    };
+}
+
+pub trait AngleExt: num_traits::Float {
+    fn std_rad(self) -> Self;
+    fn std_deg(self) -> Self;
+    fn hdg_rad(self) -> Self;
+    fn hdg_deg(self) -> Self;
+}
+
+impl<T: num_traits::Float> AngleExt for T {
+    fn std_rad(self) -> Self {
+        self
+    }
+
+    fn std_deg(self) -> Self {
+        self.to_radians()
+    }
+
+    fn hdg_rad(self) -> Self {
+        T::from(90.0).unwrap().to_radians() - self
+    }
+
+    fn hdg_deg(self) -> Self {
+        T::from(90.0).unwrap() - self
+    }
+}

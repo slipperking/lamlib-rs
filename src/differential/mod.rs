@@ -1,6 +1,8 @@
 pub mod chassis;
 pub mod drive_curve;
+#[macro_use]
 pub mod motions;
+
 #[macro_use]
 pub mod pose {
     use core::ops::{Add, Sub};
@@ -36,45 +38,6 @@ pub mod pose {
         }
     }
 
-    /// Default is heading, `standard` defaults to false.
-    #[macro_export]
-    macro_rules! angle {
-        (
-            $(degrees: $degrees:expr,)?
-            $(radians: $radians:expr,)?
-            $(standard: $standard:expr,)?
-        ) => {
-            #[allow(unused_mut, unused_assignments)]
-            {
-                let mut degrees: Option<f64> = None;
-                let mut radians: Option<f64> = None;
-                let mut standard = false;
-                $(degrees = Some($degrees as f64);)?
-                $(radians = Some($radians as f64);)?
-                $(standard = $standard;)?
-
-                if let Some(degrees) = degrees {
-                    if standard {
-                        degrees.to_radians()
-                    }
-                    else {
-                        (90.0 - degrees).to_radians()
-                    }
-                }
-                else if let Some(radians) = radians {
-                    if standard {
-                        radians
-                    }
-                    else {
-                        core::f64::consts::FRAC_PI_2 - radians
-                    }
-                }
-                else {
-                    0.0
-                }
-            }
-        };
-    }
     impl Pose {
         pub fn new(x: f64, y: f64, orientation: f64) -> Self {
             Self {

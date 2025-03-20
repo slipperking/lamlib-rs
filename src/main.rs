@@ -10,6 +10,7 @@ pub mod differential;
 pub mod particle_filter;
 pub mod subsystems;
 pub mod tracking;
+#[macro_use]
 pub mod utils;
 
 pub mod auton_routines;
@@ -44,6 +45,7 @@ use subsystems::{intake::Intake, ladybrown::LadyBrown, pneumatics::PneumaticWrap
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use utils::AllianceColor;
 use vexide::{devices::adi::digital::LogicLevel, prelude::*, sync::Mutex, time};
+
 pub struct Robot {
     #[allow(dead_code)]
     pub alliance_color: Rc<RefCell<AllianceColor>>,

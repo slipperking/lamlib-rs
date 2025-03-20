@@ -5,12 +5,13 @@ use vexide::io::println;
 
 use super::AutonRoutine;
 use crate::{
+    angle,
     differential::{
         motions::{angular::TurnTarget, ramsete::RamseteTarget},
         pose::Pose,
     },
     params_ramsete_h, params_turn_to,
-    utils::TILE_LENGTH,
+    utils::{math::AngleExt, TILE_LENGTH},
     Robot,
 };
 pub struct Test;
@@ -39,35 +40,34 @@ impl AutonRoutine for Test {
     }
 
     async fn run(&self, robot: &mut Robot) {
-        robot
-            .chassis
-            .set_pose(Pose::new(0.0, 0.0, angle!(degrees: 0.0,)))
-            .await;
+        let chassis = robot.chassis.clone();
+        chassis.set_pose(Pose::new(0.0, 0.0, 0.0.hdg_deg())).await;
         match TEST_MODE {
             TestMode::Lateral(distance) => {
                 // Also tests concurrent actions.
-                robot
-                    .chassis
+                chassis
                     .clone()
-                    .move_relative(distance, None, None, None, false)
+                    .move_relative()
+                    .distance(distance)
+                    .run_async(false)
+                    .call()
                     .await;
                 robot.intake.lock().await.spin();
-                robot.chassis.wait_until_complete().await;
+                chassis.wait_until_complete().await;
 
                 robot.intake.lock().await.stop();
                 println!("{:?}", robot.chassis.pose().await);
             }
             TestMode::Angular(angle) => {
-                robot
-                    .chassis
+                chassis
                     .clone()
-                    .turn_to(
-                        TurnTarget::Angle(robot.chassis.pose().await.orientation + angle),
-                        None,
-                        Some(params_turn_to!(forwards: false,)),
-                        None,
-                        false,
-                    )
+                    .turn_to()
+                    .target(TurnTarget::Angle(
+                        robot.chassis.pose().await.orientation + angle,
+                    ))
+                    .params(params_turn_to!(forwards: false,))
+                    .run_async(false)
+                    .call()
                     .await;
 
                 println!("{}", robot.chassis.pose().await.orientation);
@@ -75,36 +75,24 @@ impl AutonRoutine for Test {
             TestMode::TrackingCenter => {}
             TestMode::ImuScalar => {}
             TestMode::Default => {
-                robot
-                    .chassis
+                chassis
                     .clone()
-                    .ramsete_hybrid(
-                        RamseteTarget::Pose(Pose::new(
-                            TILE_LENGTH,
-                            TILE_LENGTH,
-                            angle!(degrees: 0.0,),
-                        )),
-                        None,
-                        None,
-                        None,
-                        false,
-                    )
+                    .ramsete_hybrid()
+                    .target(RamseteTarget::pose(TILE_LENGTH, TILE_LENGTH, 0.0.hdg_deg()))
+                    .run_async(false)
+                    .call()
                     .await;
 
-                robot
-                    .chassis
+                chassis
                     .clone()
-                    .ramsete_hybrid(
-                        RamseteTarget::Pose(Pose::new(
-                            -TILE_LENGTH,
-                            TILE_LENGTH,
-                            angle!(degrees: 180.0,),
-                        )),
-                        None,
-                        Some(params_ramsete_h!(forwards: false,)),
-                        None,
-                        true,
-                    )
+                    .ramsete_hybrid()
+                    .target(RamseteTarget::pose(
+                        -TILE_LENGTH,
+                        TILE_LENGTH,
+                        180.0.hdg_deg(),
+                    ))
+                    .params(params_ramsete_h!(forwards: false,))
+                    .call()
                     .await;
             }
         }

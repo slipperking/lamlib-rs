@@ -1,6 +1,7 @@
 use alloc::{boxed::Box, rc::Rc};
 use core::{f64::consts::PI, time::Duration};
 
+use bon::bon;
 use nalgebra::{Vector2, Vector3};
 use vexide::{float::Float, prelude::Motor};
 
@@ -124,26 +125,43 @@ pub enum RamseteTarget {
     Point(Vector2<f64>),
 }
 
+impl RamseteTarget {
+    pub fn pose(x: f64, y: f64, orientation: f64) -> Self {
+        Self::Pose(Pose::new(x, y, orientation))
+    }
+    pub fn point(x: f64, y: f64) -> Self {
+        Self::Point(Vector2::new(x, y))
+    }
+}
+
+#[bon]
 impl<T: Tracking + 'static> Chassis<T> {
+    #[builder]
     pub async fn ramsete_hybrid(
         self: Rc<Self>,
         target: RamseteTarget,
         timeout: Option<Duration>,
         params: Option<RAMSETEHybridParameters>,
         mut settings: Option<RAMSETEHybridSettings>,
-        run_async: bool,
+        run_async: Option<bool>,
     ) {
         self.motion_handler.wait_for_motions_end().await;
         if self.motion_handler.in_motion() {
             return;
         }
-        if run_async {
+        if run_async.unwrap_or(true) {
             // Spawn vexide task
             vexide::task::spawn({
                 let self_clone = self.clone();
                 async move {
                     self_clone
-                        .ramsete_hybrid(target, timeout, params, settings.clone(), false)
+                        .ramsete_hybrid()
+                        .target(target)
+                        .maybe_timeout(timeout)
+                        .maybe_params(params)
+                        .maybe_settings(settings.clone())
+                        .run_async(false)
+                        .call()
                         .await
                 }
             })

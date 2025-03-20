@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use vexide::io::println;
 
 use super::AutonRoutine;
-use crate::{differential::pose::Pose, params_boomerang, Robot};
+use crate::{differential::pose::Pose, params_boomerang, utils::math::AngleExt, Robot};
 pub struct Skills;
 #[async_trait(?Send)]
 impl AutonRoutine for Skills {
@@ -25,22 +25,19 @@ impl AutonRoutine for Skills {
         robot
             .chassis
             .clone()
-            .set_pose(Pose::new(
-                -60.0,
-                0.0,
-                angle!(degrees: -90.0, standard: false,),
-            ))
+            .set_pose(Pose::new(-60.0, 0.0, -90.0.hdg_deg()))
             .await;
         robot
             .chassis
             .clone()
-            .boomerang(
-                Pose::new(-50.0, -10.0, angle!(degrees: 0.0, standard: false,)),
-                Some(Duration::from_millis(3000)),
-                Some(params_boomerang!(max_lateral_speed: 0.8,)),
-                None,
-                true,
-            )
+            .boomerang()
+            .target(Pose::new(
+                -50.0,
+                -10.0,
+                angle!(degrees: 0.0, standard: false,),
+            ))
+            .params(params_boomerang!(max_lateral_speed: 0.8,))
+            .call()
             .await;
         robot.chassis.clone().wait_until_complete().await;
         println!("{}", Skills::color().get_name());

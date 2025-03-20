@@ -4,6 +4,7 @@ use core::{
     time::Duration,
 };
 
+use bon::bon;
 use nalgebra::Vector2;
 use vexide::prelude::{BrakeMode, Float, Motor, MotorControl};
 
@@ -183,27 +184,36 @@ impl TurnTarget {
         }
     }
 }
+
+#[bon]
 impl<T: Tracking + 'static> Chassis<T> {
+    #[builder]
     pub async fn turn_to(
         self: Rc<Self>,
-        turn_target: TurnTarget,
+        target: TurnTarget,
         timeout: Option<Duration>,
         params: Option<TurnToParameters>,
         mut settings: Option<TurnToSettings>,
-        run_async: bool,
+        run_async: Option<bool>,
     ) {
         let unwrapped_params = params.unwrap_or(params_turn_to!());
         self.motion_handler.wait_for_motions_end().await;
         if self.motion_handler.in_motion() {
             return;
         }
-        if run_async {
+        if run_async.unwrap_or(true) {
             // Spawn vexide task
             vexide::task::spawn({
                 let self_clone = self.clone();
                 async move {
                     self_clone
-                        .turn_to(turn_target, timeout, params, settings.clone(), false)
+                        .turn_to()
+                        .target(target)
+                        .maybe_timeout(timeout)
+                        .maybe_params(params)
+                        .maybe_settings(settings)
+                        .run_async(false)
+                        .call()
                         .await
                 }
             })
@@ -249,7 +259,7 @@ impl<T: Tracking + 'static> Chassis<T> {
             }
             previous_pose = pose;
 
-            let raw_error = turn_target.error(
+            let raw_error = target.error(
                 pose + Pose::new(0.0, 0.0, if unwrapped_params.forwards { 0.0 } else { PI }),
                 None,
             );
@@ -275,7 +285,7 @@ impl<T: Tracking + 'static> Chassis<T> {
             let error = if oscillations_begin {
                 raw_error
             } else {
-                turn_target.error(
+                target.error(
                     pose + Pose::new(0.0, 0.0, if unwrapped_params.forwards { 0.0 } else { PI }),
                     unwrapped_params.direction,
                 )
