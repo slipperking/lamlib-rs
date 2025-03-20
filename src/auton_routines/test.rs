@@ -55,6 +55,7 @@ impl AutonRoutine for Test {
                 robot.chassis.wait_until_complete().await;
 
                 robot.intake.lock().await.stop();
+                println!("{:?}", robot.chassis.pose().await);
             }
             TestMode::Angular(angle) => {
                 robot
@@ -68,6 +69,8 @@ impl AutonRoutine for Test {
                         false,
                     )
                     .await;
+
+                println!("{}", robot.chassis.pose().await.orientation);
             }
             TestMode::TrackingCenter => {}
             TestMode::ImuScalar => {}

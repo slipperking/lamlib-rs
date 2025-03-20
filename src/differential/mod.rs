@@ -8,7 +8,7 @@ pub mod pose {
     use nalgebra::{Vector2, Vector3};
     use num_traits::AsPrimitive;
 
-    #[derive(Clone, Copy, PartialEq)]
+    #[derive(Clone, Copy, PartialEq, Debug)]
     pub struct Pose {
         pub position: Vector2<f64>,
         pub orientation: f64,
