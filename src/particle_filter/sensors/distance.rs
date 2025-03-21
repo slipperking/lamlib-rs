@@ -9,7 +9,7 @@ use vexide::{prelude::DistanceSensor, time::Instant};
 use super::ParticleFilterSensor;
 use crate::utils::{
     math::lerp,
-    samplers::{multivariate_gaussian_sampler::GaussianSampler, AbstractSampler},
+    samplers::{multivariate_gaussian_sampler::GaussianSampler, Sampler},
 };
 
 /// A struct containing shared data between LiDARs.

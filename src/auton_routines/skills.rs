@@ -1,4 +1,4 @@
-use alloc::boxed::Box;
+use alloc::{boxed::Box, rc::Rc};
 
 use async_trait::async_trait;
 use vexide::io::println;
@@ -21,14 +21,12 @@ impl AutonRoutine for Skills {
     }
 
     async fn run(&self, robot: &mut Robot) {
-        robot
-            .chassis
-            .clone()
+        let chassis = robot.chassis.clone();
+        Rc::clone(&chassis)
             .set_pose(Pose::new(-60.0, 0.0, -90.0.hdg_deg()))
             .await;
-        robot
-            .chassis
-            .clone()
+
+        Rc::clone(&chassis)
             .boomerang()
             .target(Pose::new(-50.0, -10.0, 0.0.hdg_deg()))
             .params(params_boomerang!(max_lateral_speed: 0.8,))

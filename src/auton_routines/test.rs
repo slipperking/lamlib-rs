@@ -1,4 +1,5 @@
 use alloc::boxed::Box;
+use core::time::Duration;
 
 use async_trait::async_trait;
 use vexide::io::println;
@@ -17,7 +18,7 @@ pub struct Test;
 pub enum TestMode {
     Lateral(f64),
     Angular(f64),
-    TrackingCenter,
+    TrackingCenter(Duration, f64),
     ImuScalar,
     Default,
 }
@@ -71,7 +72,11 @@ impl AutonRoutine for Test {
 
                 println!("{}", robot.chassis.pose().await.orientation);
             }
-            TestMode::TrackingCenter => {}
+            TestMode::TrackingCenter(duration, velocity_percentage) => {
+                chassis.set_pose(Pose::new(0.0, 0.0, 0.0.std_deg())).await;
+                _ = duration;
+                _ = velocity_percentage;
+            }
             TestMode::ImuScalar => {}
             TestMode::Default => {
                 chassis

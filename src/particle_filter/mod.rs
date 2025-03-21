@@ -14,7 +14,7 @@ use rand::{
 use sensors::ParticleFilterSensor;
 use veranda::SystemRng;
 
-use crate::utils::samplers::{multivariate_gaussian_sampler::GaussianSampler, AbstractSampler};
+use crate::utils::samplers::{multivariate_gaussian_sampler::GaussianSampler, Sampler};
 pub struct ParticleFilter {
     enabled: bool,
     estimate_position: Rc<RefCell<Vector3<f32>>>,
