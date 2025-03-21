@@ -1,7 +1,7 @@
 use alloc::{boxed::Box, rc::Rc};
 use core::{f64::consts::PI, time::Duration};
 
-use bon::bon;
+use bon::{bon, Builder};
 use nalgebra::{Vector2, Vector3};
 use vexide::{float::Float, prelude::Motor};
 
@@ -16,14 +16,24 @@ use crate::{
     },
 };
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Builder)]
 pub struct RAMSETEHybridParameters {
     /// The `b` here, if set to `Some(_)`, overrides that of [`RAMSETEHybridSettings`].
     pub b: Option<f64>,
+
+    #[builder(default = true)]
     pub forwards: bool,
+
+    #[builder(default = 0.0)]
     pub min_lateral_speed: f64,
+
+    #[builder(default = 1.0)]
     pub max_lateral_speed: f64,
+
+    #[builder(default = 1.0)]
     pub max_angular_speed: f64,
+
+    #[builder(default = 0.0)]
     pub early_exit_range: f64,
     pub lateral_slew: Option<f64>,
     pub angular_slew: Option<f64>,
@@ -79,37 +89,16 @@ macro_rules! params_ramsete_h {
         $(lateral_slew: $lateral_slew:expr,)?
         $(angular_slew: $angular_slew:expr,)?
     ) => {
-        #[allow(unused_mut, unused_assignments)]
-        {
-            let mut b = None;
-            let mut forwards = true;
-            let mut min_lateral_speed = 0.0;
-            let mut max_lateral_speed = 1.0;
-            let mut max_angular_speed = 1.0;
-            let mut early_exit_range = 0.0;
-            let mut lateral_slew = None;
-            let mut angular_slew = None;
-
-            $(b = Some($b);)?
-            $(forwards = $forwards;)?
-            $(min_lateral_speed = $min_lateral_speed;)?
-            $(max_lateral_speed = $max_lateral_speed;)?
-            $(max_angular_speed = $max_angular_speed;)?
-            $(early_exit_range = $early_exit_range;)?
-            $(lateral_slew = Some($lateral_slew);)?
-            $(angular_slew = Some($angular_slew);)?
-
-            $crate::differential::motions::ramsete::RAMSETEHybridParameters {
-                b,
-                forwards,
-                min_lateral_speed,
-                max_lateral_speed,
-                max_angular_speed,
-                early_exit_range,
-                lateral_slew,
-                angular_slew,
-            }
-        }
+        $crate::differential::motions::ramsete::RAMSETEHybridParameters::builder()
+            $(.b($b))? // If b is not set, it will be set to the default value in the settings.
+            $(.forwards($forwards))?
+            $(.min_lateral_speed($min_lateral_speed))?
+            $(.max_lateral_speed($max_lateral_speed))?
+            $(.max_angular_speed($max_angular_speed))?
+            $(.early_exit_range($early_exit_range))?
+            $(.lateral_slew($lateral_slew))?
+            $(.angular_slew($angular_slew))?
+            .build()
     }
 }
 pub use params_ramsete_h;
@@ -146,7 +135,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         run_async: Option<bool>,
     ) {
         self.motion_handler.wait_for_motions_end().await;
-        if self.motion_handler.in_motion() {
+        if self.motion_handler.is_in_motion() {
             return;
         }
         if run_async.unwrap_or(true) {
@@ -193,7 +182,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         let mut previous_lateral_output: f64 = 0.0;
         let mut previous_angular_output: f64 = 0.0;
         let mut timer = Timer::new(timeout.unwrap_or(Duration::MAX));
-        while !timer.is_done() && self.motion_handler.in_motion() {
+        while !timer.is_done() && self.motion_handler.is_in_motion() {
             let pose: Pose = self.pose().await;
             if let Some(distance_traveled) = self.distance_traveled.borrow_mut().as_mut() {
                 *distance_traveled += pose.distance_to(&previous_pose);

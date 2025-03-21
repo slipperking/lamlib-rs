@@ -53,8 +53,8 @@ impl BlockingQueue {
 }
 
 pub struct MotionHandler {
-    in_motion: RefCell<bool>,
-    in_queue: RefCell<bool>,
+    is_in_motion: RefCell<bool>,
+    is_in_queue: RefCell<bool>,
 
     mutex: BlockingQueue,
 }
@@ -62,39 +62,39 @@ pub struct MotionHandler {
 impl MotionHandler {
     pub fn new() -> Self {
         Self {
-            in_motion: RefCell::new(false),
-            in_queue: RefCell::new(false),
+            is_in_motion: RefCell::new(false),
+            is_in_queue: RefCell::new(false),
             mutex: BlockingQueue::new(),
         }
     }
-    pub fn in_motion(&self) -> bool {
-        *self.in_motion.borrow()
+    pub fn is_in_motion(&self) -> bool {
+        *self.is_in_motion.borrow()
     }
     pub async fn wait_for_motions_end(&self) {
-        if *self.in_motion.borrow() {
-            *self.in_queue.borrow_mut() = true;
+        if *self.is_in_motion.borrow() {
+            *self.is_in_queue.borrow_mut() = true;
         } else {
-            *self.in_motion.borrow_mut() = true;
+            *self.is_in_motion.borrow_mut() = true;
         }
         self.mutex.take().await;
     }
     pub async fn end_motion(&self) {
         {
-            let mut queued_motion = self.in_queue.borrow_mut();
-            *self.in_motion.borrow_mut() = *queued_motion;
-            *queued_motion = false;
+            let mut is_in_queue = self.is_in_queue.borrow_mut();
+            *self.is_in_motion.borrow_mut() = *is_in_queue;
+            *is_in_queue = false;
         }
         self.mutex.give().await;
     }
 
     pub async fn cancel_all_motions(&self) {
-        *self.in_motion.borrow_mut() = false;
-        *self.in_queue.borrow_mut() = false;
+        *self.is_in_motion.borrow_mut() = false;
+        *self.is_in_queue.borrow_mut() = false;
         vexide::time::sleep(Duration::from_millis(10)).await;
     }
 
     pub async fn cancel_motion(&self) {
-        *self.in_motion.borrow_mut() = false;
+        *self.is_in_motion.borrow_mut() = false;
         vexide::time::sleep(Duration::from_millis(10)).await;
     }
 }

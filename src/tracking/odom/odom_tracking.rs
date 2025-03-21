@@ -36,23 +36,23 @@ impl OdomInertial {
     }
 }
 pub struct OdomSensors {
-    imus: Vec<Rc<OdomInertial>>,
-    horizontals: Vec<Rc<OdomWheel>>,
-    verticals: Vec<Rc<OdomWheel>>,
+    pub imus: Vec<Rc<OdomInertial>>,
+    pub horizontals: Vec<Rc<OdomWheel>>,
+    pub verticals: Vec<Rc<OdomWheel>>,
 
     /// How much imu weighted rotation affects total rotation.
     /// Values of all weights are normalized to 1.
-    imu_angle_weight: f64,
+    pub imu_angle_weight: f64,
 
     /// How much pairs of horizontals weighted rotation affects total rotation.
     /// Values of all weights are normalized to 1.
     /// If you only have one horizontal, this does nothing.
-    horizontal_angle_weight: f64,
+    pub horizontal_angle_weight: f64,
 
     /// How much pairs of verticals weighted rotation affects total rotation.
     /// Values of all weights are normalized to 1.
     /// If you only have one vertical, this does nothing.
-    vertical_angle_weight: f64,
+    pub vertical_angle_weight: f64,
 }
 impl OdomSensors {
     pub fn new(

@@ -1,7 +1,7 @@
 use alloc::{boxed::Box, rc::Rc};
 use core::{f64::consts::PI, time::Duration};
 
-use bon::bon;
+use bon::{bon, Builder};
 use vexide::prelude::{BrakeMode, Float};
 
 use super::ExitConditionGroup;
@@ -15,13 +15,24 @@ use crate::{
     },
 };
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Builder)]
 pub struct BoomerangParameters {
+    #[builder(default = true)]
     pub forwards: bool,
+
+    #[builder(default = 0.6)]
     pub lead: f64,
+
+    #[builder(default = 0.0)]
     pub min_lateral_speed: f64,
+
+    #[builder(default = 1.0)]
     pub max_lateral_speed: f64,
+
+    #[builder(default = 1.0)]
     pub max_angular_speed: f64,
+
+    #[builder(default = 0.0)]
     pub early_exit_range: f64,
     pub lateral_slew: Option<f64>,
     pub angular_slew: Option<f64>,
@@ -71,40 +82,17 @@ macro_rules! params_boomerang {
         $(angular_slew: $angular_slew:expr,)?
         $(horizontal_drift_compensation: $horizontal_drift_compensation:expr,)?
     ) => {
-        #[allow(unused_mut, unused_assignments)]
-        {
-            let mut forwards = true;
-            let mut lead = 0.6;
-            let mut min_lateral_speed = 0.0;
-            let mut max_lateral_speed = 1.0;
-            let mut max_angular_speed = 1.0;
-            let mut early_exit_range = 0.0;
-            let mut lateral_slew = None;
-            let mut angular_slew = None;
-            let mut horizontal_drift_compensation = None;
-
-            $(forwards = $forwards;)?
-            $(lead = $lead;)?
-            $(min_lateral_speed = $min_lateral_speed;)?
-            $(max_lateral_speed = $max_lateral_speed;)?
-            $(early_exit_range = $early_exit_range;)?
-            $(lateral_slew = Some($lateral_slew);)?
-            $(angular_slew = Some($angular_slew);)?
-            $(horizontal_drift_compensation = $horizontal_drift_compensation;)?
-
-            $crate::differential::motions::boomerang::BoomerangParameters {
-                forwards,
-                lead,
-                min_lateral_speed,
-                max_lateral_speed,
-                max_angular_speed,
-                early_exit_range,
-                lateral_slew,
-                angular_slew,
-                horizontal_drift_compensation
-
-            }
-        }
+        $crate::differential::motions::boomerang::BoomerangParameters::builder()
+            $(.forwards($forwards))?
+            $(.lead($lead))?
+            $(.min_lateral_speed($min_lateral_speed))?
+            $(.max_lateral_speed($max_lateral_speed))?
+            $(.max_angular_speed($max_angular_speed))?
+            $(.early_exit_range($early_exit_range))?
+            $(.lateral_slew($lateral_slew))?
+            $(.angular_slew($angular_slew))?
+            $(.horizontal_drift_compensation($horizontal_drift_compensation))?
+            .build()
     }
 }
 pub use params_boomerang;
@@ -121,7 +109,7 @@ impl<T: Tracking + 'static> Chassis<T> {
     ) {
         let mut unwrapped_params = params.unwrap_or(params_boomerang!());
         self.motion_handler.wait_for_motions_end().await;
-        if self.motion_handler.in_motion() {
+        if self.motion_handler.is_in_motion() {
             return;
         }
         if run_async.unwrap_or(true) {
@@ -159,7 +147,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         let mut previous_lateral_output: f64 = 0.0;
         let mut previous_angular_output: f64 = 0.0;
         let mut timer = Timer::new(timeout.unwrap_or(Duration::MAX));
-        while !timer.is_done() && self.motion_handler.in_motion() {
+        while !timer.is_done() && self.motion_handler.is_in_motion() {
             let pose = self.pose().await;
             if let Some(distance) = self.distance_traveled.borrow_mut().as_mut() {
                 *distance += pose.distance_to(&previous_pose);

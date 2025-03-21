@@ -1,10 +1,11 @@
 use alloc::{boxed::Box, rc::Rc};
 use core::{
+    default,
     f64::consts::{FRAC_PI_2, PI},
     time::Duration,
 };
 
-use bon::bon;
+use bon::{bon, Builder};
 use nalgebra::Vector2;
 use vexide::prelude::{BrakeMode, Float, Motor, MotorControl};
 
@@ -25,13 +26,19 @@ pub enum DifferentialDriveSide {
     Right,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Builder)]
 pub struct TurnToParameters {
+    #[builder(default = true)]
     pub forwards: bool,
 
     /// Speed constraints here restrict both drive sides.
+    #[builder(default = 0.0)]
     pub min_speed: f64,
+
+    #[builder(default = 1.0)]
     pub max_speed: f64,
+
+    #[builder(default = 0.0)]
     pub early_exit_range: f64,
     pub angular_slew: Option<f64>,
     pub direction: Option<AngularDirection>,
@@ -47,6 +54,7 @@ pub struct TurnToSettings {
 
     pub angular_exit_conditions: ExitConditionGroup<f64>,
 }
+
 impl TurnToSettings {
     pub fn new(
         angular_controller: Box<dyn FeedbackController<f64>>,
@@ -77,33 +85,15 @@ macro_rules! params_swing {
         $(early_exit_range: $early_exit_range:expr,)?
         $(slew: $angular_slew:expr,)?
     ) => {
-        #[allow(unused_mut, unused_assignments)]
-        {
-            let mut locked_side = Some($locked_side);
-            let mut forwards = true;
-            let mut min_speed = 0.0;
-            let mut max_speed = 1.0;
-            let mut early_exit_range = 0.0;
-            let mut direction = None;
-            let mut angular_slew = None;
-
-            $(forwards = $forwards;)?
-            $(min_speed = $min_speed;)?
-            $(max_speed = $max_speed;)?
-            $(direction = Some($direction);)?
-            $(early_exit_range = $early_exit_range;)?
-            $(angular_slew = Some($angular_slew);)?
-
-            $crate::differential::motions::angular::TurnToParameters {
-                forwards,
-                min_speed,
-                max_speed,
-                early_exit_range,
-                angular_slew,
-                locked_side,
-                direction,
-            }
-        }
+        $crate::differential::motions::angular::TurnToParameters::builder()
+            .locked_side($locked_side)
+            $(.forwards($forwards))?
+            $(.min_speed($min_speed))?
+            $(.max_speed($max_speed))?
+            $(.direction($direction))?
+            $(.early_exit_range($early_exit_range))?
+            $(.angular_slew($angular_slew))?
+            .build()
     }
 }
 pub use params_swing;
@@ -119,34 +109,15 @@ macro_rules! params_turn_to {
         $(slew: $angular_slew:expr,)?
         $(locked_side: $locked_side:expr,)?
     ) => {
-        #[allow(unused_mut, unused_assignments)]
-        {
-            let mut locked_side = None;
-            let mut forwards = true;
-            let mut min_speed = 0.0;
-            let mut max_speed = 1.0;
-            let mut early_exit_range = 0.0;
-            let mut direction = None;
-            let mut angular_slew = None;
-
-            $(forwards = $forwards;)?
-            $(min_speed = $min_speed;)?
-            $(max_speed = $max_speed;)?
-            $(direction = Some($direction);)?
-            $(early_exit_range = $early_exit_range;)?
-            $(angular_slew = $angular_slew;)?
-            $(locked_side = $locked_side;)?
-
-            $crate::differential::motions::angular::TurnToParameters {
-                forwards,
-                min_speed,
-                max_speed,
-                early_exit_range,
-                angular_slew,
-                locked_side,
-                direction,
-            }
-        }
+        $crate::differential::motions::angular::TurnToParameters::builder()
+            $(.forwards($forwards))?
+            $(.min_speed($min_speed))?
+            $(.max_speed($max_speed))?
+            $(.direction($direction))?
+            $(.early_exit_range($early_exit_range))?
+            $(.angular_slew($angular_slew))?
+            $(.locked_side($locked_side))?
+            .build()
     }
 }
 pub use params_turn_to;
@@ -198,7 +169,7 @@ impl<T: Tracking + 'static> Chassis<T> {
     ) {
         let unwrapped_params = params.unwrap_or(params_turn_to!());
         self.motion_handler.wait_for_motions_end().await;
-        if self.motion_handler.in_motion() {
+        if self.motion_handler.is_in_motion() {
             return;
         }
         if run_async.unwrap_or(true) {
@@ -251,7 +222,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         let mut previous_output: f64 = 0.0;
         let mut timer = Timer::new(timeout.unwrap_or(Duration::MAX));
 
-        while !timer.is_done() && self.motion_handler.in_motion() {
+        while !timer.is_done() && self.motion_handler.is_in_motion() {
             let pose = self.pose().await;
             if let Some(distance) = self.distance_traveled.borrow_mut().as_mut() {
                 *distance +=
