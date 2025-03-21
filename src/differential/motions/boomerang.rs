@@ -72,28 +72,12 @@ impl BoomerangSettings {
 #[macro_export]
 macro_rules! params_boomerang {
     (
-        $(forwards: $forwards:expr,)?
-        $(lead: $lead:expr,)?
-        $(min_linear_speed: $min_linear_speed:expr,)?
-        $(max_linear_speed: $max_linear_speed:expr,)?
-        $(max_angular_speed: $max_angular_speed:expr,)?
-        $(early_exit_range: $early_exit_range:expr,)?
-        $(linear_slew: $linear_slew:expr,)?
-        $(angular_slew: $angular_slew:expr,)?
-        $(horizontal_drift_compensation: $horizontal_drift_compensation:expr,)?
+        $($key:ident : $value:expr),* $(,)?
     ) => {
         $crate::differential::motions::boomerang::BoomerangParameters::builder()
-            $(.forwards($forwards))?
-            $(.lead($lead))?
-            $(.min_linear_speed($min_linear_speed))?
-            $(.max_linear_speed($max_linear_speed))?
-            $(.max_angular_speed($max_angular_speed))?
-            $(.early_exit_range($early_exit_range))?
-            $(.linear_slew($linear_slew))?
-            $(.angular_slew($angular_slew))?
-            $(.horizontal_drift_compensation($horizontal_drift_compensation))?
+            $(.$key($value))*
             .build()
-    }
+    };
 }
 pub use params_boomerang;
 #[bon]
@@ -209,7 +193,7 @@ impl<T: Tracking + 'static> Chassis<T> {
             {
                 break;
             }
-            if false {
+            {
                 let is_robot_side: bool = (pose.position.y - target.position.y)
                     * -target.orientation.sin()
                     <= (pose.position.x - target.position.x) * target.orientation.cos()

@@ -74,54 +74,18 @@ impl TurnToSettings {
 }
 
 #[macro_export]
-macro_rules! params_swing {
-    (
-        locked_side: $locked_side:expr,
-        $(forwards: $forwards:expr,)?
-        $(min_speed: $min_speed:expr,)?
-        $(max_speed: $max_speed:expr,)?
-        $(direction: $direction:expr,)?
-        $(early_exit_range: $early_exit_range:expr,)?
-        $(slew: $angular_slew:expr,)?
-    ) => {
-        $crate::differential::motions::angular::TurnToParameters::builder()
-            .locked_side($locked_side)
-            $(.forwards($forwards))?
-            $(.min_speed($min_speed))?
-            $(.max_speed($max_speed))?
-            $(.direction($direction))?
-            $(.early_exit_range($early_exit_range))?
-            $(.angular_slew($angular_slew))?
-            .build()
-    }
-}
-pub use params_swing;
-
-#[macro_export]
 macro_rules! params_turn_to {
     (
-        $(forwards: $forwards:expr,)?
-        $(min_speed: $min_speed:expr,)?
-        $(max_speed: $max_speed:expr,)?
-        $(direction: $direction:expr,)?
-        $(early_exit_range: $early_exit_range:expr,)?
-        $(slew: $angular_slew:expr,)?
-        $(locked_side: $locked_side:expr,)?
+        $($key:ident : $value:expr),* $(,)?
     ) => {
         $crate::differential::motions::angular::TurnToParameters::builder()
-            $(.forwards($forwards))?
-            $(.min_speed($min_speed))?
-            $(.max_speed($max_speed))?
-            $(.direction($direction))?
-            $(.early_exit_range($early_exit_range))?
-            $(.angular_slew($angular_slew))?
-            $(.locked_side($locked_side))?
+            $(.$key($value))*
             .build()
-    }
+    };
 }
 pub use params_turn_to;
 
-pub enum TurnTarget {
+pub enum TurnToTarget {
     /// A point the robot can turn to face.
     /// This is in inches.
     Point(Vector2<f64>),
@@ -130,12 +94,12 @@ pub enum TurnTarget {
     ///
     /// # Example
     /// ```
-    /// TurnTarget::Angle(angle!(degrees: 90.0, standard: false,))
+    /// TurnToTarget::Angle(angle!(degrees: 90.0, standard: false,))
     /// ```
     Angle(f64),
 }
 
-impl TurnTarget {
+impl TurnToTarget {
     /// The angle error between a pose and a target.
     pub fn error(&self, pose: Pose, direction: Option<AngularDirection>) -> f64 {
         match *self {
@@ -160,7 +124,7 @@ impl<T: Tracking + 'static> Chassis<T> {
     #[builder]
     pub async fn turn_to(
         self: Rc<Self>,
-        target: TurnTarget,
+        target: TurnToTarget,
         timeout: Option<Duration>,
         params: Option<TurnToParameters>,
         mut settings: Option<TurnToSettings>,

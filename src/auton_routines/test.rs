@@ -7,7 +7,7 @@ use vexide::io::println;
 use super::AutonRoutine;
 use crate::{
     differential::{
-        motions::{angular::TurnTarget, ramsete::RAMSETETarget},
+        motions::{angular::TurnToTarget, ramsete::RAMSETETarget},
         pose::Pose,
     },
     params_ramsete_h, params_turn_to,
@@ -62,7 +62,7 @@ impl AutonRoutine for Test {
                 chassis
                     .clone()
                     .turn_to()
-                    .target(TurnTarget::Angle(
+                    .target(TurnToTarget::Angle(
                         robot.chassis.pose().await.orientation + angle,
                     ))
                     .params(params_turn_to!(forwards: false,))

@@ -80,26 +80,12 @@ impl RAMSETEHybridSettings {
 #[macro_export]
 macro_rules! params_ramsete_h {
     (
-        $(b: $b:expr,)?
-        $(forwards: $forwards:expr,)?
-        $(min_linear_speed: $min_linear_speed:expr,)?
-        $(max_linear_speed: $max_linear_speed:expr,)?
-        $(max_angular_speed: $max_angular_speed:expr,)?
-        $(early_exit_range: $early_exit_range:expr,)?
-        $(linear_slew: $linear_slew:expr,)?
-        $(angular_slew: $angular_slew:expr,)?
+        $($key:ident : $value:expr),* $(,)?
     ) => {
         $crate::differential::motions::ramsete::RAMSETEHybridParameters::builder()
-            $(.b($b))? // If b is not set, it will be set to the default value in the settings.
-            $(.forwards($forwards))?
-            $(.min_linear_speed($min_linear_speed))?
-            $(.max_linear_speed($max_linear_speed))?
-            $(.max_angular_speed($max_angular_speed))?
-            $(.early_exit_range($early_exit_range))?
-            $(.linear_slew($linear_slew))?
-            $(.angular_slew($angular_slew))?
+            $(.$key($value))*
             .build()
-    }
+    };
 }
 pub use params_ramsete_h;
 
@@ -194,11 +180,13 @@ impl<T: Tracking + 'static> Chassis<T> {
                 nalgebra::Rotation3::new(Vector3::<f64>::new(0.0, 0.0, -pose.orientation))
                     * <Pose as Into<Vector3<f64>>>::into(
                         match target {
-                            RAMSETETarget::Point(point) => Pose::new(point.x, point.y, {
-                                let error = point - pose.position;
-                                error.y.atan2(error.x)
-                            }),
-                            RAMSETETarget::Pose(pose) => pose,
+                            RAMSETETarget::Point(target_point) => {
+                                Pose::new(target_point.x, target_point.y, {
+                                    let error = target_point - pose.position;
+                                    error.y.atan2(error.x)
+                                })
+                            }
+                            RAMSETETarget::Pose(target_pose) => target_pose,
                         } - pose,
                     ),
             );

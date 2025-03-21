@@ -72,24 +72,12 @@ impl MoveToPointSettings {
 #[macro_export]
 macro_rules! params_move_to_point {
     (
-        $(forwards: $forwards:expr,)?
-        $(min_linear_speed: $min_linear_speed:expr,)?
-        $(max_linear_speed: $max_linear_speed:expr,)?
-        $(max_angular_speed: $max_angular_speed:expr,)?
-        $(early_exit_range: $early_exit_range:expr,)?
-        $(linear_slew: $linear_slew:expr,)?
-        $(angular_slew: $angular_slew:expr,)?
+        $($key:ident : $value:expr),* $(,)?
     ) => {
         $crate::differential::motions::linear::MoveToPointParameters::builder()
-            $(.forwards($forwards))?
-            $(.min_linear_speed($min_linear_speed))?
-            $(.max_linear_speed($max_linear_speed))?
-            $(.max_angular_speed($max_angular_speed))?
-            $(.early_exit_range($early_exit_range))?
-            $(.linear_slew($linear_slew))?
-            $(.angular_slew($angular_slew))?
+            $(.$key($value))*
             .build()
-    }
+    };
 }
 pub use params_move_to_point;
 #[derive(Clone, Copy, PartialEq, Builder)]
@@ -177,6 +165,10 @@ impl<T: Tracking + 'static> Chassis<T> {
             if local_error.norm() < 5.0 && !is_near {
                 unwrapped_params.max_linear_speed = 0.6;
                 is_near = true;
+            }
+
+            if linear_error.abs() < unwrapped_params.early_exit_range {
+                break;
             }
 
             if if let Some(settings) = &mut settings {

@@ -23,11 +23,10 @@ pub mod test;
 #[macro_export]
 macro_rules! create_routine_array {
     () => {
-        [create_route_from_routine!(
-            $crate::auton_routines::skills::Skills
-        ),create_route_from_routine!(
-            $crate::auton_routines::test::Test
-        )]
+        [
+            create_route_from_routine!($crate::auton_routines::skills::Skills),
+            create_route_from_routine!($crate::auton_routines::test::Test),
+        ]
     };
 }
 pub use create_routine_array;
