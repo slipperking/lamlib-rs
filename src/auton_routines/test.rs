@@ -16,14 +16,14 @@ use crate::{
 };
 pub struct Test;
 pub enum TestMode {
-    Lateral(f64),
+    Linear(f64),
     Angular(f64),
     TrackingCenter(Duration, f64),
     ImuScalar,
     Default,
 }
 
-static TEST_MODE: TestMode = TestMode::Lateral(TILE_SIZE);
+static TEST_MODE: TestMode = TestMode::Linear(TILE_SIZE);
 
 #[async_trait(?Send)]
 impl AutonRoutine for Test {
@@ -43,7 +43,7 @@ impl AutonRoutine for Test {
         let chassis = robot.chassis.clone();
         chassis.set_pose(Pose::new(0.0, 0.0, 0.0.hdg_deg())).await;
         match TEST_MODE {
-            TestMode::Lateral(distance) => {
+            TestMode::Linear(distance) => {
                 // Also tests concurrent actions.
                 chassis
                     .clone()

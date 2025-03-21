@@ -22,10 +22,10 @@ pub struct MoveToPointParameters {
     pub forwards: bool,
 
     #[builder(default = 0.0)]
-    pub min_lateral_speed: f64,
+    pub min_linear_speed: f64,
 
     #[builder(default = 1.0)]
-    pub max_lateral_speed: f64,
+    pub max_linear_speed: f64,
 
     #[builder(default = 1.0)]
     pub max_angular_speed: f64,
@@ -33,38 +33,38 @@ pub struct MoveToPointParameters {
     #[builder(default = 0.0)]
     pub early_exit_range: f64,
 
-    pub lateral_slew: Option<f64>,
+    pub linear_slew: Option<f64>,
     pub angular_slew: Option<f64>,
 }
 
 #[derive(Clone)]
 pub struct MoveToPointSettings {
-    lateral_controller: Box<dyn FeedbackController<f64>>,
+    linear_controller: Box<dyn FeedbackController<f64>>,
     angular_controller: Box<dyn FeedbackController<f64>>,
 
-    lateral_exit_conditions: ExitConditionGroup<f64>,
+    linear_exit_conditions: ExitConditionGroup<f64>,
     angular_exit_conditions: ExitConditionGroup<f64>,
 }
 
 impl MoveToPointSettings {
     pub fn new(
-        lateral_controller: Box<dyn FeedbackController<f64>>,
+        linear_controller: Box<dyn FeedbackController<f64>>,
         angular_controller: Box<dyn FeedbackController<f64>>,
-        lateral_exit_conditions: ExitConditionGroup<f64>,
+        linear_exit_conditions: ExitConditionGroup<f64>,
         angular_exit_conditions: ExitConditionGroup<f64>,
     ) -> Self {
         Self {
-            lateral_controller,
+            linear_controller,
             angular_controller,
-            lateral_exit_conditions,
+            linear_exit_conditions,
             angular_exit_conditions,
         }
     }
 
     pub fn reset(&mut self) {
-        self.lateral_controller.reset();
+        self.linear_controller.reset();
         self.angular_controller.reset();
-        self.lateral_exit_conditions.reset();
+        self.linear_exit_conditions.reset();
         self.angular_exit_conditions.reset();
     }
 }
@@ -73,20 +73,20 @@ impl MoveToPointSettings {
 macro_rules! params_move_to_point {
     (
         $(forwards: $forwards:expr,)?
-        $(min_lateral_speed: $min_lateral_speed:expr,)?
-        $(max_lateral_speed: $max_lateral_speed:expr,)?
+        $(min_linear_speed: $min_linear_speed:expr,)?
+        $(max_linear_speed: $max_linear_speed:expr,)?
         $(max_angular_speed: $max_angular_speed:expr,)?
         $(early_exit_range: $early_exit_range:expr,)?
-        $(lateral_slew: $lateral_slew:expr,)?
+        $(linear_slew: $linear_slew:expr,)?
         $(angular_slew: $angular_slew:expr,)?
     ) => {
-        $crate::differential::motions::lateral::MoveToPointParameters::builder()
+        $crate::differential::motions::linear::MoveToPointParameters::builder()
             $(.forwards($forwards))?
-            $(.min_lateral_speed($min_lateral_speed))?
-            $(.max_lateral_speed($max_lateral_speed))?
+            $(.min_linear_speed($min_linear_speed))?
+            $(.max_linear_speed($max_linear_speed))?
             $(.max_angular_speed($max_angular_speed))?
             $(.early_exit_range($early_exit_range))?
-            $(.lateral_slew($lateral_slew))?
+            $(.linear_slew($linear_slew))?
             $(.angular_slew($angular_slew))?
             .build()
     }
@@ -95,14 +95,14 @@ pub use params_move_to_point;
 #[derive(Clone, Copy, PartialEq, Builder)]
 pub struct MoveRelativeParameters {
     #[builder(default = 0.0)]
-    pub min_lateral_speed: f64,
+    pub min_linear_speed: f64,
 
     #[builder(default = 1.0)]
-    pub max_lateral_speed: f64,
+    pub max_linear_speed: f64,
 
     #[builder(default = 0.0)]
     pub early_exit_range: f64,
-    pub lateral_slew: Option<f64>,
+    pub linear_slew: Option<f64>,
 }
 
 type MoveRelativeSettings = MoveToPointSettings;
@@ -158,7 +158,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         let mut unwrapped_params = params.unwrap_or(params_move_to_point!());
         let mut previous_pose = self.pose().await;
         let mut is_near: bool = false;
-        let mut previous_lateral_output: f64 = 0.0;
+        let mut previous_linear_output: f64 = 0.0;
         let mut previous_angular_output: f64 = 0.0;
 
         let mut timer = Timer::new(timeout.unwrap_or(Duration::MAX));
@@ -171,55 +171,55 @@ impl<T: Tracking + 'static> Chassis<T> {
             let local_error = nalgebra::Rotation2::new(
                 -pose.orientation + if unwrapped_params.forwards { 0.0 } else { PI },
             ) * (target - pose.position);
-            let lateral_error = local_error.norm();
-            let cosine_lateral_error = local_error.x;
+            let linear_error = local_error.norm();
+            let cosine_linear_error = local_error.x;
             let angular_error = local_error.y.atan2(local_error.x);
             if local_error.norm() < 5.0 && !is_near {
-                unwrapped_params.max_lateral_speed = 0.6;
+                unwrapped_params.max_linear_speed = 0.6;
                 is_near = true;
             }
 
             if if let Some(settings) = &mut settings {
-                let lateral_done = settings.lateral_exit_conditions.update_all(lateral_error);
+                let linear_done = settings.linear_exit_conditions.update_all(linear_error);
                 let angular_done = settings.angular_exit_conditions.update_all(angular_error);
-                lateral_done && angular_done
+                linear_done && angular_done
             } else {
                 let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
-                let lateral_done = motion_settings
-                    .lateral_exit_conditions
-                    .update_all(lateral_error);
+                let linear_done = motion_settings
+                    .linear_exit_conditions
+                    .update_all(linear_error);
                 let angular_done = motion_settings
                     .angular_exit_conditions
                     .update_all(angular_error);
-                lateral_done && angular_done
+                linear_done && angular_done
             } && is_near
             {
                 break;
             }
-            let lateral_output = {
+            let linear_output = {
                 if let Some(settings) = &mut settings {
-                    settings.lateral_controller.update(cosine_lateral_error)
+                    settings.linear_controller.update(cosine_linear_error)
                 } else {
                     self.motion_settings
                         .move_to_point_settings
                         .borrow_mut()
-                        .lateral_controller
-                        .update(cosine_lateral_error)
+                        .linear_controller
+                        .update(cosine_linear_error)
                 }
             }
             .clamp(
-                -unwrapped_params.max_lateral_speed,
-                unwrapped_params.max_lateral_speed,
+                -unwrapped_params.max_linear_speed,
+                unwrapped_params.max_linear_speed,
             );
 
-            let lateral_output = {
-                let check_1_result = if (-unwrapped_params.min_lateral_speed
-                    ..unwrapped_params.min_lateral_speed)
-                    .contains(&lateral_output)
+            let linear_output = {
+                let check_1_result = if (-unwrapped_params.min_linear_speed
+                    ..unwrapped_params.min_linear_speed)
+                    .contains(&linear_output)
                 {
-                    unwrapped_params.min_lateral_speed
+                    unwrapped_params.min_linear_speed
                 } else {
-                    lateral_output
+                    linear_output
                 };
                 let check_2_result = if check_1_result < 0.0 && !is_near {
                     0.0
@@ -228,20 +228,20 @@ impl<T: Tracking + 'static> Chassis<T> {
                 };
                 delta_clamp(
                     check_2_result,
-                    previous_lateral_output,
-                    unwrapped_params.lateral_slew.unwrap_or(0.0),
+                    previous_linear_output,
+                    unwrapped_params.linear_slew.unwrap_or(0.0),
                     None,
                 )
             };
 
             let angular_output = {
                 if let Some(settings) = &mut settings {
-                    settings.lateral_controller.update(angular_error)
+                    settings.linear_controller.update(angular_error)
                 } else {
                     self.motion_settings
                         .move_to_point_settings
                         .borrow_mut()
-                        .lateral_controller
+                        .linear_controller
                         .update(angular_error)
                 }
             }
@@ -256,14 +256,14 @@ impl<T: Tracking + 'static> Chassis<T> {
                 None,
             );
 
-            previous_lateral_output = lateral_output;
+            previous_linear_output = linear_output;
             previous_angular_output = angular_output;
 
             let (left, right) = arcade_desaturate(
                 if unwrapped_params.forwards {
-                    lateral_output
+                    linear_output
                 } else {
-                    -lateral_output
+                    -linear_output
                 },
                 angular_output,
             );
@@ -302,10 +302,10 @@ impl<T: Tracking + 'static> Chassis<T> {
         let move_to_point_params = match params {
             Some(params) => MoveToPointParameters {
                 forwards: distance > 0.0,
-                min_lateral_speed: params.min_lateral_speed,
-                max_lateral_speed: params.max_lateral_speed,
+                min_linear_speed: params.min_linear_speed,
+                max_linear_speed: params.max_linear_speed,
                 max_angular_speed: 1.0,
-                lateral_slew: params.lateral_slew,
+                linear_slew: params.linear_slew,
                 angular_slew: None,
                 early_exit_range: params.early_exit_range,
             },

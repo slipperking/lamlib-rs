@@ -24,47 +24,47 @@ pub struct BoomerangParameters {
     pub lead: f64,
 
     #[builder(default = 0.0)]
-    pub min_lateral_speed: f64,
+    pub min_linear_speed: f64,
 
     #[builder(default = 1.0)]
-    pub max_lateral_speed: f64,
+    pub max_linear_speed: f64,
 
     #[builder(default = 1.0)]
     pub max_angular_speed: f64,
 
     #[builder(default = 0.0)]
     pub early_exit_range: f64,
-    pub lateral_slew: Option<f64>,
+    pub linear_slew: Option<f64>,
     pub angular_slew: Option<f64>,
     pub horizontal_drift_compensation: Option<f64>,
 }
 #[derive(Clone)]
 pub struct BoomerangSettings {
-    pub lateral_controller: Box<dyn FeedbackController<f64>>,
+    pub linear_controller: Box<dyn FeedbackController<f64>>,
     pub angular_controller: Box<dyn FeedbackController<f64>>,
 
-    pub lateral_exit_conditions: ExitConditionGroup<f64>,
+    pub linear_exit_conditions: ExitConditionGroup<f64>,
     pub angular_exit_conditions: ExitConditionGroup<f64>,
 }
 impl BoomerangSettings {
     pub fn new(
-        lateral_controller: Box<dyn FeedbackController<f64>>,
+        linear_controller: Box<dyn FeedbackController<f64>>,
         angular_controller: Box<dyn FeedbackController<f64>>,
-        lateral_exit_conditions: ExitConditionGroup<f64>,
+        linear_exit_conditions: ExitConditionGroup<f64>,
         angular_exit_conditions: ExitConditionGroup<f64>,
     ) -> Self {
         Self {
-            lateral_controller,
+            linear_controller,
             angular_controller,
-            lateral_exit_conditions,
+            linear_exit_conditions,
             angular_exit_conditions,
         }
     }
 
     pub fn reset(&mut self) {
-        self.lateral_controller.reset();
+        self.linear_controller.reset();
         self.angular_controller.reset();
-        self.lateral_exit_conditions.reset();
+        self.linear_exit_conditions.reset();
         self.angular_exit_conditions.reset();
     }
 }
@@ -74,22 +74,22 @@ macro_rules! params_boomerang {
     (
         $(forwards: $forwards:expr,)?
         $(lead: $lead:expr,)?
-        $(min_lateral_speed: $min_lateral_speed:expr,)?
-        $(max_lateral_speed: $max_lateral_speed:expr,)?
+        $(min_linear_speed: $min_linear_speed:expr,)?
+        $(max_linear_speed: $max_linear_speed:expr,)?
         $(max_angular_speed: $max_angular_speed:expr,)?
         $(early_exit_range: $early_exit_range:expr,)?
-        $(lateral_slew: $lateral_slew:expr,)?
+        $(linear_slew: $linear_slew:expr,)?
         $(angular_slew: $angular_slew:expr,)?
         $(horizontal_drift_compensation: $horizontal_drift_compensation:expr,)?
     ) => {
         $crate::differential::motions::boomerang::BoomerangParameters::builder()
             $(.forwards($forwards))?
             $(.lead($lead))?
-            $(.min_lateral_speed($min_lateral_speed))?
-            $(.max_lateral_speed($max_lateral_speed))?
+            $(.min_linear_speed($min_linear_speed))?
+            $(.max_linear_speed($max_linear_speed))?
             $(.max_angular_speed($max_angular_speed))?
             $(.early_exit_range($early_exit_range))?
-            $(.lateral_slew($lateral_slew))?
+            $(.linear_slew($linear_slew))?
             $(.angular_slew($angular_slew))?
             $(.horizontal_drift_compensation($horizontal_drift_compensation))?
             .build()
@@ -144,7 +144,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         }
         let mut is_near = false;
         let mut previous_was_same_side = false;
-        let mut previous_lateral_output: f64 = 0.0;
+        let mut previous_linear_output: f64 = 0.0;
         let mut previous_angular_output: f64 = 0.0;
         let mut timer = Timer::new(timeout.unwrap_or(Duration::MAX));
         while !timer.is_done() && self.motion_handler.is_in_motion() {
@@ -156,7 +156,7 @@ impl<T: Tracking + 'static> Chassis<T> {
             previous_pose = pose;
             if distance_to_target < 7.5 && !is_near {
                 is_near = true;
-                unwrapped_params.max_lateral_speed = previous_lateral_output.max(0.5);
+                unwrapped_params.max_linear_speed = previous_linear_output.max(0.5);
             }
             let robot_vectors_normalized =
                 nalgebra::Vector2::<f64>::new(target.orientation.cos(), target.orientation.sin());
@@ -168,7 +168,7 @@ impl<T: Tracking + 'static> Chassis<T> {
             };
             let carrot_pose_angle =
                 (carrot_point.y - pose.position.y).atan2(carrot_point.x - pose.position.x);
-            let lateral_error = {
+            let linear_error = {
                 // Find the cosine of the signed angle between.
                 let cos_angle_difference =
                     angle_error(pose.orientation, carrot_pose_angle, true, None).cos();
@@ -193,18 +193,18 @@ impl<T: Tracking + 'static> Chassis<T> {
             };
 
             if if let Some(settings) = &mut settings {
-                let lateral_done = settings.lateral_exit_conditions.update_all(lateral_error);
+                let linear_done = settings.linear_exit_conditions.update_all(linear_error);
                 let angular_done = settings.angular_exit_conditions.update_all(angular_error);
-                lateral_done && angular_done
+                linear_done && angular_done
             } else {
                 let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
-                let lateral_done = motion_settings
-                    .lateral_exit_conditions
-                    .update_all(lateral_error);
+                let linear_done = motion_settings
+                    .linear_exit_conditions
+                    .update_all(linear_error);
                 let angular_done = motion_settings
                     .angular_exit_conditions
                     .update_all(angular_error);
-                lateral_done && angular_done
+                linear_done && angular_done
             } && is_near
             {
                 break;
@@ -223,7 +223,7 @@ impl<T: Tracking + 'static> Chassis<T> {
                 if !is_same_side
                     && previous_was_same_side
                     && is_near
-                    && unwrapped_params.min_lateral_speed != 0.0
+                    && unwrapped_params.min_linear_speed != 0.0
                 {
                     break;
                 }
@@ -251,24 +251,24 @@ impl<T: Tracking + 'static> Chassis<T> {
                 previous_angular_output = raw_output;
                 raw_output
             };
-            let lateral_output = {
+            let linear_output = {
                 let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
                 let mut raw_output = if let Some(settings) = &mut settings {
                     settings
                 } else {
                     &mut motion_settings
                 }
-                .lateral_controller
-                .update(lateral_error)
+                .linear_controller
+                .update(linear_error)
                 .clamp(
-                    -unwrapped_params.max_lateral_speed,
-                    unwrapped_params.max_lateral_speed,
+                    -unwrapped_params.max_linear_speed,
+                    unwrapped_params.max_linear_speed,
                 );
                 if !is_near {
                     raw_output = delta_clamp(
                         raw_output,
-                        previous_lateral_output,
-                        unwrapped_params.lateral_slew.unwrap_or(0.0),
+                        previous_linear_output,
+                        unwrapped_params.linear_slew.unwrap_or(0.0),
                         None,
                     )
                 }
@@ -292,20 +292,20 @@ impl<T: Tracking + 'static> Chassis<T> {
                 }
 
                 if !unwrapped_params.forwards
-                    && -raw_output < unwrapped_params.min_lateral_speed.abs()
+                    && -raw_output < unwrapped_params.min_linear_speed.abs()
                     && raw_output < 0.0
                 {
-                    raw_output = -unwrapped_params.min_lateral_speed.abs();
+                    raw_output = -unwrapped_params.min_linear_speed.abs();
                 } else if unwrapped_params.forwards
-                    && raw_output < unwrapped_params.min_lateral_speed.abs()
+                    && raw_output < unwrapped_params.min_linear_speed.abs()
                     && raw_output > 0.0
                 {
-                    raw_output = unwrapped_params.min_lateral_speed.abs();
+                    raw_output = unwrapped_params.min_linear_speed.abs();
                 }
-                previous_lateral_output = raw_output;
+                previous_linear_output = raw_output;
                 raw_output
             };
-            let (left, right) = arcade_desaturate(lateral_output, angular_output);
+            let (left, right) = arcade_desaturate(linear_output, angular_output);
             {
                 self.drivetrain
                     .left_motors

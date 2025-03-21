@@ -25,17 +25,17 @@ pub struct RAMSETEHybridParameters {
     pub forwards: bool,
 
     #[builder(default = 0.0)]
-    pub min_lateral_speed: f64,
+    pub min_linear_speed: f64,
 
     #[builder(default = 1.0)]
-    pub max_lateral_speed: f64,
+    pub max_linear_speed: f64,
 
     #[builder(default = 1.0)]
     pub max_angular_speed: f64,
 
     #[builder(default = 0.0)]
     pub early_exit_range: f64,
-    pub lateral_slew: Option<f64>,
+    pub linear_slew: Option<f64>,
     pub angular_slew: Option<f64>,
 }
 
@@ -43,10 +43,10 @@ pub struct RAMSETEHybridParameters {
 /// Uses a hybrid between a RAMSETE controller and a closed loop feedback controller
 /// such as PID.
 pub struct RAMSETEHybridSettings {
-    lateral_controller: Box<dyn FeedbackController<f64>>,
+    linear_controller: Box<dyn FeedbackController<f64>>,
     angular_controller: Box<dyn FeedbackController<f64>>,
 
-    lateral_exit_conditions: ExitConditionGroup<f64>,
+    linear_exit_conditions: ExitConditionGroup<f64>,
     angular_exit_conditions: ExitConditionGroup<f64>,
 
     b: f64,
@@ -54,25 +54,25 @@ pub struct RAMSETEHybridSettings {
 
 impl RAMSETEHybridSettings {
     pub fn new(
-        lateral_controller: Box<dyn FeedbackController<f64>>,
+        linear_controller: Box<dyn FeedbackController<f64>>,
         angular_controller: Box<dyn FeedbackController<f64>>,
-        lateral_exit_conditions: ExitConditionGroup<f64>,
+        linear_exit_conditions: ExitConditionGroup<f64>,
         angular_exit_conditions: ExitConditionGroup<f64>,
         b: f64,
     ) -> Self {
         Self {
-            lateral_controller,
+            linear_controller,
             angular_controller,
-            lateral_exit_conditions,
+            linear_exit_conditions,
             angular_exit_conditions,
             b,
         }
     }
 
     pub fn reset(&mut self) {
-        self.lateral_controller.reset();
+        self.linear_controller.reset();
         self.angular_controller.reset();
-        self.lateral_exit_conditions.reset();
+        self.linear_exit_conditions.reset();
         self.angular_exit_conditions.reset();
     }
 }
@@ -82,21 +82,21 @@ macro_rules! params_ramsete_h {
     (
         $(b: $b:expr,)?
         $(forwards: $forwards:expr,)?
-        $(min_lateral_speed: $min_lateral_speed:expr,)?
-        $(max_lateral_speed: $max_lateral_speed:expr,)?
+        $(min_linear_speed: $min_linear_speed:expr,)?
+        $(max_linear_speed: $max_linear_speed:expr,)?
         $(max_angular_speed: $max_angular_speed:expr,)?
         $(early_exit_range: $early_exit_range:expr,)?
-        $(lateral_slew: $lateral_slew:expr,)?
+        $(linear_slew: $linear_slew:expr,)?
         $(angular_slew: $angular_slew:expr,)?
     ) => {
         $crate::differential::motions::ramsete::RAMSETEHybridParameters::builder()
             $(.b($b))? // If b is not set, it will be set to the default value in the settings.
             $(.forwards($forwards))?
-            $(.min_lateral_speed($min_lateral_speed))?
-            $(.max_lateral_speed($max_lateral_speed))?
+            $(.min_linear_speed($min_linear_speed))?
+            $(.max_linear_speed($max_linear_speed))?
             $(.max_angular_speed($max_angular_speed))?
             $(.early_exit_range($early_exit_range))?
-            $(.lateral_slew($lateral_slew))?
+            $(.linear_slew($linear_slew))?
             $(.angular_slew($angular_slew))?
             .build()
     }
@@ -171,15 +171,15 @@ impl<T: Tracking + 'static> Chassis<T> {
             *self.distance_traveled.borrow_mut() = Some(0.0);
         }
         let mut unwrapped_params = params.unwrap_or(params_ramsete_h!());
-        unwrapped_params.min_lateral_speed = unwrapped_params.min_lateral_speed.abs();
-        unwrapped_params.max_lateral_speed = unwrapped_params.max_lateral_speed.abs();
+        unwrapped_params.min_linear_speed = unwrapped_params.min_linear_speed.abs();
+        unwrapped_params.max_linear_speed = unwrapped_params.max_linear_speed.abs();
         unwrapped_params.max_angular_speed = unwrapped_params.max_angular_speed.abs();
-        if unwrapped_params.max_angular_speed < unwrapped_params.min_lateral_speed {
+        if unwrapped_params.max_angular_speed < unwrapped_params.min_linear_speed {
             panic!("Minimum speed may not exceed the maximum.")
         }
         let mut previous_pose = self.pose().await;
         let mut is_near = false; // Possibly use settling logic.
-        let mut previous_lateral_output: f64 = 0.0;
+        let mut previous_linear_output: f64 = 0.0;
         let mut previous_angular_output: f64 = 0.0;
         let mut timer = Timer::new(timeout.unwrap_or(Duration::MAX));
         while !timer.is_done() && self.motion_handler.is_in_motion() {
@@ -204,7 +204,7 @@ impl<T: Tracking + 'static> Chassis<T> {
             );
             if !is_near && local_error.position.norm() < 5.0 {
                 is_near = true;
-                unwrapped_params.max_lateral_speed = previous_lateral_output.max(0.5);
+                unwrapped_params.max_linear_speed = previous_linear_output.max(0.5);
             }
             local_error.orientation = angle_error(
                 local_error.orientation,
@@ -214,22 +214,22 @@ impl<T: Tracking + 'static> Chassis<T> {
             );
 
             if if let Some(settings) = &mut settings {
-                let lateral_done = settings
-                    .lateral_exit_conditions
+                let linear_done = settings
+                    .linear_exit_conditions
                     .update_all(local_error.position.norm());
                 let angular_done = settings
                     .angular_exit_conditions
                     .update_all(local_error.orientation);
-                lateral_done && angular_done
+                linear_done && angular_done
             } else {
                 let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
-                let lateral_done = motion_settings
-                    .lateral_exit_conditions
+                let linear_done = motion_settings
+                    .linear_exit_conditions
                     .update_all(local_error.position.norm());
                 let angular_done = motion_settings
                     .angular_exit_conditions
                     .update_all(local_error.orientation);
-                lateral_done && angular_done
+                linear_done && angular_done
             } && is_near
             {
                 break;
@@ -239,27 +239,27 @@ impl<T: Tracking + 'static> Chassis<T> {
                 let controller_input =
                     local_error.position.norm() * local_error.orientation.cos().signum();
                 if let Some(settings) = &mut settings {
-                    settings.lateral_controller.update(controller_input)
+                    settings.linear_controller.update(controller_input)
                 } else {
                     self.motion_settings
                         .ramsete_hybrid_settings
                         .borrow_mut()
-                        .lateral_controller
+                        .linear_controller
                         .update(controller_input)
                 }
             };
-            let lateral_output = (v_d * local_error.orientation.cos().abs()).clamp(
-                -unwrapped_params.max_lateral_speed,
-                unwrapped_params.max_lateral_speed,
+            let linear_output = (v_d * local_error.orientation.cos().abs()).clamp(
+                -unwrapped_params.max_linear_speed,
+                unwrapped_params.max_linear_speed,
             );
-            let lateral_output = {
-                let check_1_result = if (-unwrapped_params.min_lateral_speed
-                    ..unwrapped_params.min_lateral_speed)
-                    .contains(&lateral_output)
+            let linear_output = {
+                let check_1_result = if (-unwrapped_params.min_linear_speed
+                    ..unwrapped_params.min_linear_speed)
+                    .contains(&linear_output)
                 {
-                    unwrapped_params.min_lateral_speed
+                    unwrapped_params.min_linear_speed
                 } else {
-                    lateral_output
+                    linear_output
                 };
                 let check_2_result = if check_1_result < 0.0 && !is_near {
                     0.0
@@ -268,8 +268,8 @@ impl<T: Tracking + 'static> Chassis<T> {
                 };
                 delta_clamp(
                     check_2_result,
-                    previous_lateral_output,
-                    unwrapped_params.lateral_slew.unwrap_or(0.0),
+                    previous_linear_output,
+                    unwrapped_params.linear_slew.unwrap_or(0.0),
                     None,
                 )
             };
@@ -308,14 +308,14 @@ impl<T: Tracking + 'static> Chassis<T> {
                 unwrapped_params.angular_slew.unwrap_or(0.0),
                 None,
             );
-            previous_lateral_output = lateral_output;
+            previous_linear_output = linear_output;
             previous_angular_output = angular_output;
 
             let (left, right) = arcade_desaturate(
                 if unwrapped_params.forwards {
-                    lateral_output
+                    linear_output
                 } else {
-                    -lateral_output
+                    -linear_output
                 },
                 angular_output,
             );

@@ -268,7 +268,7 @@ pub fn angle_error<
     }
 }
 
-/// Adjusts lateral and angular inputs to prevent motor saturation.
+/// Adjusts linear and angular inputs to prevent motor saturation.
 ///
 /// Returns normalized (left, right) motor values.
 ///
@@ -287,13 +287,13 @@ pub fn arcade_desaturate<
         + Div<Output = T>
         + FromPrimitive,
 >(
-    lateral: T,
+    linear: T,
     angular: T,
 ) -> (T, T) {
-    let left: T = lateral - angular;
-    let right: T = lateral + angular;
+    let left: T = linear - angular;
+    let right: T = linear + angular;
     let sum = {
-        let raw_sum = lateral.abs() + angular.abs();
+        let raw_sum = linear.abs() + angular.abs();
         let one = T::from_u8(1).unwrap();
         if raw_sum < one {
             one

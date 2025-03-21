@@ -7,7 +7,7 @@ use vexide::{prelude::Motor, sync::Mutex};
 use super::{
     drive_curve::ExponentialDriveCurve,
     motions::{
-        angular::TurnToSettings, boomerang::BoomerangSettings, lateral::MoveToPointSettings, ramsete::RAMSETEHybridSettings, MotionHandler
+        angular::TurnToSettings, boomerang::BoomerangSettings, linear::MoveToPointSettings, ramsete::RAMSETEHybridSettings, MotionHandler
     },
     pose::Pose,
 };

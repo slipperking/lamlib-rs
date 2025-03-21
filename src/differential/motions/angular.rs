@@ -1,6 +1,5 @@
 use alloc::{boxed::Box, rc::Rc};
 use core::{
-    default,
     f64::consts::{FRAC_PI_2, PI},
     time::Duration,
 };

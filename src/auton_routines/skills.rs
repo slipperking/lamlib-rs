@@ -29,7 +29,7 @@ impl AutonRoutine for Skills {
         Rc::clone(&chassis)
             .boomerang()
             .target(Pose::new(-50.0, -10.0, 0.0.hdg_deg()))
-            .params(params_boomerang!(max_lateral_speed: 0.8,))
+            .params(params_boomerang!(max_linear_speed: 0.8,))
             .call()
             .await;
         robot.chassis.clone().wait_until_complete().await;

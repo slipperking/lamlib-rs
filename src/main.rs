@@ -30,7 +30,7 @@ use differential::{
     chassis::{Chassis, Drivetrain, MotionSettings},
     drive_curve::ExponentialDriveCurve,
     motions::{
-        angular::TurnToSettings, boomerang::BoomerangSettings, lateral::MoveToPointSettings,
+        angular::TurnToSettings, boomerang::BoomerangSettings, linear::MoveToPointSettings,
         ramsete::RAMSETEHybridSettings, ExitCondition, ExitConditionGroup,
     },
 };
@@ -198,7 +198,7 @@ async fn main(peripherals: Peripherals) {
         Motor::new(peripherals.port_3, Gearset::Blue, Direction::Forward),
     ])));
     let drivetrain = Rc::new(Drivetrain::new(left_motors, right_motors));
-    let lateral_exit_conditions = ExitConditionGroup::new(vec![
+    let linear_exit_conditions = ExitConditionGroup::new(vec![
         ExitCondition::new(1.0, Duration::from_millis(150)),
         ExitCondition::new(3.0, Duration::from_millis(500)),
     ]);
@@ -206,14 +206,14 @@ async fn main(peripherals: Peripherals) {
         ExitCondition::new(1.0.deg(), Duration::from_millis(150)),
         ExitCondition::new(3.0.deg(), Duration::from_millis(500)),
     ]);
-    let lateral_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
+    let linear_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
     let angular_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
 
     let motion_settings = MotionSettings::new(
         RefCell::new(MoveToPointSettings::new(
-            lateral_controller.clone(),
+            linear_controller.clone(),
             angular_controller.clone(),
-            lateral_exit_conditions.clone(),
+            linear_exit_conditions.clone(),
             angular_exit_conditions.clone(),
         )),
         RefCell::new(TurnToSettings::new(
@@ -222,15 +222,15 @@ async fn main(peripherals: Peripherals) {
             angular_exit_conditions.clone(),
         )),
         RefCell::new(BoomerangSettings::new(
-            lateral_controller.clone(),
+            linear_controller.clone(),
             angular_controller.clone(),
-            lateral_exit_conditions.clone(),
+            linear_exit_conditions.clone(),
             angular_exit_conditions.clone(),
         )),
         RefCell::new(RAMSETEHybridSettings::new(
-            lateral_controller.clone(),
+            linear_controller.clone(),
             angular_controller.clone(),
-            lateral_exit_conditions.clone(),
+            linear_exit_conditions.clone(),
             angular_exit_conditions.clone(),
             1.0,
         )),
