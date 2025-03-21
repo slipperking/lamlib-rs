@@ -7,7 +7,7 @@ pub mod boomerang;
 #[macro_use]
 pub mod ramsete;
 
-use alloc::{collections::VecDeque, rc::Rc, vec::Vec};
+use alloc::{collections::VecDeque, vec::Vec};
 use core::{cell::RefCell, time::Duration};
 
 use vexide::{sync::Mutex, time::Instant};
@@ -19,11 +19,11 @@ struct BlockingQueue {
 }
 
 impl BlockingQueue {
-    fn new() -> Rc<Self> {
-        Rc::new(Self {
+    fn new() -> Self {
+        Self {
             queue: Mutex::new(VecDeque::new()),
             counter: RefCell::new(0),
-        })
+        }
     }
 
     async fn take(&self) {
@@ -56,7 +56,7 @@ pub struct MotionHandler {
     in_motion: RefCell<bool>,
     in_queue: RefCell<bool>,
 
-    mutex: Rc<BlockingQueue>,
+    mutex: BlockingQueue,
 }
 
 impl MotionHandler {
@@ -71,16 +71,12 @@ impl MotionHandler {
         *self.in_motion.borrow()
     }
     pub async fn wait_for_motions_end(&self) {
-        let mutex;
-        {
-            if *self.in_motion.borrow() {
-                *self.in_queue.borrow_mut() = true;
-            } else {
-                *self.in_motion.borrow_mut() = true;
-            }
-            mutex = self.mutex.clone();
+        if *self.in_motion.borrow() {
+            *self.in_queue.borrow_mut() = true;
+        } else {
+            *self.in_motion.borrow_mut() = true;
         }
-        mutex.take().await;
+        self.mutex.take().await;
     }
     pub async fn end_motion(&self) {
         {
