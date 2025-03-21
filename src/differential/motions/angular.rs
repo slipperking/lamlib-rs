@@ -69,6 +69,7 @@ impl TurnToSettings {
 
     pub fn reset(&mut self) {
         self.angular_controller.reset();
+        self.swing_controller.reset();
         self.angular_exit_conditions.reset();
     }
 }
