@@ -132,10 +132,10 @@ async fn main(peripherals: Peripherals) {
         0.0,
         0.0,
     );
-    let localization = Rc::new(ParticleFilter::new(
+    let localization = Rc::new(RefCell::new(ParticleFilter::new(
         300,
         Matrix3::from_diagonal(&Vector3::<f32>::new(0.08, 0.08, 0.003)),
-    ));
+    )));
 
     let sensor_position_noise = Matrix2::from_diagonal(&Vector2::<f32>::new(0.15, 0.15));
     let mcl_lidar_0 = Rc::new(DistanceSensor::new(peripherals.port_6));

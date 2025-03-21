@@ -84,7 +84,7 @@ impl OdomSensors {
 }
 pub struct OdomTracking {
     task: Option<Task<()>>,
-    localization: Rc<ParticleFilter>,
+    localization: Rc<RefCell<ParticleFilter>>,
     sensors: Rc<OdomSensors>,
     tracked_pose: Vector3<f64>,
     particle_filter_sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>,
@@ -98,7 +98,7 @@ pub struct OdomTracking {
 impl OdomTracking {
     pub fn new(
         sensors: Rc<OdomSensors>,
-        localization: Rc<ParticleFilter>,
+        localization: Rc<RefCell<ParticleFilter>>,
         particle_filter_sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>,
     ) -> Self {
         Self {
@@ -348,11 +348,10 @@ impl Tracking for OdomTracking {
         self.tracked_pose
     }
     async fn set_position(&mut self, position: &Vector3<f64>) {
-        self.localization
-            .scatter_particles(
-                &Vector3::<f32>::new(position.x as f32, position.y as f32, position.z as f32),
-                2.0,
-            );
+        self.localization.borrow_mut().scatter_particles(
+            &Vector3::<f32>::new(position.x as f32, position.y as f32, position.z as f32),
+            2.0,
+        );
         self.tracked_pose = *position;
     }
 
@@ -391,12 +390,10 @@ impl Tracking for OdomTracking {
                     {
                         let mut self_lock = async_self_rc.lock().await;
                         self_lock.update().await;
-                        let mcl_output = self_lock
-                            .localization
-                            .run_filter(
-                                self_lock.delta_global_pose,
-                                self_lock.particle_filter_sensors.clone(),
-                            );
+                        let mcl_output = self_lock.localization.borrow_mut().run_filter(
+                            self_lock.delta_global_pose,
+                            &self_lock.particle_filter_sensors,
+                        );
                         if let Some(position) = mcl_output {
                             self_lock
                                 .set_position_no_filter(&Vector3::new(
