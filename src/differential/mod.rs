@@ -5,7 +5,11 @@ pub mod motions;
 
 #[macro_use]
 pub mod pose {
-    use core::ops::{Add, Sub};
+    use alloc::string::{String, ToString};
+    use core::{
+        f64::consts::TAU,
+        ops::{Add, Sub},
+    };
 
     use nalgebra::{Vector2, Vector3};
     use num_traits::{AsPrimitive, Num};
@@ -15,7 +19,17 @@ pub mod pose {
         pub position: Vector2<f64>,
         pub orientation: f64,
     }
-
+    impl core::fmt::Display for Pose {
+        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+            write!(
+                f,
+                "{} {} {}",
+                self.position.x as i32,
+                self.position.y as i32,
+                crate::unsigned_mod!(self.orientation, TAU).to_degrees() as i32
+            )
+        }
+    }
     impl Sub for Pose {
         type Output = Self;
 
@@ -24,6 +38,12 @@ pub mod pose {
                 position: self.position - rhs.position,
                 orientation: self.orientation - rhs.orientation,
             }
+        }
+    }
+
+    impl From<Pose> for String {
+        fn from(pose: Pose) -> Self {
+            pose.to_string()
         }
     }
 
@@ -39,7 +59,11 @@ pub mod pose {
     }
 
     impl Pose {
-        pub fn new<T: Num + AsPrimitive<f64>, U: Num + AsPrimitive<f64>, V: Num + AsPrimitive<f64>>(
+        pub fn new<
+            T: Num + AsPrimitive<f64>,
+            U: Num + AsPrimitive<f64>,
+            V: Num + AsPrimitive<f64>,
+        >(
             x: T,
             y: U,
             orientation: V,

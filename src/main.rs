@@ -15,7 +15,7 @@ pub mod tracking;
 pub mod utils;
 
 pub mod auton_routines;
-use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
+use alloc::{boxed::Box, rc::Rc, string::ToString, vec, vec::Vec};
 use core::{
     cell::RefCell,
     f32::consts::{FRAC_PI_2, PI},
@@ -301,25 +301,12 @@ async fn main(peripherals: Peripherals) {
         async move {
             loop {
                 let pose = chassis.pose().await;
-                println!(
-                    "{} {} {}",
-                    pose.position.x, pose.position.y, pose.orientation
-                );
+                println!("{}", pose.to_string());
                 let _ = controller
                     .lock()
                     .await
                     .screen
-                    .set_text(
-                        alloc::format!(
-                            "{} {} {}",
-                            pose.position.x as i32,
-                            pose.position.y as i32,
-                            unsigned_mod!(pose.orientation, core::f64::consts::TAU).to_degrees()
-                                as i32
-                        ),
-                        2,
-                        6,
-                    )
+                    .set_text(pose.to_string().as_str(), 2, 6)
                     .await;
                 time::sleep(Duration::from_millis(200)).await;
             }

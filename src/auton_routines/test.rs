@@ -1,4 +1,4 @@
-use alloc::boxed::Box;
+use alloc::{boxed::Box, string::ToString};
 use core::time::Duration;
 
 use async_trait::async_trait;
@@ -57,7 +57,7 @@ impl AutonRoutine for Test {
                 chassis.wait_until_complete().await;
 
                 robot.intake.lock().await.stop();
-                println!("{:?}", robot.chassis.pose().await);
+                println!("{}", robot.chassis.pose().await.to_string());
             }
             TestMode::Angular(angle) => {
                 chassis
@@ -71,7 +71,11 @@ impl AutonRoutine for Test {
                     .call()
                     .await;
 
-                println!("{}", robot.chassis.pose().await.orientation);
+                println!(
+                    "{}",
+                    unsigned_mod!(robot.chassis.pose().await.orientation.to_degrees(), 360.0)
+                        as f32
+                );
             }
             TestMode::TrackingCenter(duration, velocity_percentage) => {
                 println!("\x1b[1mCopy this:\x1b[0m\n\\left[");
