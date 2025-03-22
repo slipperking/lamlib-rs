@@ -20,6 +20,7 @@ pub enum TestMode {
     Angular(f64),
     TrackingCenter(Duration, f64),
     ImuScalar,
+    ParticleFilter,
     Default,
 }
 
@@ -101,6 +102,11 @@ impl AutonRoutine for Test {
                 chassis.arcade(0.0, 0.0, false);
             }
             TestMode::ImuScalar => {}
+            TestMode::ParticleFilter => {
+                if let Some(filter_state) = chassis.filter_state().await {
+                    chassis.set_filter_state(!filter_state).await;
+                }
+            }
             TestMode::Default => {
                 chassis
                     .clone()

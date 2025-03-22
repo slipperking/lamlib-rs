@@ -51,7 +51,7 @@ pub struct Robot {
     #[allow(dead_code)]
     pub alliance_color: Rc<RefCell<AllianceColor>>,
     #[warn(dead_code)]
-    pub controller: Controller,
+    pub controller: Rc<Mutex<Controller>>,
     pub chassis: Rc<Chassis<OdomTracking>>,
 
     pub ladybrown_arm: Rc<RefCell<LadyBrown>>,
@@ -71,33 +71,33 @@ impl SelectCompete for Robot {
         println!("Driver!");
         loop {
             {
-                let state = self.controller.state().unwrap_or_default();
-                self.chassis
-                    .arcade(state.left_stick.y(), state.right_stick.x(), true);
-                // Put in scopes to free mutexes.
-                {
-                    self.ladybrown_arm.borrow_mut().driver(&state);
-                    self.doinker_left.driver_toggle(state.button_b.is_pressed());
-                    self.doinker_right.driver_toggle(
-                        state.button_up.is_pressed() && !state.button_y.is_pressed(),
-                    );
-                    self.clamp_main.driver_explicit(
-                        state.button_l1.is_pressed(),
-                        state.button_l2.is_pressed(),
-                        LogicLevel::High,
-                        LogicLevel::Low,
-                    );
-                }
-                {
+                let state = self.controller.lock().await.state().unwrap_or_default();
+                if !state.button_y.is_pressed() {
+                    self.chassis
+                        .arcade(state.left_stick.y(), state.right_stick.x(), true);
+                    // Put in scopes to free mutexes.
+                    {
+                        self.ladybrown_arm.borrow_mut().driver(&state);
+                        self.doinker_left.driver_toggle(state.button_b.is_pressed());
+                        self.doinker_right
+                            .driver_toggle(state.button_up.is_pressed());
+                        self.clamp_main.driver_explicit(
+                            state.button_l1.is_pressed(),
+                            state.button_l2.is_pressed(),
+                            LogicLevel::High,
+                            LogicLevel::Low,
+                        );
+                    }
                     self.intake.lock().await.driver(&state);
-                }
-                if state.button_y.is_pressed() {
-                    if state.button_right.is_pressed() {
-                        // Add init logic.
-                        auton_routines::test::Test.run(self).await;
-                    } else if state.button_left.is_pressed() {
-                        // Add init logic.
-                        auton_routines::skills::Skills.run(self).await;
+                } else {
+                    {
+                        if state.button_right.is_pressed() {
+                            // Add init logic.
+                            auton_routines::test::Test.run(self).await;
+                        } else if state.button_left.is_pressed() {
+                            // Add init logic.
+                            auton_routines::skills::Skills.run(self).await;
+                        }
                     }
                 }
             }
@@ -292,8 +292,40 @@ async fn main(peripherals: Peripherals) {
     chassis
         .set_pose(differential::pose::Pose::new(0.0, 0.0, 0.0.hdg_deg()))
         .await;
-    let mut controller = peripherals.primary_controller;
-    let _ = controller.rumble("._.").await;
+    let controller = Rc::new(Mutex::new(peripherals.primary_controller));
+    let _ = controller.lock().await.rumble("._.").await;
+
+    vexide::task::spawn({
+        let chassis = chassis.clone();
+        let controller = controller.clone();
+        async move {
+            loop {
+                let pose = chassis.pose().await;
+                println!(
+                    "{} {} {}",
+                    pose.position.x, pose.position.y, pose.orientation
+                );
+                let _ = controller
+                    .lock()
+                    .await
+                    .screen
+                    .set_text(
+                        alloc::format!(
+                            "{} {} {}",
+                            pose.position.x as i32,
+                            pose.position.y as i32,
+                            unsigned_mod!(pose.orientation, core::f64::consts::TAU).to_degrees()
+                                as i32
+                        ),
+                        2,
+                        6,
+                    )
+                    .await;
+                time::sleep(Duration::from_millis(200)).await;
+            }
+        }
+    })
+    .await;
 
     let robot = Robot {
         alliance_color,

@@ -87,6 +87,10 @@ impl<T: Tracking> Chassis<T> {
         self.tracking.lock().await.set_filter_state(state).await;
     }
 
+    pub async fn filter_state(&self) -> Option<bool> {
+        self.tracking.lock().await.filter_state().await
+    }
+
     pub async fn calibrate(&self) {
         self.tracking.lock().await.init(self.tracking.clone()).await;
     }

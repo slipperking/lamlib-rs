@@ -3,7 +3,6 @@ use core::{cell::RefCell, time::Duration};
 
 use nalgebra::Vector3;
 use vexide::{
-    devices::position,
     prelude::{Float, InertialSensor, Motor, SmartDevice, Task},
     sync::Mutex,
     time::Instant,
@@ -347,6 +346,11 @@ impl OdomTracking {
 impl Tracking for OdomTracking {
     fn position(&mut self) -> Vector3<f64> {
         self.tracked_pose
+    }
+    async fn filter_state(&self) -> Option<bool> {
+        self.localization
+            .as_ref()
+            .map(|localization| localization.borrow().filter_state())
     }
     async fn set_filter_state(&mut self, state: bool) {
         if let Some(localization) = &self.localization {
