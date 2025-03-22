@@ -9,7 +9,7 @@ use vexide::{prelude::DistanceSensor, time::Instant};
 use super::ParticleFilterSensor;
 use crate::utils::{
     math::lerp,
-    samplers::{multivariate_gaussian_sampler::GaussianSampler, Sampler},
+    samplers::{multivariate_gaussian_sampler::GaussianSampler, Sampler}, FIELD_WALL,
 };
 
 /// A struct containing shared data between LiDARs.
@@ -220,5 +220,3 @@ fn apply_normal_pdf_row_vector(
             scale * (-0.5 * (*x - mean).simd_powi(2) / variance).simd_exp() * scalar.unwrap_or(1.0);
     });
 }
-
-const FIELD_WALL: f32 = 70.20462;

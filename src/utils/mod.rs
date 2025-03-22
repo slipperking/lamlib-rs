@@ -10,7 +10,8 @@ pub enum AllianceColor {
     Blue,
 }
 
-pub static TILE_SIZE: f64 = 23.576533; 
+pub static TILE_SIZE: f64 = 23.576533;
+pub static FIELD_WALL: f32 = 70.20462;
 
 impl AllianceColor {
     pub fn get_name(&self) -> &'static str {

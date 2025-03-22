@@ -16,7 +16,7 @@ use crate::{
         pose::Pose,
     },
     subsystems::ladybrown::LadyBrownState,
-    utils::{math::AngleExt, AllianceColor},
+    utils::{math::AngleExt, AllianceColor, FIELD_WALL},
     Robot,
 };
 pub struct Skills;
@@ -172,6 +172,95 @@ impl AutonRoutine for Skills {
             )
             .call()
             .await;
+        Rc::clone(&chassis)
+            .turn_to()
+            .target(TurnToTarget::point(-24, -46))
+            .params(
+                TurnToParameters::builder()
+                    .early_exit_range(2.0.deg())
+                    .min_speed(0.2)
+                    .forwards(false)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-24.0, -46.0))
+            .params(
+                MoveToPointParameters::builder()
+                    .early_exit_range(2.0)
+                    .min_linear_speed(0.2)
+                    .forwards(false)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-58.0, -46.0))
+            .params(MoveToPointParameters::builder().forwards(false).build())
+            .call()
+            .await;
+
+        Rc::clone(&chassis)
+            .turn_to()
+            .target(TurnToTarget::point(-48, -57))
+            .params(
+                TurnToParameters::builder()
+                    .early_exit_range(2.0.deg())
+                    .min_speed(0.2)
+                    .forwards(false)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-48.0, -57.0))
+            .params(
+                MoveToPointParameters::builder()
+                    .early_exit_range(2.0)
+                    .min_linear_speed(0.2)
+                    .forwards(false)
+                    .build(),
+            )
+            .run_async(false)
+            .call()
+            .await;
+        intake.lock().await.set_optical_callback(Box::new({
+            let intake = intake.clone();
+            move |color: AllianceColor| {
+                if color == Skills::color() {
+                    vexide::task::spawn({
+                        let intake = intake.clone();
+
+                        async move {
+                            intake.lock().await.stop();
+                        }
+                    })
+                    .detach();
+                    return true;
+                }
+                false
+            }
+        }));
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-35.0, -58.0))
+            .params(MoveToPointParameters::builder().forwards(false).build())
+            .run_async(false)
+            .call()
+            .await;
+        intake.lock().await.stop();
+        intake.lock().await.clear_optical_callback();
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-FIELD_WALL as f64, -60.0))
+            .call()
+            .await;
+        chassis.wait_until(5.0).await;
+        robot.clamp_main.set_state(false);
 
         println!("{}", Skills::color().get_name());
     }

@@ -30,6 +30,13 @@ pub mod pose {
             )
         }
     }
+
+    impl From<Pose> for String {
+        fn from(pose: Pose) -> Self {
+            pose.to_string()
+        }
+    }
+
     impl Sub for Pose {
         type Output = Self;
 
@@ -38,12 +45,6 @@ pub mod pose {
                 position: self.position - rhs.position,
                 orientation: self.orientation - rhs.orientation,
             }
-        }
-    }
-
-    impl From<Pose> for String {
-        fn from(pose: Pose) -> Self {
-            pose.to_string()
         }
     }
 
