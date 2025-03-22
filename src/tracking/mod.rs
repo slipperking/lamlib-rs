@@ -9,6 +9,7 @@ use vexide::sync::Mutex;
 pub trait Tracking {
     fn position(&mut self) -> Vector3<f64>;
     async fn set_position(&mut self, position: &Vector3<f64>);
+    async fn set_filter_state(&mut self, state: bool);
 
     /// A Reference Counted Pointer with a Mutex is required for the pointer.
     /// NOTE: In implementation, you are not required to use self_rc.

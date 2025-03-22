@@ -7,7 +7,8 @@ use vexide::{prelude::Motor, sync::Mutex};
 use super::{
     drive_curve::ExponentialDriveCurve,
     motions::{
-        angular::TurnToSettings, boomerang::BoomerangSettings, linear::MoveToPointSettings, ramsete::RAMSETEHybridSettings, MotionHandler
+        angular::TurnToSettings, boomerang::BoomerangSettings, linear::MoveToPointSettings,
+        ramsete::RAMSETEHybridSettings, MotionHandler,
     },
     pose::Pose,
 };
@@ -81,6 +82,11 @@ impl<T: Tracking> Chassis<T> {
             motion_settings,
         })
     }
+
+    pub async fn set_filter_state(&self, state: bool) {
+        self.tracking.lock().await.set_filter_state(state).await;
+    }
+
     pub async fn calibrate(&self) {
         self.tracking.lock().await.init(self.tracking.clone()).await;
     }

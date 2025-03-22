@@ -184,7 +184,7 @@ async fn main(peripherals: Peripherals) {
 
     let tracking: Rc<Mutex<OdomTracking>> = Rc::new(Mutex::new(OdomTracking::new(
         Rc::new(sensors),
-        localization.clone(),
+        Some(localization.clone()),
         particle_filter_sensors.clone(),
     )));
     let left_motors = Rc::new(RefCell::new(MotorGroup::new(vec![

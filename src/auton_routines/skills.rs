@@ -38,14 +38,13 @@ impl AutonRoutine for Skills {
         let chassis = robot.chassis.clone();
         let intake = robot.intake.clone();
         let ladybrown_arm = robot.ladybrown_arm.clone();
+        chassis.set_filter_state(true).await;
         Rc::clone(&chassis)
             .set_pose(Pose::new(-62.0, 0.0, -90.0.hdg_deg()))
             .await;
 
         intake.lock().await.spin();
-
         vexide::time::sleep(Duration::from_millis(500)).await;
-
         intake.lock().await.stop();
 
         Rc::clone(&chassis)

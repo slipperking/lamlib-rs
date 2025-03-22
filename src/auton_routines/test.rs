@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use core::time::Duration;
 
 use async_trait::async_trait;
-use vexide::io::println;
+use vexide::io::{println, Write};
 
 use super::AutonRoutine;
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
         pose::Pose,
     },
     params_ramsete_h, params_turn_to,
-    utils::{math::AngleExt, TILE_SIZE},
+    utils::{math::AngleExt, timer::Timer, TILE_SIZE},
     Robot,
 };
 pub struct Test;
@@ -73,9 +73,32 @@ impl AutonRoutine for Test {
                 println!("{}", robot.chassis.pose().await.orientation);
             }
             TestMode::TrackingCenter(duration, velocity_percentage) => {
+                println!("\x1b[1mCopy this:\x1b[0m\n\\left[");
+
                 chassis.set_pose(Pose::new(0.0, 0.0, 0.0.std_deg())).await;
-                _ = duration;
-                _ = velocity_percentage;
+                let mut timer = Timer::new(duration);
+                let mut movement_index = 0;
+
+                while !timer.is_done() {
+                    chassis.arcade(0.0, velocity_percentage, false);
+                    let pose = chassis.pose().await;
+
+                    vexide::io::print!("\\left({},{}\\right),", pose.position.x, pose.position.y);
+
+                    // Flush every 50 iterations.
+                    movement_index += 1;
+                    if movement_index % 50 == 0 {
+                        vexide::io::stdout().lock().await.flush().unwrap();
+                    }
+
+                    vexide::time::sleep(Duration::from_millis(20)).await;
+                }
+                println!("\x08\\right]");
+                println!(
+                    "Go to https://www.desmos.com/calculator/rxdoxxil1j to solve for offsets."
+                );
+
+                chassis.arcade(0.0, 0.0, false);
             }
             TestMode::ImuScalar => {}
             TestMode::Default => {
