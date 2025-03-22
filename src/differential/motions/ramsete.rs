@@ -3,6 +3,7 @@ use core::{f64::consts::PI, time::Duration};
 
 use bon::{bon, Builder};
 use nalgebra::{Vector2, Vector3};
+use num_traits::{AsPrimitive, Num};
 use vexide::{float::Float, prelude::Motor};
 
 use super::ExitConditionGroup;
@@ -101,11 +102,15 @@ pub enum RAMSETETarget {
 }
 
 impl RAMSETETarget {
-    pub fn pose(x: f64, y: f64, orientation: f64) -> Self {
-        Self::Pose(Pose::new(x, y, orientation))
+    pub fn pose<T: Num + AsPrimitive<f64>, U: Num + AsPrimitive<f64>, V: Num + AsPrimitive<f64>>(
+        x: T,
+        y: U,
+        orientation: V,
+    ) -> Self {
+        Self::Pose(Pose::new(x.as_(), y.as_(), orientation.as_()))
     }
-    pub fn point(x: f64, y: f64) -> Self {
-        Self::Point(Vector2::new(x, y))
+    pub fn point<T: Num + AsPrimitive<f64>, U: Num + AsPrimitive<f64>>(x: T, y: U) -> Self {
+        Self::Point(Vector2::new(x.as_(), y.as_()))
     }
 }
 

@@ -8,7 +8,7 @@ pub mod pose {
     use core::ops::{Add, Sub};
 
     use nalgebra::{Vector2, Vector3};
-    use num_traits::AsPrimitive;
+    use num_traits::{AsPrimitive, Num};
 
     #[derive(Clone, Copy, PartialEq, Debug)]
     pub struct Pose {
@@ -39,10 +39,14 @@ pub mod pose {
     }
 
     impl Pose {
-        pub fn new(x: f64, y: f64, orientation: f64) -> Self {
+        pub fn new<T: Num + AsPrimitive<f64>, U: Num + AsPrimitive<f64>, V: Num + AsPrimitive<f64>>(
+            x: T,
+            y: U,
+            orientation: V,
+        ) -> Self {
             Self {
-                position: Vector2::new(x, y),
-                orientation,
+                position: Vector2::<f64>::new(x.as_(), y.as_()),
+                orientation: orientation.as_(),
             }
         }
         pub fn distance_to(&self, pose: &Self) -> f64 {

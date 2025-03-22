@@ -87,7 +87,7 @@ impl<T: Tracking> Chassis<T> {
 
     pub async fn wait_until(&self, distance: f64) {
         loop {
-            vexide::time::sleep(Duration::from_millis(10)).await;
+            vexide::time::sleep(Duration::from_millis(5)).await;
             if match *self.distance_traveled.borrow() {
                 Some(distance_traveled) => distance_traveled >= distance,
                 None => true,
@@ -98,7 +98,7 @@ impl<T: Tracking> Chassis<T> {
     }
     pub async fn wait_until_complete(&self) {
         loop {
-            vexide::time::sleep(Duration::from_millis(10)).await;
+            vexide::time::sleep(Duration::from_millis(5)).await;
             if self.distance_traveled.borrow().is_none() {
                 break;
             }

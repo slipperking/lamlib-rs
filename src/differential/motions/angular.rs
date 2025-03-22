@@ -1,4 +1,5 @@
 use alloc::{boxed::Box, rc::Rc};
+use num_traits::{AsPrimitive, Num};
 use core::{
     f64::consts::{FRAC_PI_2, PI},
     time::Duration,
@@ -101,6 +102,10 @@ pub enum TurnToTarget {
 }
 
 impl TurnToTarget {
+    pub fn point<T: Num + AsPrimitive<f64>, U: Num + AsPrimitive<f64>>(x: T, y: U) -> Self {
+        Self::Point(Vector2::new(x.as_(), y.as_()))
+    }
+
     /// The angle error between a pose and a target.
     pub fn error(&self, pose: Pose, direction: Option<AngularDirection>) -> f64 {
         match *self {
