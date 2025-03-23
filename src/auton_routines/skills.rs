@@ -261,6 +261,67 @@ impl AutonRoutine for Skills {
             .await;
         chassis.wait_until(5.0).await;
         robot.clamp_main.set_state(false);
+        Rc::clone(&chassis)
+            .move_relative()
+            .distance(-10.0)
+            .params(
+                MoveRelativeParameters::builder()
+                    .min_linear_speed(0.4)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-48.0, 23.0))
+            .params(
+                MoveToPointParameters::builder()
+                    .min_linear_speed(0.2)
+                    .early_exit_range(20.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-48.0, 23.0))
+            .params(
+                MoveToPointParameters::builder()
+                    .max_linear_speed(0.4)
+                    .build(),
+            )
+            .run_async(false)
+            .call()
+            .await;
+
+        // Mogo 2. There's already a ring in the intake from the optical callback.
+        robot.clamp_main.set_state(true);
+        Rc::clone(&chassis)
+            .turn_to()
+            .target(TurnToTarget::point(-23.0, 23.0))
+            .params(
+                TurnToParameters::builder()
+                    .forwards(false)
+                    .min_speed(0.3)
+                    .early_exit_range(5.0.deg())
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-23.0, 23.0))
+            .params(
+                MoveToPointParameters::builder()
+                    .forwards(false)
+                    .min_linear_speed(0.2)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        intake.lock().await.spin();
 
         println!("{}", Skills::color().get_name());
     }
