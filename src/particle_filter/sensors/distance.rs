@@ -1,15 +1,14 @@
 use alloc::rc::Rc;
 use core::{cell::RefCell, f32::consts::PI, time::Duration};
 
-use nalgebra::{
-    Matrix1xX, Matrix2, Matrix2xX, Matrix3xX, RowDVector, SimdComplexField, Vector2, Vector3,
-};
-use vexide::{prelude::DistanceSensor, time::Instant};
+use nalgebra::{Matrix1xX, Matrix2, Matrix2xX, Matrix3xX, RowDVector, Vector2, Vector3};
+use vexide::{float::Float, prelude::DistanceSensor, time::Instant};
 
 use super::ParticleFilterSensor;
 use crate::utils::{
     math::lerp,
-    samplers::{multivariate_gaussian_sampler::GaussianSampler, Sampler}, FIELD_WALL,
+    samplers::{multivariate_gaussian_sampler::GaussianSampler, Sampler},
+    FIELD_WALL,
 };
 
 /// A struct containing shared data between LiDARs.
@@ -105,8 +104,8 @@ impl ParticleFilterSensor<3> for LiDAR {
         let mut precompute_data = self.precompute_data.borrow_mut();
         if !precompute_data.precomputed {
             self.last_updated = Some(Instant::now());
-            precompute_data.transformed_heading_cosines = positions.row(2).map(|x| x.simd_sin());
-            precompute_data.transformed_heading_sines = positions.row(2).map(|x| -x.simd_cos());
+            precompute_data.transformed_heading_cosines = positions.row(2).map(|x| x.sin());
+            precompute_data.transformed_heading_sines = positions.row(2).map(|x| -x.cos());
             precompute_data.precomputed = true;
         }
     }
@@ -128,10 +127,10 @@ impl ParticleFilterSensor<3> for LiDAR {
             self.global_angles = positions.row(2).map(|x| x + self.sensor_offset[2]);
             self.sensor_unit_vectors
                 .row_mut(0)
-                .copy_from(&self.global_angles.map(|x| x.simd_cos()));
+                .copy_from(&self.global_angles.map(|x| x.cos()));
             self.sensor_unit_vectors
                 .row_mut(1)
-                .copy_from(&self.global_angles.map(|x| x.simd_sin()));
+                .copy_from(&self.global_angles.map(|x| x.sin()));
 
             let mut sampler = self.sampler.borrow_mut();
             self.transformed_sensor_offsets = sampler.sample_batch(positions.ncols());
@@ -214,9 +213,10 @@ fn apply_normal_pdf_row_vector(
     scalar: Option<f32>,
 ) {
     let variance = std_dev * std_dev;
-    let scale = 1.0 / (2.0 * PI * variance).simd_sqrt();
+    let inv_two_variance = -0.5 / variance; // Precompute inverse for efficiency
+    let scale = (1.0 / (2.0 * PI * variance).sqrt()) * scalar.unwrap_or(1.0);
+
     errors.apply(|x| {
-        *x =
-            scale * (-0.5 * (*x - mean).simd_powi(2) / variance).simd_exp() * scalar.unwrap_or(1.0);
+        *x = scale * ((*x - mean).powi(2) * inv_two_variance).exp();
     });
 }
