@@ -16,6 +16,7 @@ macro_rules! create_route_from_routine {
 }
 pub use create_route_from_routine;
 
+pub mod run_macros;
 pub mod skills;
 pub mod test;
 

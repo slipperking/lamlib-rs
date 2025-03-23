@@ -7,11 +7,12 @@ use vexide::io::println;
 
 use super::AutonRoutine;
 use crate::{
+    auton_routines::run_macros::alliance_stake::run_alliance_stake,
     differential::{
         motions::{
             angular::{TurnToParameters, TurnToTarget},
             linear::{MoveRelativeParameters, MoveToPointParameters},
-            ramsete::RAMSETETarget,
+            ramsete::{RAMSETEHybridParameters, RAMSETETarget},
         },
         pose::Pose,
     },
@@ -321,6 +322,216 @@ impl AutonRoutine for Skills {
             )
             .call()
             .await;
+        intake.lock().await.spin();
+        Rc::clone(&chassis)
+            .turn_to()
+            .target(TurnToTarget::point(-23.0, 46.0))
+            .params(
+                TurnToParameters::builder()
+                    .forwards(false)
+                    .min_speed(0.3)
+                    .early_exit_range(5.0.deg())
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-23.0, 46.0))
+            .params(
+                MoveToPointParameters::builder()
+                    .forwards(false)
+                    .min_linear_speed(0.2)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .turn_to()
+            .target(TurnToTarget::point(-58.0, 46.0))
+            .params(
+                TurnToParameters::builder()
+                    .forwards(false)
+                    .min_speed(0.3)
+                    .early_exit_range(5.0.deg())
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-58.0, 46.0))
+            .params(
+                MoveToPointParameters::builder()
+                    .forwards(false)
+                    .min_linear_speed(0.2)
+                    .max_linear_speed(0.6)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+
+        Rc::clone(&chassis)
+            .turn_to()
+            .target(TurnToTarget::point(-48, 57))
+            .params(
+                TurnToParameters::builder()
+                    .early_exit_range(2.0.deg())
+                    .min_speed(0.2)
+                    .forwards(false)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-48.0, 57.0))
+            .params(
+                MoveToPointParameters::builder()
+                    .early_exit_range(2.0)
+                    .min_linear_speed(0.2)
+                    .forwards(false)
+                    .build(),
+            )
+            .run_async(false)
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-35.0, 58.0))
+            .params(MoveToPointParameters::builder().forwards(false).build())
+            .run_async(false)
+            .call()
+            .await;
+
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-FIELD_WALL as f64, 60.0))
+            .call()
+            .await;
+        chassis.wait_until(5.0).await;
+        intake.lock().await.stop();
+        robot.clamp_main.set_state(false);
+        Rc::clone(&chassis)
+            .move_relative()
+            .distance(-10.0)
+            .params(
+                MoveRelativeParameters::builder()
+                    .min_linear_speed(0.4)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(-1.0, 43.0))
+            .params(
+                MoveToPointParameters::builder()
+                    .forwards(false)
+                    .min_linear_speed(0.1)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        chassis.wait_until(30.0).await;
+        ladybrown_arm.borrow_mut().set_state(LadyBrownState::Load);
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target(RAMSETETarget::pose(0.0, 58.0, 0.0.hdg_deg()))
+            .timeout(Duration::from_millis(1000))
+            .params(params_ramsete_h!(forwards: false, max_linear_speed: 0.6))
+            .call()
+            .await;
+        intake.lock().await.spin();
+        chassis.wait_until_complete().await;
+        vexide::time::sleep(Duration::from_millis(600)).await;
+        intake.lock().await.set_velocity(-0.2);
+        ladybrown_arm
+            .borrow_mut()
+            .set_state(LadyBrownState::Neutral);
+        vexide::time::sleep(Duration::from_millis(500)).await;
+        Rc::clone(&chassis)
+            .move_relative()
+            .distance(8.0)
+            .params(
+                MoveRelativeParameters::builder()
+                    .early_exit_range(2.0)
+                    .min_linear_speed(0.4)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .turn_to()
+            .target(TurnToTarget::point(23.0, 23.0))
+            .params(
+                TurnToParameters::builder()
+                    .forwards(false)
+                    .min_speed(0.3)
+                    .early_exit_range(7.0.deg())
+                    .build(),
+            )
+            .call()
+            .await;
+        intake.lock().await.spin();
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(23.0, 23.0))
+            .params(MoveToPointParameters::builder().forwards(false).build())
+            .call()
+            .await;
+        chassis.wait_until(20.0).await;
+        ladybrown_arm.borrow_mut().set_state(LadyBrownState::Load);
+        Rc::clone(&chassis)
+            .turn_to()
+            .target(TurnToTarget::point(47.0, 0.0))
+            .params(
+                TurnToParameters::builder()
+                    .min_speed(0.3)
+                    .early_exit_range(5.0.deg())
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target(Vector2::new(47.0, 0.0))
+            .params(
+                MoveToPointParameters::builder()
+                    .max_linear_speed(0.4)
+                    .build(),
+            )
+            .run_async(false)
+            .call()
+            .await;
+        chassis.wait_until_complete().await;
+        robot.clamp_main.set_state(true);
+        Rc::clone(&chassis)
+            .turn_to()
+            .target(TurnToTarget::point(62.0, 0.0))
+            .params(
+                TurnToParameters::builder()
+                    .forwards(false)
+                    .min_speed(0.3)
+                    .early_exit_range(5.0.deg())
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target(RAMSETETarget::pose(62.0, 0.0, 90.0.hdg_deg()))
+            .timeout(Duration::from_millis(1000))
+            .params(RAMSETEHybridParameters::builder().forwards(false).build())
+            .call()
+            .await;
+        chassis.wait_until_complete().await;
+        run_alliance_stake(robot).await;
+        chassis.wait_until_complete().await;
         intake.lock().await.spin();
 
         println!("{}", Skills::color().get_name());
