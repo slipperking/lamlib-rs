@@ -353,6 +353,10 @@ pub trait AngleExt: num_traits::Float {
     fn deg(self) -> Self;
 }
 
+/// A set of functions that are meant to be quick ways to write angles.
+/// The type rad/deg and std/hdg specifies how it is inputted, like in plain English.
+/// If I said 3.0.hdg_deg(), it refers to 3.0 heading degrees.
+/// These functions just turn it all into standard radians.
 impl<T: num_traits::Float> AngleExt for T {
     fn std_rad(self) -> Self {
         self
