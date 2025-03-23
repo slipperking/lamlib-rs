@@ -367,7 +367,7 @@ impl<T: num_traits::Float> AngleExt for T {
     }
 
     fn hdg_deg(self) -> Self {
-        T::from(90.0).unwrap() - self
+        (T::from(90.0).unwrap() - self).to_radians()
     }
 
     fn rad(self) -> Self {
