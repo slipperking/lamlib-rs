@@ -92,4 +92,9 @@ pub mod pose {
             )
         }
     }
+    impl<T: AsPrimitive<f64>, U: AsPrimitive<f64>, V: AsPrimitive<f64>> From<(T, U, V)> for Pose {
+        fn from(tuple: (T, U, V)) -> Self {
+            Pose::new(T::as_(tuple.0), U::as_(tuple.1), V::as_(tuple.2))
+        }
+    }
 }
