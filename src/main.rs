@@ -42,7 +42,7 @@ use particle_filter::{
     },
     ParticleFilter,
 };
-use subsystems::{intake::Intake, ladybrown::LadyBrown, pneumatics::PneumaticWrapper};
+use subsystems::{intake::Intake, ladybrown::Ladybrown, pneumatics::PneumaticWrapper};
 use tracking::odom::{odom_tracking::*, odom_wheels::*};
 use utils::{math::AngleExt, AllianceColor};
 use vexide::{devices::adi::digital::LogicLevel, prelude::*, sync::Mutex, time};
@@ -54,7 +54,7 @@ pub struct Robot {
     pub controller: Rc<Mutex<Controller>>,
     pub chassis: Rc<Chassis<OdomTracking>>,
 
-    pub ladybrown_arm: Rc<RefCell<LadyBrown>>,
+    pub ladybrown_arm: Rc<RefCell<Ladybrown>>,
 
     /// A Mutex containing the intake wrapped within a shared pointer.
     ///
@@ -253,7 +253,7 @@ async fn main(peripherals: Peripherals) {
         Motor::new_exp(peripherals.port_19, Direction::Reverse),
         Motor::new_exp(peripherals.port_20, Direction::Forward),
     ])));
-    let ladybrown_arm = Rc::new(RefCell::new(LadyBrown::new(
+    let ladybrown_arm = Rc::new(RefCell::new(Ladybrown::new(
         arm_state_machine_motors,
         rotation_arm_state_machine.clone(),
         1.0,
@@ -275,7 +275,7 @@ async fn main(peripherals: Peripherals) {
         Some(alloc::boxed::Box::new(move || {
             let ladybrown_arm = ladybrown_arm_clone.clone();
             alloc::boxed::Box::pin(async move {
-                ladybrown_arm.borrow_mut().state() != subsystems::ladybrown::LadyBrownState::Load
+                ladybrown_arm.borrow_mut().state() != subsystems::ladybrown::LadybrownState::Load
             })
         })),
         Some(Duration::from_millis(20)),

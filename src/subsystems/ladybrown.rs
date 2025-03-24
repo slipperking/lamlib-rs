@@ -10,7 +10,7 @@ use vexide::{
 use crate::{controllers::FeedbackController, devices::motor_group::MotorGroup};
 
 #[derive(PartialEq, Clone, Copy, PartialOrd, Ord, Eq)]
-pub enum LadyBrownState {
+pub enum LadybrownState {
     Off,
 
     /// Used to override the state machine, such as manual control.
@@ -38,99 +38,99 @@ pub enum ArmButtonCycle {
     None,
 }
 
-pub struct LadyBrown {
-    state: LadyBrownState,
-    last_arm_state: LadyBrownState,
+pub struct Ladybrown {
+    state: LadybrownState,
+    last_arm_state: LadybrownState,
     state_reached: bool,
     state_reached_threshold: f64,
     controller: Rc<RefCell<dyn FeedbackController<f64>>>,
 
     /// A map between a cycle and a cycle pair.
-    /// The pair involves an LadyBrownState, or the default,
+    /// The pair involves an LadybrownState, or the default,
     /// and a shared pointer to the sequence (a vector) itself.
-    cycle_orders: BTreeMap<ArmButtonCycle, (LadyBrownState, Rc<Vec<LadyBrownState>>)>,
-    arm_state_positions: Rc<BTreeMap<LadyBrownState, f64>>,
+    cycle_orders: BTreeMap<ArmButtonCycle, (LadybrownState, Rc<Vec<LadybrownState>>)>,
+    arm_state_positions: Rc<BTreeMap<LadybrownState, f64>>,
     free_start_time: Option<Instant>,
     last_intake_button: ArmButtonCycle,
     motor_group: Rc<RefCell<MotorGroup>>,
     rotation_sensor: Rc<RefCell<RotationSensor>>,
 
     /// The max speed for each state.
-    max_speeds: BTreeMap<LadyBrownState, Option<f64>>,
+    max_speeds: BTreeMap<LadybrownState, Option<f64>>,
 
     /// This is the ratio from the rotation sensor to the arm.
     gear_ratio: f64,
     task: Option<Task<()>>,
 }
 
-impl LadyBrown {
+impl Ladybrown {
     pub fn new(
         motor_group: Rc<RefCell<MotorGroup>>,
         rotation_sensor: Rc<RefCell<RotationSensor>>,
         gear_ratio: f64,
         controller: Rc<RefCell<dyn FeedbackController<f64>>>,
     ) -> Self {
-        let arm_state_positions: Rc<BTreeMap<LadyBrownState, f64>> = Rc::new(BTreeMap::from([
-            (LadyBrownState::Off, 0.0),
-            (LadyBrownState::Load, 13.0),
-            (LadyBrownState::LoadUp, 46.0),
-            (LadyBrownState::NeutralStakeHold, 135.0),
-            (LadyBrownState::Neutral, 135.0),
-            (LadyBrownState::Alliance, 195.0),
-            (LadyBrownState::ManualMax, 215.0),
-            (LadyBrownState::ManualMin, 0.0),
+        let arm_state_positions: Rc<BTreeMap<LadybrownState, f64>> = Rc::new(BTreeMap::from([
+            (LadybrownState::Off, 0.0),
+            (LadybrownState::Load, 13.0),
+            (LadybrownState::LoadUp, 46.0),
+            (LadybrownState::NeutralStakeHold, 135.0),
+            (LadybrownState::Neutral, 135.0),
+            (LadybrownState::Alliance, 195.0),
+            (LadybrownState::ManualMax, 215.0),
+            (LadybrownState::ManualMin, 0.0),
         ]));
 
         Self {
             controller,
-            state: LadyBrownState::Off,
+            state: LadybrownState::Off,
             state_reached: true,
-            last_arm_state: LadyBrownState::Off,
+            last_arm_state: LadybrownState::Off,
             cycle_orders: BTreeMap::from([
                 (
                     ArmButtonCycle::Default,
                     (
-                        LadyBrownState::Neutral,
+                        LadybrownState::Neutral,
                         Rc::new(vec![
-                            LadyBrownState::Off,
-                            LadyBrownState::Load,
-                            LadyBrownState::Neutral,
+                            LadybrownState::Off,
+                            LadybrownState::Load,
+                            LadybrownState::Neutral,
                         ]),
                     ),
                 ),
                 (
                     ArmButtonCycle::Full,
                     (
-                        LadyBrownState::Load,
+                        LadybrownState::Load,
                         Rc::new(vec![
-                            LadyBrownState::Off,
-                            LadyBrownState::Load,
-                            LadyBrownState::LoadUp,
-                            LadyBrownState::NeutralStakeHold,
-                            LadyBrownState::Neutral,
-                            LadyBrownState::Alliance,
+                            LadybrownState::Off,
+                            LadybrownState::Load,
+                            LadybrownState::LoadUp,
+                            LadybrownState::NeutralStakeHold,
+                            LadybrownState::Neutral,
+                            LadybrownState::Alliance,
                         ]),
                     ),
                 ),
                 (
                     ArmButtonCycle::ManualForward,
                     (
-                        LadyBrownState::ManualMax,
-                        Rc::new(vec![LadyBrownState::ManualMax]),
+                        LadybrownState::ManualMax,
+                        Rc::new(vec![LadybrownState::ManualMax]),
                     ),
                 ),
                 (
                     ArmButtonCycle::ManualReverse,
                     (
-                        LadyBrownState::ManualMin,
-                        Rc::new(vec![LadyBrownState::ManualMin]),
+                        LadybrownState::ManualMin,
+                        Rc::new(vec![LadybrownState::ManualMin]),
                     ),
                 ),
             ]),
             arm_state_positions,
             max_speeds: BTreeMap::from([
-                (LadyBrownState::ManualMax, Some(8.0)),
-                (LadyBrownState::ManualMin, Some(8.0)),
+                (LadybrownState::ManualMax, Some(8.0)),
+                (LadybrownState::ManualMin, Some(8.0)),
             ]),
             free_start_time: None,
             last_intake_button: ArmButtonCycle::None,
@@ -141,17 +141,17 @@ impl LadyBrown {
             task: None,
         }
     }
-    pub fn set_state(&mut self, state: LadyBrownState) {
+    pub fn set_state(&mut self, state: LadybrownState) {
         self.state = state;
     }
-    pub fn state(&self) -> LadyBrownState {
+    pub fn state(&self) -> LadybrownState {
         self.state
     }
     pub fn next_arm_state(
         &self,
-        current_state: LadyBrownState,
+        current_state: LadybrownState,
         button: ArmButtonCycle,
-    ) -> LadyBrownState {
+    ) -> LadybrownState {
         if let Some((default, state_cycle)) = self.cycle_orders.get(&button) {
             for (i, state) in state_cycle.iter().enumerate() {
                 if *state == current_state {
@@ -160,7 +160,7 @@ impl LadyBrown {
             }
             return *default;
         }
-        LadyBrownState::Off
+        LadybrownState::Off
     }
 
     pub fn reset_all(&self) {
@@ -174,15 +174,15 @@ impl LadyBrown {
             .set_position(Position::from_degrees(0.0));
     }
     pub fn update(&mut self) {
-        if self.state == LadyBrownState::Free
-            || self.state == LadyBrownState::FreeTimedReset
-            || self.state == LadyBrownState::FreeStopHold
+        if self.state == LadybrownState::Free
+            || self.state == LadybrownState::FreeTimedReset
+            || self.state == LadybrownState::FreeStopHold
         {
             if self.last_arm_state != self.state {
                 self.motor_group
                     .borrow_mut()
                     .set_target_all(MotorControl::Brake(
-                        if self.state == LadyBrownState::FreeStopHold {
+                        if self.state == LadybrownState::FreeStopHold {
                             BrakeMode::Hold
                         } else {
                             BrakeMode::Coast
@@ -193,10 +193,10 @@ impl LadyBrown {
             }
             if let Some(free_start_time) = self.free_start_time {
                 if Instant::elapsed(&free_start_time).as_millis() > 1200
-                    && self.state == LadyBrownState::FreeTimedReset
+                    && self.state == LadybrownState::FreeTimedReset
                 {
                     self.reset_all();
-                    self.set_state(LadyBrownState::Off);
+                    self.set_state(LadybrownState::Off);
                     return;
                 }
             }
@@ -227,8 +227,8 @@ impl LadyBrown {
                     );
                 }
                 if error.abs() < self.state_reached_threshold {
-                    if self.state == LadyBrownState::Neutral {
-                        self.state = LadyBrownState::Off;
+                    if self.state == LadybrownState::Neutral {
+                        self.state = LadybrownState::Off;
                     } else {
                         self.state_reached = true;
                     }
@@ -272,7 +272,7 @@ impl LadyBrown {
             if self.last_intake_button == ArmButtonCycle::ManualForward
                 || self.last_intake_button == ArmButtonCycle::ManualReverse
             {
-                self.set_state(LadyBrownState::FreeStopHold);
+                self.set_state(LadybrownState::FreeStopHold);
             }
             self.last_intake_button = ArmButtonCycle::None;
         }

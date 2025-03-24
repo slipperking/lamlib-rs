@@ -18,5 +18,5 @@ pub async fn run_alliance_stake(robot: &mut Robot) {
     robot
         .ladybrown_arm
         .borrow_mut()
-        .set_state(crate::subsystems::ladybrown::LadyBrownState::Alliance);
+        .set_state(crate::subsystems::ladybrown::LadybrownState::Alliance);
 }

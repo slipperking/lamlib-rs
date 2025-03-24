@@ -16,7 +16,7 @@ use crate::{
         },
         pose::Pose,
     },
-    subsystems::ladybrown::LadyBrownState,
+    subsystems::ladybrown::LadybrownState,
     utils::{math::AngleExt, AllianceColor, FIELD_WALL},
     Robot,
 };
@@ -121,7 +121,7 @@ impl AutonRoutine for Skills {
             let lady_brown = ladybrown_arm.clone();
             move |color: AllianceColor| {
                 if color == Skills::color() {
-                    lady_brown.borrow_mut().set_state(LadyBrownState::Load);
+                    lady_brown.borrow_mut().set_state(LadybrownState::Load);
                     return true;
                 }
                 false
@@ -135,11 +135,11 @@ impl AutonRoutine for Skills {
             .call()
             .await;
         chassis.wait_until(5.0).await;
-        ladybrown_arm.borrow_mut().set_state(LadyBrownState::Load);
+        ladybrown_arm.borrow_mut().set_state(LadybrownState::Load);
         intake.lock().await.clear_optical_callback();
         chassis.wait_until_complete().await;
         intake.lock().await.set_velocity(-0.2);
-        ladybrown_arm.borrow_mut().set_state(LadyBrownState::LoadUp);
+        ladybrown_arm.borrow_mut().set_state(LadybrownState::LoadUp);
 
         Rc::clone(&chassis)
             .turn_to()
@@ -160,7 +160,7 @@ impl AutonRoutine for Skills {
         chassis.wait_until_complete().await;
         ladybrown_arm
             .borrow_mut()
-            .set_state(LadyBrownState::Neutral);
+            .set_state(LadybrownState::Neutral);
         vexide::time::sleep(Duration::from_millis(500)).await;
         Rc::clone(&chassis)
             .move_relative()
@@ -438,7 +438,7 @@ impl AutonRoutine for Skills {
             .call()
             .await;
         chassis.wait_until(30.0).await;
-        ladybrown_arm.borrow_mut().set_state(LadyBrownState::Load);
+        ladybrown_arm.borrow_mut().set_state(LadybrownState::Load);
         Rc::clone(&chassis)
             .ramsete_hybrid()
             .target(RAMSETETarget::pose(0.0, 58.0, 0.0.hdg_deg()))
@@ -452,7 +452,7 @@ impl AutonRoutine for Skills {
         intake.lock().await.set_velocity(-0.2);
         ladybrown_arm
             .borrow_mut()
-            .set_state(LadyBrownState::Neutral);
+            .set_state(LadybrownState::Neutral);
         vexide::time::sleep(Duration::from_millis(500)).await;
         Rc::clone(&chassis)
             .move_relative()
@@ -485,7 +485,7 @@ impl AutonRoutine for Skills {
             .call()
             .await;
         chassis.wait_until(20.0).await;
-        ladybrown_arm.borrow_mut().set_state(LadyBrownState::Load);
+        ladybrown_arm.borrow_mut().set_state(LadybrownState::Load);
         Rc::clone(&chassis)
             .turn_to()
             .target(TurnToTarget::point(47.0, 0.0))
