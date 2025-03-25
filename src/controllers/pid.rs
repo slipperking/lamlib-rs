@@ -22,7 +22,7 @@ pub struct PIDGains<T> {
 
 impl<T: Float + FromPrimitive + AddAssign + Zero> PID<T> {
     pub fn new(kp: T, ki: T, kd: T, windup_range: T, reset_on_sign_flip: bool) -> Self {
-        PID {
+        Self {
             gains: PIDGains { kp, ki, kd },
             prev_error: T::zero(),
             integral: T::zero(),

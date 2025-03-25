@@ -290,9 +290,10 @@ impl Intake {
                     == Some(*self.alliance_color.borrow()))
         };
 
-        let mut motor_group = self.motor_group.borrow_mut();
         if self.velocity > 2.0 / 3.0 {
-            let actual_velocities = motor_group
+            let actual_velocities = self
+                .motor_group
+                .borrow()
                 .velocity_all()
                 .into_iter()
                 .map(|v| v.ok())
@@ -300,7 +301,9 @@ impl Intake {
             let actual_velocity: Option<f64> = avg_valid!(actual_velocities);
             if let Some(actual_velocity) = actual_velocity {
                 if actual_velocity.abs()
-                    < avg_valid!(motor_group
+                    < avg_valid!(self
+                        .motor_group
+                        .borrow()
                         .gearset_all()
                         .iter()
                         .map(|gearset| match gearset {
@@ -322,10 +325,13 @@ impl Intake {
                         if (MIN_ANTI_JAM_REVERSE_TIME..MAX_ANTI_JAM_REVERSE_TIME).contains(&elapsed)
                         {
                             self.jam_detected = true;
-                            self.spin_at_velocity(&mut motor_group, -1.0);
+                            self.spin_at_velocity(&mut self.motor_group.borrow_mut(), -1.0);
                             return; // Early brake.
                         } else if self.jam_detected && elapsed >= MAX_ANTI_JAM_REVERSE_TIME {
-                            self.spin_at_velocity(&mut motor_group, self.velocity);
+                            self.spin_at_velocity(
+                                &mut self.motor_group.borrow_mut(),
+                                self.velocity,
+                            );
 
                             self.jam_detected = false;
                             self.jam_start_time = None;
@@ -348,7 +354,7 @@ impl Intake {
                 .is_some_and(|time| time.elapsed().as_secs_f64() * 1000.0 < SORT_DURATION))
         {
             if !self.was_sort_on_previous_epoch {
-                self.spin_at_velocity(&mut motor_group, -0.05);
+                self.spin_at_velocity(&mut self.motor_group.borrow_mut(), -0.05);
             }
             if should_sort_on_current_epoch {
                 self.last_sort_time = Some(Instant::now())
@@ -356,7 +362,7 @@ impl Intake {
             should_sort_on_current_epoch = true;
         } else if self.previous_intake_velocity != self.velocity || self.was_sort_on_previous_epoch
         {
-            self.spin_at_velocity(&mut motor_group, self.velocity);
+            self.spin_at_velocity(&mut self.motor_group.borrow_mut(), self.velocity);
         }
         self.previous_intake_velocity = self.velocity;
         self.was_sort_on_previous_epoch = should_sort_on_current_epoch;
