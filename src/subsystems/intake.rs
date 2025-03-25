@@ -76,8 +76,8 @@ impl Intake {
         // This value is not used if distance is available.
         optical_sort_delay: Option<Duration>,
         distance_sort_delay: Option<Duration>,
-    ) -> Self {
-        Self {
+    ) -> Rc<Mutex<Self>> {
+        Rc::new(Mutex::new(Self {
             motor_group,
             optical_sensor,
             distance_sensor,
@@ -99,7 +99,7 @@ impl Intake {
             optical_sort_delay,
             distance_sort_delay,
             optical_callback: default_optical_callback!(),
-        }
+        }))
     }
     pub fn set_velocity(&mut self, velocity: f64) {
         self.velocity = velocity;
@@ -128,9 +128,37 @@ impl Intake {
     pub fn clear_optical_callback(&mut self) {
         self.optical_callback = default_optical_callback!();
     }
+
+    /// Sets the optical callback, given a specific [`AllianceColor`] detected by the color sensor.
+    ///
+    /// The callback is automatically cleared if `true` is returned.
+    /// Any function in the optical callback involving [`Intake`] should be
+    /// detached in a [`vexide::task::spawn`] block to avoid deadlocks.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// intake.lock().await.set_optical_callback(Box::new({
+    ///     let lady_brown = ladybrown_arm.clone();
+    ///     move |color: AllianceColor| {
+    ///         if color == Skills::color() {
+    ///             vexide::task::spawn({
+    ///                 let intake = intake.clone();
+    ///                 async move {
+    ///                     intake.lock().await.stop();
+    ///                 }
+    ///             })
+    ///             .detach();
+    ///             return true;
+    ///         }
+    ///         false
+    ///     }
+    /// }));
+    /// ```
     pub fn set_optical_callback(&mut self, callback: Box<dyn Fn(AllianceColor) -> bool>) {
         self.optical_callback = RefCell::new(callback);
     }
+
     fn optical_color(&mut self) -> Option<AllianceColor> {
         // TODO: Optical Callbacks
 
@@ -326,7 +354,8 @@ impl Intake {
                 self.last_sort_time = Some(Instant::now())
             }
             should_sort_on_current_epoch = true;
-        } else if self.previous_intake_velocity != self.velocity || self.was_sort_on_previous_epoch {
+        } else if self.previous_intake_velocity != self.velocity || self.was_sort_on_previous_epoch
+        {
             self.spin_at_velocity(&mut motor_group, self.velocity);
         }
         self.previous_intake_velocity = self.velocity;

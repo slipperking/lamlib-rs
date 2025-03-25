@@ -267,7 +267,7 @@ async fn main(peripherals: Peripherals) {
     let optical_sorter = Rc::new(RefCell::new(OpticalSensor::new(peripherals.port_15)));
     let distance_sorter = Rc::new(DistanceSensor::new(peripherals.port_21));
     let ladybrown_arm_clone = ladybrown_arm.clone();
-    let intake = Rc::new(Mutex::new(Intake::new(
+    let intake = Intake::new(
         intake_motors,
         Some(optical_sorter),
         Some(distance_sorter),
@@ -280,7 +280,7 @@ async fn main(peripherals: Peripherals) {
         })),
         Some(Duration::from_millis(20)),
         Some(Duration::from_millis(20)),
-    )));
+    );
 
     chassis.calibrate().await;
     {
