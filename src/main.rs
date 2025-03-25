@@ -283,12 +283,8 @@ async fn main(peripherals: Peripherals) {
     );
 
     chassis.calibrate().await;
-    {
-        ladybrown_arm.borrow_mut().init(ladybrown_arm.clone());
-    }
-    {
-        intake.lock().await.init(intake.clone()).await
-    }
+    ladybrown_arm.borrow_mut().init(ladybrown_arm.clone());
+    intake.lock().await.init(intake.clone()).await;
     chassis
         .set_pose(differential::pose::Pose::new(0.0, 0.0, 0.0.hdg_deg()))
         .await;
