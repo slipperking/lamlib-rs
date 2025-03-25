@@ -2,6 +2,7 @@ use alloc::{boxed::Box, rc::Rc};
 use core::{f64::consts::PI, time::Duration};
 
 use bon::{bon, Builder};
+use num_traits::AsPrimitive;
 use vexide::prelude::{BrakeMode, Float};
 
 use super::ExitConditionGroup;
@@ -80,12 +81,35 @@ macro_rules! params_boomerang {
     };
 }
 pub use params_boomerang;
+
+pub struct MoveToPoseTarget(pub Pose);
+
+impl From<Pose> for MoveToPoseTarget {
+    fn from(pose: Pose) -> Self {
+        Self(pose)
+    }
+}
+
+impl From<MoveToPoseTarget> for Pose {
+    fn from(target: MoveToPoseTarget) -> Self {
+        target.0
+    }
+}
+
+impl<T: AsPrimitive<f64>, U: AsPrimitive<f64>, V: AsPrimitive<f64>> From<(T, U, V)>
+    for MoveToPoseTarget
+{
+    fn from((x, y, orientation): (T, U, V)) -> Self {
+        Self(Pose::new(x.as_(), y.as_(), orientation.as_()))
+    }
+}
+
 #[bon]
 impl<T: Tracking + 'static> Chassis<T> {
     #[builder]
     pub async fn boomerang(
         self: Rc<Self>,
-        target: Pose,
+        target: impl Into<MoveToPoseTarget> + 'static,
         timeout: Option<Duration>,
         params: Option<BoomerangParameters>,
         mut settings: Option<BoomerangSettings>,
@@ -126,6 +150,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         {
             *self.distance_traveled.borrow_mut() = Some(0.0);
         }
+        let target = target.into().0;
         let mut is_near = false;
         let mut previous_was_same_side = false;
         let mut previous_linear_output: f64 = 0.0;

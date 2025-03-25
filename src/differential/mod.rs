@@ -12,7 +12,7 @@ pub mod pose {
     };
 
     use nalgebra::{Vector2, Vector3};
-    use num_traits::{AsPrimitive, Num};
+    use num_traits::{AsPrimitive, FromPrimitive, Num};
 
     #[derive(Clone, Copy, PartialEq, Debug)]
     pub struct Pose {
@@ -95,6 +95,16 @@ pub mod pose {
     impl<T: AsPrimitive<f64>, U: AsPrimitive<f64>, V: AsPrimitive<f64>> From<(T, U, V)> for Pose {
         fn from(tuple: (T, U, V)) -> Self {
             Pose::new(T::as_(tuple.0), U::as_(tuple.1), V::as_(tuple.2))
+        }
+    }
+
+    impl<T: FromPrimitive> From<Pose> for (T, T, T) {
+        fn from(pose: Pose) -> Self {
+            (
+                T::from_f64(pose.position.x).unwrap(),
+                T::from_f64(pose.position.y).unwrap(),
+                T::from_f64(pose.orientation).unwrap(),
+            )
         }
     }
 }

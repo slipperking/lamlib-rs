@@ -1,5 +1,4 @@
 use alloc::{boxed::Box, rc::Rc};
-use num_traits::{AsPrimitive, Num};
 use core::{
     f64::consts::{FRAC_PI_2, PI},
     time::Duration,
@@ -7,6 +6,7 @@ use core::{
 
 use bon::{bon, Builder};
 use nalgebra::Vector2;
+use num_traits::AsPrimitive;
 use vexide::prelude::{BrakeMode, Float, Motor, MotorControl};
 
 use super::ExitConditionGroup;
@@ -87,6 +87,7 @@ macro_rules! params_turn_to {
 }
 pub use params_turn_to;
 
+#[derive(Clone, PartialEq, Debug)]
 pub enum TurnToTarget {
     /// A point the robot can turn to face.
     /// This is in inches.
@@ -102,7 +103,7 @@ pub enum TurnToTarget {
 }
 
 impl TurnToTarget {
-    pub fn point<T: Num + AsPrimitive<f64>, U: Num + AsPrimitive<f64>>(x: T, y: U) -> Self {
+    pub fn point<T: AsPrimitive<f64>, U: AsPrimitive<f64>>(x: T, y: U) -> Self {
         Self::Point(Vector2::new(x.as_(), y.as_()))
     }
 
@@ -125,12 +126,24 @@ impl TurnToTarget {
     }
 }
 
+impl<T: AsPrimitive<f64>> From<(T,)> for TurnToTarget {
+    fn from((angle,): (T,)) -> Self {
+        Self::Angle(angle.as_())
+    }
+}
+
+impl<T: AsPrimitive<f64>, U: AsPrimitive<f64>> From<(T, U)> for TurnToTarget {
+    fn from((x, y): (T, U)) -> Self {
+        Self::point(x.as_(), y.as_())
+    }
+}
+
 #[bon]
 impl<T: Tracking + 'static> Chassis<T> {
     #[builder]
     pub async fn turn_to(
         self: Rc<Self>,
-        target: TurnToTarget,
+        target: impl Into<TurnToTarget> + 'static,
         timeout: Option<Duration>,
         params: Option<TurnToParameters>,
         mut settings: Option<TurnToSettings>,
@@ -185,6 +198,7 @@ impl<T: Tracking + 'static> Chassis<T> {
             }
             None => {}
         };
+        let target = target.into();
         let mut previous_pose = self.pose().await;
         let mut previous_raw_error: Option<f64> = None;
         let mut oscillations_begin = false;

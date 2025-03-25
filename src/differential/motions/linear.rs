@@ -3,6 +3,7 @@ use core::{f64::consts::PI, time::Duration};
 
 use bon::{bon, Builder};
 use nalgebra::Vector2;
+use num_traits::AsPrimitive;
 use vexide::prelude::{Float, Motor};
 
 use super::ExitConditionGroup;
@@ -95,12 +96,34 @@ pub struct MoveRelativeParameters {
 
 type MoveRelativeSettings = MoveToPointSettings;
 
+#[derive(Clone, PartialEq, Debug)]
+pub struct MoveToPointTarget(pub Vector2<f64>);
+
+impl From<Vector2<f64>> for MoveToPointTarget {
+    fn from(vector: Vector2<f64>) -> Self {
+        Self(vector)
+    }
+}
+
+impl From<MoveToPointTarget> for Vector2<f64> {
+    fn from(target: MoveToPointTarget) -> Self {
+        target.0
+    }
+}
+
+impl<T: AsPrimitive<f64>, U: AsPrimitive<f64>> From<(T, U)> for MoveToPointTarget {
+    fn from((x, y): (T, U)) -> Self {
+        Self(Vector2::<f64>::new(x.as_(), y.as_()))
+    }
+}
+
 #[bon]
 impl<T: Tracking + 'static> Chassis<T> {
     #[builder]
+    // Prefer using RAMSETE hybrid due to lateral correction term, which still needs testing.
     pub async fn move_to_point(
         self: Rc<Self>,
-        target: Vector2<f64>,
+        target: impl Into<MoveToPointTarget> + 'static,
         timeout: Option<Duration>,
         params: Option<MoveToPointParameters>,
         mut settings: Option<MoveToPointSettings>,
@@ -143,6 +166,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         {
             *self.distance_traveled.borrow_mut() = Some(0.0);
         }
+        let target = target.into().0;
         let mut unwrapped_params = params.unwrap_or(params_move_to_point!());
         let mut previous_pose = self.pose().await;
         let mut is_near: bool = false;

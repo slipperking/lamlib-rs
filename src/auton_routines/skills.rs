@@ -50,14 +50,14 @@ impl AutonRoutine for Skills {
 
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-52.0, -10.0))
+            .target((-52.0, -10.0))
             .params(params_move_to_point!(forwards: false, min_linear_speed: 0.2, early_exit_range: 2.0,))
             .call()
             .await;
 
         Rc::clone(&chassis)
             .turn_to()
-            .target(TurnToTarget::Point(Vector2::new(-49.0, -24.0)))
+            .target((-49.0, -24.0))
             .run_async(false)
             .call()
             .await;
@@ -67,7 +67,7 @@ impl AutonRoutine for Skills {
 
         Rc::clone(&chassis)
             .turn_to()
-            .target(TurnToTarget::Point(Vector2::new(-26.0, -23.0)))
+            .target((-26.0, -23.0))
             .params(
                 TurnToParameters::builder()
                     .forwards(false)
@@ -79,7 +79,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-28.0, -23.0))
+            .target((-28.0, -23.0))
             .params(
                 MoveToPointParameters::builder()
                     .forwards(false)
@@ -91,7 +91,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .turn_to()
-            .target(TurnToTarget::Angle(135.0.hdg_deg()))
+            .target((135.0.hdg_deg(),))
             .params(
                 TurnToParameters::builder()
                     .forwards(false)
@@ -175,7 +175,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .turn_to()
-            .target(TurnToTarget::point(-24, -46))
+            .target((-24, -46))
             .params(
                 TurnToParameters::builder()
                     .early_exit_range(2.0.deg())
@@ -187,7 +187,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-24.0, -46.0))
+            .target((-24.0, -46.0))
             .params(
                 MoveToPointParameters::builder()
                     .early_exit_range(2.0)
@@ -199,14 +199,14 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-58.0, -46.0))
+            .target((-58.0, -46.0))
             .params(MoveToPointParameters::builder().forwards(false).build())
             .call()
             .await;
 
         Rc::clone(&chassis)
             .turn_to()
-            .target(TurnToTarget::point(-48, -57))
+            .target((-48, -57))
             .params(
                 TurnToParameters::builder()
                     .early_exit_range(2.0.deg())
@@ -218,7 +218,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-48.0, -57.0))
+            .target((-48, -57.0))
             .params(
                 MoveToPointParameters::builder()
                     .early_exit_range(2.0)
@@ -233,6 +233,7 @@ impl AutonRoutine for Skills {
             let intake = intake.clone();
             move |color: AllianceColor| {
                 if color == Skills::color() {
+                    // Intake functions must be spawned in a separate task to avoid deadlocks.
                     vexide::task::spawn({
                         let intake = intake.clone();
 
@@ -248,7 +249,7 @@ impl AutonRoutine for Skills {
         }));
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-35.0, -58.0))
+            .target((-35.0, -58.0))
             .params(MoveToPointParameters::builder().forwards(false).build())
             .run_async(false)
             .call()
@@ -257,7 +258,7 @@ impl AutonRoutine for Skills {
         intake.lock().await.clear_optical_callback();
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-FIELD_WALL as f64, -60.0))
+            .target((-FIELD_WALL as f64, -60.0))
             .call()
             .await;
         chassis.wait_until(5.0).await;
@@ -275,7 +276,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-48.0, 23.0))
+            .target((-48.0, 23.0))
             .params(
                 MoveToPointParameters::builder()
                     .min_linear_speed(0.2)
@@ -286,7 +287,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-48.0, 23.0))
+            .target((-48.0, 23.0))
             .params(
                 MoveToPointParameters::builder()
                     .max_linear_speed(0.4)
@@ -300,7 +301,7 @@ impl AutonRoutine for Skills {
         robot.clamp_main.set_state(true);
         Rc::clone(&chassis)
             .turn_to()
-            .target(TurnToTarget::point(-23.0, 23.0))
+            .target((-23.0, 23.0))
             .params(
                 TurnToParameters::builder()
                     .forwards(false)
@@ -312,7 +313,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-23.0, 23.0))
+            .target((-23.0, 23.0))
             .params(
                 MoveToPointParameters::builder()
                     .forwards(false)
@@ -325,7 +326,7 @@ impl AutonRoutine for Skills {
         intake.lock().await.spin();
         Rc::clone(&chassis)
             .turn_to()
-            .target(TurnToTarget::point(-23.0, 46.0))
+            .target((-23.0, 46.0))
             .params(
                 TurnToParameters::builder()
                     .forwards(false)
@@ -336,10 +337,10 @@ impl AutonRoutine for Skills {
             .call()
             .await;
         Rc::clone(&chassis)
-            .move_to_point()
-            .target(Vector2::new(-23.0, 46.0))
+            .ramsete_hybrid()
+            .target((-23.0, 46.0))
             .params(
-                MoveToPointParameters::builder()
+                RAMSETEHybridParameters::builder()
                     .forwards(false)
                     .min_linear_speed(0.2)
                     .early_exit_range(2.0)
@@ -349,7 +350,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .turn_to()
-            .target(TurnToTarget::point(-58.0, 46.0))
+            .target((-58.0, 46.0))
             .params(
                 TurnToParameters::builder()
                     .forwards(false)
@@ -375,7 +376,7 @@ impl AutonRoutine for Skills {
 
         Rc::clone(&chassis)
             .turn_to()
-            .target(TurnToTarget::point(-48, 57))
+            .target((-48, 57))
             .params(
                 TurnToParameters::builder()
                     .early_exit_range(2.0.deg())
@@ -387,7 +388,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-48.0, 57.0))
+            .target((-48.0, 57.0))
             .params(
                 MoveToPointParameters::builder()
                     .early_exit_range(2.0)
@@ -400,7 +401,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-35.0, 58.0))
+            .target((-35.0, 58.0))
             .params(MoveToPointParameters::builder().forwards(false).build())
             .run_async(false)
             .call()
@@ -408,7 +409,7 @@ impl AutonRoutine for Skills {
 
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-FIELD_WALL as f64, 60.0))
+            .target((-FIELD_WALL, 60))
             .call()
             .await;
         chassis.wait_until(5.0).await;
@@ -427,7 +428,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(-1.0, 43.0))
+            .target((-1.0, 43.0))
             .params(
                 MoveToPointParameters::builder()
                     .forwards(false)
@@ -441,7 +442,7 @@ impl AutonRoutine for Skills {
         ladybrown_arm.borrow_mut().set_state(LadybrownState::Load);
         Rc::clone(&chassis)
             .ramsete_hybrid()
-            .target(RAMSETETarget::pose(0.0, 58.0, 0.0.hdg_deg()))
+            .target((0.0, 58.0, 0.0.hdg_deg()))
             .timeout(Duration::from_millis(1000))
             .params(params_ramsete_h!(forwards: false, max_linear_speed: 0.6))
             .call()
@@ -480,7 +481,7 @@ impl AutonRoutine for Skills {
         intake.lock().await.spin();
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(23.0, 23.0))
+            .target((23.0, 23.0))
             .params(MoveToPointParameters::builder().forwards(false).build())
             .call()
             .await;
@@ -499,7 +500,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .move_to_point()
-            .target(Vector2::new(47.0, 0.0))
+            .target((47.0, 0.0))
             .params(
                 MoveToPointParameters::builder()
                     .max_linear_speed(0.4)
@@ -512,7 +513,7 @@ impl AutonRoutine for Skills {
         robot.clamp_main.set_state(true);
         Rc::clone(&chassis)
             .turn_to()
-            .target(TurnToTarget::point(62.0, 0.0))
+            .target((62.0, 0.0))
             .params(
                 TurnToParameters::builder()
                     .forwards(false)
@@ -524,7 +525,7 @@ impl AutonRoutine for Skills {
             .await;
         Rc::clone(&chassis)
             .ramsete_hybrid()
-            .target(RAMSETETarget::pose(62.0, 0.0, 90.0.hdg_deg()))
+            .target((62.0, 0.0, 90.0.hdg_deg()))
             .timeout(Duration::from_millis(1000))
             .params(RAMSETEHybridParameters::builder().forwards(false).build())
             .call()

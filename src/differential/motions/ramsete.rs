@@ -96,6 +96,7 @@ pub use params_ramsete_h;
 // Then calculate angular_output as PID(e_θ) + b * v_d * e_y * sinc(e_θ).
 // Calculate v as |cos(e_θ)| * v_d.
 
+#[derive(Clone, PartialEq, Debug)]
 pub enum RAMSETETarget {
     Pose(Pose),
     Point(Vector2<f64>),
@@ -113,13 +114,26 @@ impl RAMSETETarget {
         Self::Point(Vector2::new(x.as_(), y.as_()))
     }
 }
+impl<T: AsPrimitive<f64>, U: AsPrimitive<f64>> From<(T, U)> for RAMSETETarget {
+    fn from((x, y): (T, U)) -> Self {
+        Self::Point(Vector2::new(x.as_(), y.as_()))
+    }
+}
+
+impl<T: AsPrimitive<f64>, U: AsPrimitive<f64>, V: AsPrimitive<f64>> From<(T, U, V)>
+    for RAMSETETarget
+{
+    fn from((x, y, orientation): (T, U, V)) -> Self {
+        Self::Pose(Pose::new(x.as_(), y.as_(), orientation.as_()))
+    }
+}
 
 #[bon]
 impl<T: Tracking + 'static> Chassis<T> {
     #[builder]
     pub async fn ramsete_hybrid(
         self: Rc<Self>,
-        target: RAMSETETarget,
+        target: impl Into<RAMSETETarget> + 'static,
         timeout: Option<Duration>,
         params: Option<RAMSETEHybridParameters>,
         mut settings: Option<RAMSETEHybridSettings>,
@@ -161,6 +175,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         {
             *self.distance_traveled.borrow_mut() = Some(0.0);
         }
+        let target: RAMSETETarget = target.into();
         let mut unwrapped_params = params.unwrap_or(params_ramsete_h!());
         unwrapped_params.min_linear_speed = unwrapped_params.min_linear_speed.abs();
         unwrapped_params.max_linear_speed = unwrapped_params.max_linear_speed.abs();
