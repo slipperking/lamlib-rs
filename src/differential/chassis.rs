@@ -115,11 +115,11 @@ impl<T: Tracking> Chassis<T> {
         }
     }
 
-    pub async fn set_pose(&self, pose: Pose) {
+    pub async fn set_pose(&self, pose: impl Into<Pose>) {
         self.tracking
             .lock()
             .await
-            .set_position(&Vector3::from(pose))
+            .set_position(&Vector3::from(pose.into()))
             .await;
     }
     pub async fn pose(&self) -> Pose {

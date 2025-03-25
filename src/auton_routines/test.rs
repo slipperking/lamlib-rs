@@ -6,11 +6,7 @@ use vexide::io::{println, Write};
 
 use super::AutonRoutine;
 use crate::{
-    differential::{
-        motions::{angular::TurnToTarget, ramsete::RAMSETETarget},
-        pose::Pose,
-    },
-    params_ramsete_h, params_turn_to,
+    params_turn_to,
     utils::{math::AngleExt, timer::Timer, TILE_SIZE},
     Robot,
 };
@@ -42,7 +38,7 @@ impl AutonRoutine for Test {
 
     async fn run(&self, robot: &mut Robot) {
         let chassis = robot.chassis.clone();
-        chassis.set_pose(Pose::new(0.0, 0.0, 0.0.hdg_deg())).await;
+        chassis.set_pose((0.0, 0.0, 0.0.hdg_deg())).await;
         match TEST_MODE {
             TestMode::Linear(distance) => {
                 // Also tests concurrent actions.
@@ -63,7 +59,7 @@ impl AutonRoutine for Test {
                 chassis
                     .clone()
                     .turn_to()
-                    .target(TurnToTarget::Angle(
+                    .target((
                         robot.chassis.pose().await.orientation + angle,
                     ))
                     .params(params_turn_to!(forwards: false,))
@@ -79,8 +75,6 @@ impl AutonRoutine for Test {
             }
             TestMode::TrackingCenter(duration, velocity_percentage) => {
                 println!("\x1b[1mCopy this:\x1b[0m\n\\left[");
-
-                chassis.set_pose(Pose::new(0.0, 0.0, 0.0.std_deg())).await;
                 let mut timer = Timer::new(duration);
                 let mut movement_index = 0;
 
@@ -115,7 +109,7 @@ impl AutonRoutine for Test {
                 chassis
                     .clone()
                     .ramsete_hybrid()
-                    .target(RAMSETETarget::pose(TILE_SIZE, TILE_SIZE, 0.0.hdg_deg()))
+                    .target((TILE_SIZE, TILE_SIZE, 0.0.hdg_deg()))
                     .run_async(false)
                     .call()
                     .await;
@@ -123,7 +117,7 @@ impl AutonRoutine for Test {
                 chassis
                     .clone()
                     .ramsete_hybrid()
-                    .target(RAMSETETarget::pose(-TILE_SIZE, TILE_SIZE, 180.0.hdg_deg()))
+                    .target((-TILE_SIZE, TILE_SIZE, 180.0.hdg_deg()))
                     .params(params_ramsete_h!(forwards: false,))
                     .call()
                     .await;
