@@ -126,9 +126,21 @@ impl TurnToTarget {
     }
 }
 
-impl<T: AsPrimitive<f64>> From<(T,)> for TurnToTarget {
-    fn from((angle,): (T,)) -> Self {
-        Self::Angle(angle.as_())
+impl From<f64> for TurnToTarget {
+    fn from(angle: f64) -> Self {
+        Self::Angle(angle)
+    }
+}
+
+impl From<f32> for TurnToTarget {
+    fn from(angle: f32) -> Self {
+        Self::Angle(angle as f64)
+    }
+}
+
+impl From<i32> for TurnToTarget {
+    fn from(angle: i32) -> Self {
+        Self::Angle(angle as f64)
     }
 }
 
