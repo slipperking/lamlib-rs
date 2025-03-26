@@ -104,14 +104,14 @@ impl Default for MotionHandler {
         Self::new()
     }
 }
-pub struct ExitCondition<T> {
+pub struct Tolerance<T> {
     range: T,
     timeout: Duration,
     start_time: Option<Instant>,
     done: bool,
 }
 
-impl<T: num_traits::Float + Copy> ExitCondition<T> {
+impl<T: num_traits::Float + Copy> Tolerance<T> {
     pub fn update(&mut self, error: T) -> bool {
         if error.abs() > self.range {
             self.start_time = None;
@@ -126,7 +126,7 @@ impl<T: num_traits::Float + Copy> ExitCondition<T> {
     }
 }
 
-impl<T> ExitCondition<T> {
+impl<T> Tolerance<T> {
     pub fn new(range: T, timeout: Duration) -> Self {
         Self {
             range,
@@ -146,7 +146,7 @@ impl<T> ExitCondition<T> {
     }
 }
 
-impl<T: Copy> Clone for ExitCondition<T> {
+impl<T: Copy> Clone for Tolerance<T> {
     fn clone(&self) -> Self {
         Self {
             range: self.range,
@@ -157,27 +157,27 @@ impl<T: Copy> Clone for ExitCondition<T> {
     }
 }
 #[derive(Clone)]
-pub struct ExitConditionGroup<T: Copy> {
-    pub exit_condition_group: Vec<ExitCondition<T>>,
+pub struct ToleranceGroup<T: Copy> {
+    pub tolerance_group: Vec<Tolerance<T>>,
 }
 
-impl<T: Copy> ExitConditionGroup<T> {
-    pub fn new(exit_condition_group: Vec<ExitCondition<T>>) -> Self {
+impl<T: Copy> ToleranceGroup<T> {
+    pub fn new(tolerance_group: Vec<Tolerance<T>>) -> Self {
         Self {
-            exit_condition_group,
+            tolerance_group,
         }
     }
     pub fn reset(&mut self) {
-        for exit_condition in self.exit_condition_group.iter_mut() {
-            exit_condition.reset();
+        for tolerance in self.tolerance_group.iter_mut() {
+            tolerance.reset();
         }
     }
 }
-impl<T: Copy + num_traits::Float + Copy> ExitConditionGroup<T> {
+impl<T: Copy + num_traits::Float + Copy> ToleranceGroup<T> {
     pub fn update_all(&mut self, error: T) -> bool {
         let mut done = false;
-        for exit_condition in self.exit_condition_group.iter_mut() {
-            if exit_condition.update(error) {
+        for tolerance in self.tolerance_group.iter_mut() {
+            if tolerance.update(error) {
                 done = true;
             }
         }

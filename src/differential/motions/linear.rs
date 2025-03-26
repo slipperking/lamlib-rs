@@ -6,7 +6,7 @@ use nalgebra::Vector2;
 use num_traits::AsPrimitive;
 use vexide::prelude::{Float, Motor};
 
-use super::ExitConditionGroup;
+use super::ToleranceGroup;
 use crate::{
     controllers::FeedbackController,
     differential::chassis::Chassis,
@@ -43,30 +43,30 @@ pub struct MoveToPointSettings {
     linear_controller: Box<dyn FeedbackController<f64>>,
     angular_controller: Box<dyn FeedbackController<f64>>,
 
-    linear_exit_conditions: ExitConditionGroup<f64>,
-    angular_exit_conditions: ExitConditionGroup<f64>,
+    linear_tolerances: ToleranceGroup<f64>,
+    angular_tolerances: ToleranceGroup<f64>,
 }
 
 impl MoveToPointSettings {
     pub fn new(
         linear_controller: Box<dyn FeedbackController<f64>>,
         angular_controller: Box<dyn FeedbackController<f64>>,
-        linear_exit_conditions: ExitConditionGroup<f64>,
-        angular_exit_conditions: ExitConditionGroup<f64>,
+        linear_tolerances: ToleranceGroup<f64>,
+        angular_tolerances: ToleranceGroup<f64>,
     ) -> Self {
         Self {
             linear_controller,
             angular_controller,
-            linear_exit_conditions,
-            angular_exit_conditions,
+            linear_tolerances,
+            angular_tolerances,
         }
     }
 
     pub fn reset(&mut self) {
         self.linear_controller.reset();
         self.angular_controller.reset();
-        self.linear_exit_conditions.reset();
-        self.angular_exit_conditions.reset();
+        self.linear_tolerances.reset();
+        self.angular_tolerances.reset();
     }
 }
 
@@ -196,16 +196,16 @@ impl<T: Tracking + 'static> Chassis<T> {
             }
 
             if if let Some(settings) = &mut settings {
-                let linear_done = settings.linear_exit_conditions.update_all(linear_error);
-                let angular_done = settings.angular_exit_conditions.update_all(angular_error);
+                let linear_done = settings.linear_tolerances.update_all(linear_error);
+                let angular_done = settings.angular_tolerances.update_all(angular_error);
                 linear_done && angular_done
             } else {
                 let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
                 let linear_done = motion_settings
-                    .linear_exit_conditions
+                    .linear_tolerances
                     .update_all(linear_error);
                 let angular_done = motion_settings
-                    .angular_exit_conditions
+                    .angular_tolerances
                     .update_all(angular_error);
                 linear_done && angular_done
             } && is_near

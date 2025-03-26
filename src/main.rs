@@ -31,7 +31,7 @@ use differential::{
     drive_curve::ExponentialDriveCurve,
     motions::{
         angular::TurnToSettings, boomerang::BoomerangSettings, linear::MoveToPointSettings,
-        ramsete::RAMSETEHybridSettings, ExitCondition, ExitConditionGroup,
+        ramsete::RAMSETEHybridSettings, Tolerance, ToleranceGroup,
     },
 };
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
@@ -48,9 +48,7 @@ use utils::{math::AngleExt, AllianceColor};
 use vexide::{devices::adi::digital::LogicLevel, prelude::*, sync::Mutex, time};
 
 pub struct Robot {
-    #[allow(dead_code)]
     pub alliance_color: Rc<RefCell<AllianceColor>>,
-    #[warn(dead_code)]
     pub controller: Rc<Mutex<Controller>>,
     pub chassis: Rc<Chassis<OdomTracking>>,
 
@@ -58,7 +56,7 @@ pub struct Robot {
 
     /// A Mutex containing the intake wrapped within a shared pointer.
     ///
-    /// Mutex for async closures. Anything async should use Mutex so that
+    /// Mutex is used for async closures. Anything async should use Mutex so that
     /// borrows are not held across await points.
     pub intake: Rc<Mutex<Intake>>,
     pub doinker_left: PneumaticWrapper,
@@ -200,13 +198,13 @@ async fn main(peripherals: Peripherals) {
         Motor::new(peripherals.port_3, Gearset::Blue, Direction::Forward),
     ])));
     let drivetrain = Rc::new(Drivetrain::new(left_motors, right_motors));
-    let linear_exit_conditions = ExitConditionGroup::new(vec![
-        ExitCondition::new(1.0, Duration::from_millis(150)),
-        ExitCondition::new(3.0, Duration::from_millis(500)),
+    let linear_tolerances = ToleranceGroup::new(vec![
+        Tolerance::new(1.0, Duration::from_millis(150)),
+        Tolerance::new(3.0, Duration::from_millis(500)),
     ]);
-    let angular_exit_conditions = ExitConditionGroup::new(vec![
-        ExitCondition::new(1.0.deg(), Duration::from_millis(150)),
-        ExitCondition::new(3.0.deg(), Duration::from_millis(500)),
+    let angular_tolerances = ToleranceGroup::new(vec![
+        Tolerance::new(1.0.deg(), Duration::from_millis(150)),
+        Tolerance::new(3.0.deg(), Duration::from_millis(500)),
     ]);
     let linear_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
     let angular_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
@@ -215,25 +213,25 @@ async fn main(peripherals: Peripherals) {
         RefCell::new(MoveToPointSettings::new(
             linear_controller.clone(),
             angular_controller.clone(),
-            linear_exit_conditions.clone(),
-            angular_exit_conditions.clone(),
+            linear_tolerances.clone(),
+            angular_tolerances.clone(),
         )),
         RefCell::new(TurnToSettings::new(
             angular_controller.clone(),
             Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)), // Swing constants.
-            angular_exit_conditions.clone(),
+            angular_tolerances.clone(),
         )),
         RefCell::new(BoomerangSettings::new(
             linear_controller.clone(),
             angular_controller.clone(),
-            linear_exit_conditions.clone(),
-            angular_exit_conditions.clone(),
+            linear_tolerances.clone(),
+            angular_tolerances.clone(),
         )),
         RefCell::new(RAMSETEHybridSettings::new(
             linear_controller.clone(),
             angular_controller.clone(),
-            linear_exit_conditions.clone(),
-            angular_exit_conditions.clone(),
+            linear_tolerances.clone(),
+            angular_tolerances.clone(),
             1.0,
         )),
     );

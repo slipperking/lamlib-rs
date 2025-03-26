@@ -92,9 +92,9 @@ impl Timer {
     ///
     /// # Examples
     /// ```
-    /// # async fn example() {
     /// use crate::timer::Timer;
     /// use core::time::Duration;
+    /// # async fn example() {
     /// let mut timer = Timer::new(Duration::from_secs(1));
     /// timer.wait_until_complete().await;
     /// # }

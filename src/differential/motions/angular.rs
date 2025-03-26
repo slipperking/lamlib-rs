@@ -9,7 +9,7 @@ use nalgebra::Vector2;
 use num_traits::AsPrimitive;
 use vexide::prelude::{BrakeMode, Float, Motor, MotorControl};
 
-use super::ExitConditionGroup;
+use super::ToleranceGroup;
 use crate::{
     controllers::FeedbackController,
     differential::{chassis::Chassis, pose::Pose},
@@ -52,26 +52,26 @@ pub struct TurnToSettings {
     pub angular_controller: Box<dyn FeedbackController<f64>>,
     pub swing_controller: Box<dyn FeedbackController<f64>>,
 
-    pub angular_exit_conditions: ExitConditionGroup<f64>,
+    pub angular_tolerances: ToleranceGroup<f64>,
 }
 
 impl TurnToSettings {
     pub fn new(
         angular_controller: Box<dyn FeedbackController<f64>>,
         swing_controller: Box<dyn FeedbackController<f64>>,
-        angular_exit_conditions: ExitConditionGroup<f64>,
+        angular_tolerances: ToleranceGroup<f64>,
     ) -> Self {
         Self {
             angular_controller,
             swing_controller,
-            angular_exit_conditions,
+            angular_tolerances,
         }
     }
 
     pub fn reset(&mut self) {
         self.angular_controller.reset();
         self.swing_controller.reset();
-        self.angular_exit_conditions.reset();
+        self.angular_tolerances.reset();
     }
 }
 
@@ -256,12 +256,12 @@ impl<T: Tracking + 'static> Chassis<T> {
                 )
             };
             if if let Some(settings) = &mut settings {
-                settings.angular_exit_conditions.update_all(error)
+                settings.angular_tolerances.update_all(error)
             } else {
                 self.motion_settings
                     .boomerang_settings
                     .borrow_mut()
-                    .angular_exit_conditions
+                    .angular_tolerances
                     .update_all(error)
             } {
                 break;
