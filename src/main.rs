@@ -28,7 +28,7 @@ use controllers::pid::PID;
 use devices::motor_group::MotorGroup;
 use differential::{
     chassis::{Chassis, Drivetrain, MotionSettings},
-    drive_curve::ExponentialDriveCurve,
+    drive_curve::exponential::ExponentialDriveCurve,
     motions::{
         angular::TurnToSettings, boomerang::BoomerangSettings, linear::MoveToPointSettings,
         ramsete::RAMSETEHybridSettings, Tolerance, ToleranceGroup,
@@ -237,8 +237,8 @@ async fn main(peripherals: Peripherals) {
     let chassis = Chassis::new(
         drivetrain.clone(),
         tracking,
-        ExponentialDriveCurve::new(0.1, 0.1, 1.01),
-        ExponentialDriveCurve::new(0.1, 0.1, 1.01),
+        Box::new(ExponentialDriveCurve::new(0.1, 0.1, 1.01)),
+        Box::new(ExponentialDriveCurve::new(0.1, 0.1, 1.01)),
         motion_settings,
     );
 

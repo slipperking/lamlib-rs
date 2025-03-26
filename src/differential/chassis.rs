@@ -1,11 +1,11 @@
-use alloc::rc::Rc;
+use alloc::{boxed::Box, rc::Rc};
 use core::{cell::RefCell, time::Duration};
 
 use nalgebra::Vector3;
 use vexide::{prelude::Motor, sync::Mutex};
 
 use super::{
-    drive_curve::ExponentialDriveCurve,
+    drive_curve::DriveCurve,
     motions::{
         angular::TurnToSettings, boomerang::BoomerangSettings, linear::MoveToPointSettings,
         ramsete::RAMSETEHybridSettings, MotionHandler,
@@ -57,8 +57,8 @@ impl MotionSettings {
 pub struct Chassis<T: Tracking> {
     pub(crate) drivetrain: Rc<Drivetrain>,
     pub(super) tracking: Rc<Mutex<T>>,
-    pub(super) throttle_curve: ExponentialDriveCurve,
-    pub(super) steer_curve: ExponentialDriveCurve,
+    pub(super) throttle_curve: Box<dyn DriveCurve>,
+    pub(super) steer_curve: Box<dyn DriveCurve>,
     pub(super) motion_handler: MotionHandler,
     pub(super) motion_settings: MotionSettings,
     pub(super) distance_traveled: RefCell<Option<f64>>,
@@ -68,8 +68,8 @@ impl<T: Tracking> Chassis<T> {
     pub fn new(
         drivetrain: Rc<Drivetrain>,
         tracking: Rc<Mutex<T>>,
-        throttle_curve: ExponentialDriveCurve,
-        steer_curve: ExponentialDriveCurve,
+        throttle_curve: Box<dyn DriveCurve>,
+        steer_curve: Box<dyn DriveCurve>,
         motion_settings: MotionSettings,
     ) -> Rc<Self> {
         Rc::new(Self {
@@ -128,8 +128,8 @@ impl<T: Tracking> Chassis<T> {
     }
     pub fn arcade(&self, mut throttle: f64, mut steer: f64, use_drive_curve: bool) {
         if use_drive_curve {
-            throttle = self.throttle_curve.update(throttle, 1.0);
-            steer = self.steer_curve.update(steer, 1.0);
+            throttle = self.throttle_curve.update(throttle);
+            steer = self.steer_curve.update(steer);
         }
         self.drivetrain
             .left_motors
@@ -149,25 +149,25 @@ impl<T: Tracking> Chassis<T> {
 
     pub fn tank(&self, mut left: f64, mut right: f64, use_drive_curve: bool) {
         left = if use_drive_curve {
-            self.throttle_curve.update(left, Motor::V5_MAX_VOLTAGE)
+            self.throttle_curve.update(left)
         } else {
             left
         };
         right = if use_drive_curve {
-            self.throttle_curve.update(right, Motor::V5_MAX_VOLTAGE)
+            self.throttle_curve.update(right)
         } else {
             right
         };
         self.drivetrain
             .left_motors
             .borrow_mut()
-            .set_voltage_all_for_types(left, left * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE);
+            .set_voltage_all_for_types(left * Motor::V5_MAX_VOLTAGE, left * Motor::EXP_MAX_VOLTAGE);
         self.drivetrain
             .right_motors
             .borrow_mut()
             .set_voltage_all_for_types(
-                right,
-                right * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
+                right * Motor::V5_MAX_VOLTAGE,
+                right * Motor::EXP_MAX_VOLTAGE,
             );
     }
 }
