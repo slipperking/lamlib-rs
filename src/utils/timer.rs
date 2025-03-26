@@ -1,4 +1,5 @@
 use core::time::Duration;
+
 use vexide::time::Instant;
 
 /// Tracks elapsed time and manages time-based delays.

@@ -59,9 +59,7 @@ impl AutonRoutine for Test {
                 chassis
                     .clone()
                     .turn_to()
-                    .target(
-                        robot.chassis.pose().await.orientation + angle,
-                    )
+                    .target(robot.chassis.pose().await.orientation + angle)
                     .params(params_turn_to!(forwards: false,))
                     .run_async(false)
                     .call()

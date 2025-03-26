@@ -12,7 +12,7 @@ enum PneumaticButtonState {
 }
 
 /// A wrapper for an adi digital out as for pneumatic solenoids.
-/// 
+///
 /// Allows for boolean control and repeatable driver control schemes.
 pub struct PneumaticWrapper {
     pneumatic: Rc<RefCell<AdiDigitalOut>>,
@@ -48,9 +48,9 @@ impl PneumaticWrapper {
         }
     }
     /// A driver scheme using two buttons, one for each logic level.
-    /// 
+    ///
     /// The `high_priority_button_state` and `low_priority_button_state` are the
-    /// button states of high and low priority. Priority is used to determine 
+    /// button states of high and low priority. Priority is used to determine
     /// which button state to apply when both buttons are pressed.
     /// The logic levels refer to what logic level each button state maps to.
     pub fn driver_explicit(

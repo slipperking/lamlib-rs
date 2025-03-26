@@ -1,9 +1,6 @@
 pub mod sensors;
 use alloc::{rc::Rc, vec::Vec};
-use core::{
-    cell::RefCell,
-    ops::AddAssign,
-};
+use core::{cell::RefCell, ops::AddAssign};
 
 use nalgebra::{Matrix, Matrix2xX, Matrix3, Matrix3xX, RowDVector, Vector3};
 use rand::{

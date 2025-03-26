@@ -405,7 +405,7 @@ impl Intake {
     /// // intake has type Rc<Mutex<Intake>>.
     /// intake.lock().await.init(intake.clone());
     /// ```
-    /// 
+    ///
     /// This will not deadlock since the implementation of init does not synchronously use `self_rc_mutex`
     pub async fn init(&mut self, self_rc_mutex: Rc<Mutex<Self>>) {
         if let Some(optical) = &self.optical_sensor {

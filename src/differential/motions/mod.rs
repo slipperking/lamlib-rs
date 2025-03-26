@@ -163,9 +163,7 @@ pub struct ToleranceGroup<T: Copy> {
 
 impl<T: Copy> ToleranceGroup<T> {
     pub fn new(tolerance_group: Vec<Tolerance<T>>) -> Self {
-        Self {
-            tolerance_group,
-        }
+        Self { tolerance_group }
     }
     pub fn reset(&mut self) {
         for tolerance in self.tolerance_group.iter_mut() {
