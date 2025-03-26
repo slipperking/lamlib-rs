@@ -1,6 +1,7 @@
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use core::{cell::RefCell, time::Duration};
 
+use bon::bon;
 use nalgebra::Vector3;
 use vexide::{
     prelude::{Float, InertialSensor, Motor, SmartDevice, Task},
@@ -26,7 +27,10 @@ pub struct OdomInertial {
     /// Values of all inertial weights are normalized to 1.
     pub weight: f64,
 }
+
+#[bon]
 impl OdomInertial {
+    #[builder]
     pub fn new(inertial: Rc<Mutex<InertialSensor>>, scalar: f64, weight: f64) -> Self {
         Self {
             inertial,
@@ -119,7 +123,7 @@ impl OdomTracking {
     }
 
     async fn update(&mut self) {
-        // Use a basic fusion of inertials and tracking wheels to get delta theta.
+        // Use a basic fusion of inertial sensors and tracking wheels to get delta theta.
         let mut imu_angles: Vec<Option<f64>> = Vec::new();
         let mut delta_imu_angles: Vec<Option<f64>> = Vec::new();
         let mut delta_imu_weights: Vec<Option<f64>> = Vec::new();
@@ -313,10 +317,10 @@ impl OdomTracking {
         let cos_value: f64 = avg_angle.cos();
         let sin_value: f64 = avg_angle.sin();
 
-        // x=ucos(θ-90) - vsin(θ-90)
-        // y=usin(θ-90) + vcos(θ-90)
-        // x=usin(theta) + vcos(theta)
-        // y=-ucos(theta) + vsin(theta)
+        // x=u cos(θ-90) - v sin(θ-90)
+        // y=u sin(θ-90) + v cos(θ-90)
+        // x=u sin(theta) + v cos(theta)
+        // y=-u cos(theta) + v sin(theta)
 
         // At 0 degrees (facing right): (vertical, -horizontal)
         // At 90 degrees (facing up): (horizontal, vertical)

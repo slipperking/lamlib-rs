@@ -93,7 +93,7 @@ impl LiDAR {
 }
 
 impl ParticleFilterSensor<3> for LiDAR {
-    // TODO: logic simplication since we have timing checks.
+    // TODO: logic simplification since we have timing checks.
     fn precompute(&mut self, positions: &Matrix3xX<f32>) {
         if let Some(last_updated) = self.last_updated {
             if last_updated.elapsed() < Duration::from_millis(30) {
@@ -115,7 +115,7 @@ impl ParticleFilterSensor<3> for LiDAR {
     }
 
     fn update(&mut self, positions: &Matrix3xX<f32>, weights: &mut RowDVector<f32>) {
-        // It returns false only if the precomputes were not computed,
+        // It returns false only if the precomputed data was not computed,
         // specifically for when it has not been 30 ms.
         if !self.precompute_data.borrow().precomputed {
             return;

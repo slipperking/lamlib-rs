@@ -119,11 +119,13 @@ async fn main(peripherals: Peripherals) {
     ));
     let vertical_odom_wheel: OdomWheel =
         OdomWheel::from_rotation(rotation_vertical_odom_wheel.clone(), 2.0, 1.0, 1.0);
-    let imu = OdomInertial::new(
-        Rc::new(Mutex::new(InertialSensor::new(peripherals.port_13))),
-        1.004,
-        1.0,
-    );
+    let imu = OdomInertial::builder()
+        .inertial(Rc::new(Mutex::new(InertialSensor::new(
+            peripherals.port_13,
+        ))))
+        .scalar(1.004)
+        .weight(1.0)
+        .build();
     let sensors = OdomSensors::new(
         vec![Rc::new(imu)],
         vec![],
