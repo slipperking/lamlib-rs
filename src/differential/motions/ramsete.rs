@@ -180,9 +180,10 @@ impl<T: Tracking + 'static> Chassis<T> {
         unwrapped_params.min_linear_speed = unwrapped_params.min_linear_speed.abs();
         unwrapped_params.max_linear_speed = unwrapped_params.max_linear_speed.abs();
         unwrapped_params.max_angular_speed = unwrapped_params.max_angular_speed.abs();
-        if unwrapped_params.max_angular_speed < unwrapped_params.min_linear_speed {
-            panic!("Minimum speed may not exceed the maximum.")
-        }
+        assert!(
+            unwrapped_params.max_angular_speed < unwrapped_params.min_linear_speed,
+            "Minimum speed may not exceed the maximum."
+        );
         let mut previous_pose = self.pose().await;
         let mut is_near = false; // Possibly use settling logic.
         let mut previous_linear_output: f64 = 0.0;

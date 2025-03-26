@@ -116,6 +116,13 @@ impl<T: Tracking + 'static> Chassis<T> {
         run_async: Option<bool>,
     ) {
         let mut unwrapped_params = params.unwrap_or(params_boomerang!());
+        unwrapped_params.min_linear_speed = unwrapped_params.min_linear_speed.abs();
+        unwrapped_params.max_linear_speed = unwrapped_params.max_linear_speed.abs();
+        unwrapped_params.max_angular_speed = unwrapped_params.max_angular_speed.abs();
+        assert!(
+            unwrapped_params.max_angular_speed < unwrapped_params.min_linear_speed,
+            "Minimum speed may not exceed the maximum."
+        );
         self.motion_handler.wait_for_motions_end().await;
         if self.motion_handler.is_in_motion() {
             return;
