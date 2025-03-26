@@ -44,7 +44,6 @@ pub struct MoveToPointSettings {
     angular_controller: Box<dyn FeedbackController<f64>>,
 
     linear_tolerances: ToleranceGroup<f64>,
-    angular_tolerances: ToleranceGroup<f64>,
 }
 
 impl MoveToPointSettings {
@@ -52,13 +51,11 @@ impl MoveToPointSettings {
         linear_controller: Box<dyn FeedbackController<f64>>,
         angular_controller: Box<dyn FeedbackController<f64>>,
         linear_tolerances: ToleranceGroup<f64>,
-        angular_tolerances: ToleranceGroup<f64>,
     ) -> Self {
         Self {
             linear_controller,
             angular_controller,
             linear_tolerances,
-            angular_tolerances,
         }
     }
 
@@ -66,7 +63,6 @@ impl MoveToPointSettings {
         self.linear_controller.reset();
         self.angular_controller.reset();
         self.linear_tolerances.reset();
-        self.angular_tolerances.reset();
     }
 }
 
@@ -163,9 +159,7 @@ impl<T: Tracking + 'static> Chassis<T> {
                 .borrow_mut()
                 .reset();
         }
-        {
-            *self.distance_traveled.borrow_mut() = Some(0.0);
-        }
+        *self.distance_traveled.borrow_mut() = Some(0.0);
         let target = target.into().0;
         let mut unwrapped_params = params.unwrap_or(params_move_to_point!());
         let mut previous_pose = self.pose().await;
@@ -196,14 +190,13 @@ impl<T: Tracking + 'static> Chassis<T> {
             }
 
             if if let Some(settings) = &mut settings {
-                let linear_done = settings.linear_tolerances.update_all(linear_error);
-                let angular_done = settings.angular_tolerances.update_all(angular_error);
-                linear_done && angular_done
+                settings.linear_tolerances.update_all(linear_error)
             } else {
-                let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
-                let linear_done = motion_settings.linear_tolerances.update_all(linear_error);
-                let angular_done = motion_settings.angular_tolerances.update_all(angular_error);
-                linear_done && angular_done
+                self.motion_settings
+                    .boomerang_settings
+                    .borrow_mut()
+                    .linear_tolerances
+                    .update_all(linear_error)
             } && is_near
             {
                 break;

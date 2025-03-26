@@ -751,7 +751,8 @@ impl AutonRoutine for Skills {
             .distance(10.0)
             .call()
             .await;
-        chassis.wait_until(5.0).await;
+        chassis.wait_until(7.0).await;
+        intake.lock().await.stop();
         robot.clamp_main.set_state(false);
         Rc::clone(&chassis)
             .move_relative()
@@ -796,6 +797,35 @@ impl AutonRoutine for Skills {
                     .min_linear_speed(0.2)
                     .build(),
             )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target((43, 43))
+            .params(
+                RAMSETEHybridParameters::builder()
+                    .early_exit_range(2.0)
+                    .min_linear_speed(0.8)
+                    .build(),
+            )
+            .call()
+            .await;
+        chassis.wait_until(15.0).await;
+        ladybrown_arm
+            .borrow_mut()
+            .set_state(LadybrownState::Alliance);
+        Rc::clone(&chassis)
+            .turn_to()
+            .target((0, 0))
+            .params(params_turn_to!(forwards: false, early_exit_range: 6.0.deg(), min_speed: 0.6))
+            .call()
+            .await;
+
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target((0, 0, -135.0.std_deg()))
+            .timeout(Duration::from_millis(2500))
+            .params(params_ramsete_h!(forwards: false, max_linear_speed: 0.7))
             .call()
             .await;
 

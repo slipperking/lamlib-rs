@@ -9,5 +9,4 @@ pub trait FeedbackController<T: Float + FromPrimitive + AddAssign>: dyn_clone::D
     fn reset(&mut self);
 }
 
-#[macro_use]
 pub mod pid;

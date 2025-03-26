@@ -192,9 +192,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         } else {
             self.motion_settings.turn_to_settings.borrow_mut().reset();
         }
-        {
-            *self.distance_traveled.borrow_mut() = Some(0.0);
-        }
+        *self.distance_traveled.borrow_mut() = Some(0.0);
         match unwrapped_params.locked_side {
             Some(DifferentialDriveSide::Left) => {
                 self.drivetrain

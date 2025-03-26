@@ -226,18 +226,28 @@ impl<T: Tracking + 'static> Chassis<T> {
                 let linear_done = settings
                     .linear_tolerances
                     .update_all(local_error.position.norm());
-                let angular_done = settings
+                let angular_done = if settings
                     .angular_tolerances
-                    .update_all(local_error.orientation);
+                    .update_all(local_error.orientation)
+                {
+                    true
+                } else {
+                    matches!(target, RAMSETETarget::Point(_)) // Point-based RAMSETE does not check angular tolerances.
+                };
                 linear_done && angular_done
             } else {
                 let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
                 let linear_done = motion_settings
                     .linear_tolerances
                     .update_all(local_error.position.norm());
-                let angular_done = motion_settings
+                let angular_done = if motion_settings
                     .angular_tolerances
-                    .update_all(local_error.orientation);
+                    .update_all(local_error.orientation)
+                {
+                    true
+                } else {
+                    matches!(target, RAMSETETarget::Point(_)) // Point-based RAMSETE does not check angular tolerances.
+                };
                 linear_done && angular_done
             } && is_near
             {

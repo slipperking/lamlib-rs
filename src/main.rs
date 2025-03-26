@@ -214,7 +214,6 @@ async fn main(peripherals: Peripherals) {
             linear_controller.clone(),
             angular_controller.clone(),
             linear_tolerances.clone(),
-            angular_tolerances.clone(),
         )),
         RefCell::new(TurnToSettings::new(
             angular_controller.clone(),
