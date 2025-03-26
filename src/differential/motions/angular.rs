@@ -229,19 +229,18 @@ impl<T: Tracking + 'static> Chassis<T> {
                 pose + Pose::new(0.0, 0.0, if unwrapped_params.forwards { 0.0 } else { PI }),
                 None,
             );
-            if previous_raw_error.is_none() {
-                previous_raw_error = Some(raw_error);
-            }
 
             // If it crosses error being 0, then drop the `direction` parameter.
             if !oscillations_begin
                 && previous_raw_error.unwrap().signum() != raw_error.signum()
                 // Make sure the crossing is actually on low error:
-                && (0.0..FRAC_PI_2).contains(&previous_raw_error.unwrap().abs())
+                && (0.0..FRAC_PI_2).contains(&previous_raw_error.unwrap_or(raw_error).abs())
                 && (0.0..FRAC_PI_2).contains(&raw_error.abs())
             {
                 oscillations_begin = true;
             }
+
+            previous_raw_error = Some(raw_error);
 
             if unwrapped_params.min_speed != 0.0 && oscillations_begin
                 || raw_error.abs() < unwrapped_params.early_exit_range
