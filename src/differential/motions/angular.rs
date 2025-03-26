@@ -311,30 +311,26 @@ impl<T: Tracking + 'static> Chassis<T> {
                 },
                 raw_output,
             );
-            {
-                self.drivetrain
-                    .left_motors
-                    .borrow_mut()
-                    .set_velocity_percentage_all(left);
-                self.drivetrain
-                    .right_motors
-                    .borrow_mut()
-                    .set_velocity_percentage_all(right);
-            }
-
-            vexide::time::sleep(Motor::WRITE_INTERVAL).await;
-        }
-        {
             self.drivetrain
                 .left_motors
                 .borrow_mut()
-                .set_target_all(vexide::prelude::MotorControl::Brake(BrakeMode::Coast));
+                .set_velocity_percentage_all(left);
             self.drivetrain
                 .right_motors
                 .borrow_mut()
-                .set_target_all(vexide::prelude::MotorControl::Brake(BrakeMode::Coast));
-            *self.distance_traveled.borrow_mut() = None;
+                .set_velocity_percentage_all(right);
+
+            vexide::time::sleep(Motor::WRITE_INTERVAL).await;
         }
+        self.drivetrain
+            .left_motors
+            .borrow_mut()
+            .set_target_all(vexide::prelude::MotorControl::Brake(BrakeMode::Coast));
+        self.drivetrain
+            .right_motors
+            .borrow_mut()
+            .set_target_all(vexide::prelude::MotorControl::Brake(BrakeMode::Coast));
+        *self.distance_traveled.borrow_mut() = None;
         self.motion_handler.end_motion().await;
     }
 }

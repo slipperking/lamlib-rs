@@ -15,5 +15,5 @@ pub trait Tracking {
     /// A Reference Counted Pointer with a Mutex is required for the pointer.
     /// NOTE: In implementation, you are not required to use self_rc.
     /// Do not synchronously attempt to lock the mutex in your code.
-    async fn init(&mut self, async_self_rc: Rc<Mutex<Self>>);
+    async fn init(&mut self, self_rc_mutex: Rc<Mutex<Self>>);
 }

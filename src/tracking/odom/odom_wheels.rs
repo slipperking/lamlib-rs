@@ -8,6 +8,8 @@ use vexide::{
 
 use crate::devices::motor_group::MotorGroup;
 
+// TODO: Use a trait such as "RotarySensor" to generalize the sensor types.
+
 pub struct OdomWheel {
     rotation: Option<Rc<RefCell<RotationSensor>>>,
     encoder: Option<Rc<RefCell<AdiEncoder>>>,

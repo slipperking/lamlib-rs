@@ -372,7 +372,7 @@ impl Tracking for OdomTracking {
         self.tracked_pose = *position;
     }
 
-    async fn init(&mut self, async_self_rc: Rc<Mutex<Self>>) {
+    async fn init(&mut self, self_rc_mutex: Rc<Mutex<Self>>) {
         self.sensors
             .horizontals
             .iter()
@@ -399,21 +399,21 @@ impl Tracking for OdomTracking {
             }
         }
         self.task = Some(vexide::task::spawn({
-            let async_self_rc = async_self_rc.clone();
+            let self_rc_mutex = self_rc_mutex.clone();
             async move {
                 vexide::time::sleep(Motor::UPDATE_INTERVAL).await;
                 loop {
                     let start_time = Instant::now();
                     {
-                        let mut self_lock = async_self_rc.lock().await;
-                        self_lock.update().await;
-                        if let Some(localization) = &self_lock.localization {
+                        let mut self_rc_mutex = self_rc_mutex.lock().await;
+                        self_rc_mutex.update().await;
+                        if let Some(localization) = &self_rc_mutex.localization {
                             let mcl_output = localization.borrow_mut().run_filter(
-                                self_lock.delta_global_pose,
-                                &self_lock.particle_filter_sensors,
+                                self_rc_mutex.delta_global_pose,
+                                &self_rc_mutex.particle_filter_sensors,
                             );
                             if let Some(position) = mcl_output {
-                                self_lock
+                                self_rc_mutex
                                     .set_position_no_filter(&Vector3::new(
                                         position.x as f64,
                                         position.y as f64,

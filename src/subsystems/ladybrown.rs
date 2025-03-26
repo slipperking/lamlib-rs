@@ -285,9 +285,7 @@ impl Ladybrown {
                 vexide::time::sleep(Motor::UPDATE_INTERVAL).await;
                 loop {
                     let start_time = Instant::now();
-                    {
-                        self_rc_refcell.borrow_mut().update();
-                    }
+                    self_rc_refcell.borrow_mut().update();
                     vexide::time::sleep({
                         let mut duration = Instant::elapsed(&start_time).as_secs_f64() * 1000.0;
                         if duration > Motor::UPDATE_INTERVAL.as_secs_f64() * 1000.0 {

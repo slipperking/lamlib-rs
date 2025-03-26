@@ -328,19 +328,19 @@ impl<T: Tracking + 'static> Chassis<T> {
                 },
                 angular_output,
             );
-            {
-                self.drivetrain
-                    .left_motors
-                    .borrow_mut()
-                    .set_velocity_percentage_all(left);
-                self.drivetrain
-                    .right_motors
-                    .borrow_mut()
-                    .set_velocity_percentage_all(right);
-            }
+
+            self.drivetrain
+                .left_motors
+                .borrow_mut()
+                .set_velocity_percentage_all(left);
+            self.drivetrain
+                .right_motors
+                .borrow_mut()
+                .set_velocity_percentage_all(right);
 
             vexide::time::sleep(Motor::WRITE_INTERVAL).await;
         }
+        *self.distance_traveled.borrow_mut() = None;
         self.motion_handler.end_motion().await;
     }
 }

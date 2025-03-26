@@ -396,21 +396,30 @@ impl Intake {
             self.previous_intake_sort_button_state = false;
         }
     }
-    pub async fn init(&mut self, async_self_rc: Rc<Mutex<Self>>) {
+
+    /// Initializes the intake task.
+    /// The structure of the task requires a mutex to be passed in of the intake
+    /// in addition to the `self` parameter itself.
+    ///
+    /// ```rust
+    /// // intake has type Rc<Mutex<Intake>>.
+    /// intake.lock().await.init(intake.clone());
+    /// ```
+    /// 
+    /// This will not deadlock since the implementation of init does not synchronously use `self_rc_mutex`
+    pub async fn init(&mut self, self_rc_mutex: Rc<Mutex<Self>>) {
         if let Some(optical) = &self.optical_sensor {
             let mut optical = optical.borrow_mut();
             let _ = optical.set_integration_time(Duration::from_millis(10));
             let _ = optical.set_led_brightness(0.75);
         }
         self.task = Some(vexide::task::spawn({
-            let async_self_rc = async_self_rc.clone();
+            let self_rc_mutex = self_rc_mutex.clone();
             async move {
                 vexide::time::sleep(Motor::UPDATE_INTERVAL).await;
                 loop {
                     let start_time = Instant::now();
-                    {
-                        async_self_rc.lock().await.update().await;
-                    }
+                    self_rc_mutex.lock().await.update().await;
                     vexide::time::sleep({
                         let mut duration = Instant::elapsed(&start_time).as_secs_f64() * 1000.0;
                         if duration > Motor::UPDATE_INTERVAL.as_secs_f64() * 1000.0 {

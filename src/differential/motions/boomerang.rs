@@ -3,7 +3,7 @@ use core::{f64::consts::PI, time::Duration};
 
 use bon::{bon, Builder};
 use num_traits::AsPrimitive;
-use vexide::prelude::{BrakeMode, Float};
+use vexide::prelude::Float;
 
 use super::ToleranceGroup;
 use crate::{
@@ -214,12 +214,8 @@ impl<T: Tracking + 'static> Chassis<T> {
                 linear_done && angular_done
             } else {
                 let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
-                let linear_done = motion_settings
-                    .linear_tolerances
-                    .update_all(linear_error);
-                let angular_done = motion_settings
-                    .angular_tolerances
-                    .update_all(angular_error);
+                let linear_done = motion_settings.linear_tolerances.update_all(linear_error);
+                let angular_done = motion_settings.angular_tolerances.update_all(angular_error);
                 linear_done && angular_done
             } && is_near
             {
@@ -322,29 +318,18 @@ impl<T: Tracking + 'static> Chassis<T> {
                 raw_output
             };
             let (left, right) = arcade_desaturate(linear_output, angular_output);
-            {
-                self.drivetrain
-                    .left_motors
-                    .borrow_mut()
-                    .set_velocity_percentage_all(left);
-                self.drivetrain
-                    .right_motors
-                    .borrow_mut()
-                    .set_velocity_percentage_all(right);
-            }
-            vexide::time::sleep(vexide::prelude::Motor::WRITE_INTERVAL).await;
-        }
-        {
             self.drivetrain
                 .left_motors
                 .borrow_mut()
-                .set_target_all(vexide::prelude::MotorControl::Brake(BrakeMode::Coast));
+                .set_velocity_percentage_all(left);
             self.drivetrain
                 .right_motors
                 .borrow_mut()
-                .set_target_all(vexide::prelude::MotorControl::Brake(BrakeMode::Coast));
-            *self.distance_traveled.borrow_mut() = None;
+                .set_velocity_percentage_all(right);
+
+            vexide::time::sleep(vexide::prelude::Motor::WRITE_INTERVAL).await;
         }
+        *self.distance_traveled.borrow_mut() = None;
         self.motion_handler.end_motion().await;
     }
 }

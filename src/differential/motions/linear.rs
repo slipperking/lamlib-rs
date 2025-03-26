@@ -201,12 +201,8 @@ impl<T: Tracking + 'static> Chassis<T> {
                 linear_done && angular_done
             } else {
                 let mut motion_settings = self.motion_settings.boomerang_settings.borrow_mut();
-                let linear_done = motion_settings
-                    .linear_tolerances
-                    .update_all(linear_error);
-                let angular_done = motion_settings
-                    .angular_tolerances
-                    .update_all(angular_error);
+                let linear_done = motion_settings.linear_tolerances.update_all(linear_error);
+                let angular_done = motion_settings.angular_tolerances.update_all(angular_error);
                 linear_done && angular_done
             } && is_near
             {
@@ -283,19 +279,19 @@ impl<T: Tracking + 'static> Chassis<T> {
                 },
                 angular_output,
             );
-            {
-                self.drivetrain
-                    .left_motors
-                    .borrow_mut()
-                    .set_velocity_percentage_all(left);
-                self.drivetrain
-                    .right_motors
-                    .borrow_mut()
-                    .set_velocity_percentage_all(right);
-            }
+
+            self.drivetrain
+                .left_motors
+                .borrow_mut()
+                .set_velocity_percentage_all(left);
+            self.drivetrain
+                .right_motors
+                .borrow_mut()
+                .set_velocity_percentage_all(right);
 
             vexide::time::sleep(Motor::WRITE_INTERVAL).await;
         }
+        *self.distance_traveled.borrow_mut() = None;
         self.motion_handler.end_motion().await;
     }
 

@@ -2,7 +2,6 @@ pub mod sensors;
 use alloc::{rc::Rc, vec::Vec};
 use core::{
     cell::RefCell,
-    f32::{self},
     ops::AddAssign,
 };
 
@@ -60,7 +59,6 @@ impl ParticleFilter {
 
     pub fn predict(&mut self, delta_odometry: &Vector3<f32>) {
         let noise = { self.sampler.sample_batch(self.particle_count) };
-
         self.positions += *delta_odometry + noise;
     }
 
