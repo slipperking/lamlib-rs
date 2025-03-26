@@ -51,7 +51,7 @@ impl AutonRoutine for Skills {
         Rc::clone(&chassis)
             .move_to_point()
             .target((-52.0, -10.0))
-            .params(params_move_to_point!(forwards: false, min_linear_speed: 0.2, early_exit_range: 2.0,))
+            .params(params_move_to_point!(forwards: false, min_linear_speed: 0.2, early_exit_range: 2.0))
             .call()
             .await;
 
@@ -105,7 +105,7 @@ impl AutonRoutine for Skills {
         Rc::clone(&chassis)
             .move_to_point()
             .target((23.0, -47.0))
-            .params(params_move_to_point!(forwards: false, min_linear_speed: 0.2, early_exit_range: 2.0,))
+            .params(params_move_to_point!(forwards: false, min_linear_speed: 0.2, early_exit_range: 2.0))
             .call()
             .await;
 
@@ -131,7 +131,7 @@ impl AutonRoutine for Skills {
         Rc::clone(&chassis)
             .move_to_point()
             .target((0.0, -42.0))
-            .params(params_move_to_point!(min_linear_speed: 0.2, early_exit_range: 1.0,))
+            .params(params_move_to_point!(min_linear_speed: 0.2, early_exit_range: 1.0))
             .call()
             .await;
         chassis.wait_until(5.0).await;
@@ -145,7 +145,7 @@ impl AutonRoutine for Skills {
             .turn_to()
             .target((0.0, -58.0))
             .timeout(Duration::from_millis(1000))
-            .params(params_turn_to!(forwards: false, min_speed: 0.3, early_exit_range: 10.0.deg(),))
+            .params(params_turn_to!(forwards: false, min_speed: 0.3, early_exit_range: 10.0.deg()))
             .call()
             .await;
         Rc::clone(&chassis)
@@ -798,7 +798,6 @@ impl AutonRoutine for Skills {
             )
             .call()
             .await;
-        
 
         println!("{}", Skills::color().get_name());
     }

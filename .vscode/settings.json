@@ -24,6 +24,7 @@
         "mogo",
         "nalgebra",
         "ncols",
+        "odometry",
         "opcontrol",
         "precomputes",
         "ramsete",
