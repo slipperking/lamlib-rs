@@ -25,6 +25,7 @@
         "nalgebra",
         "ncols",
         "opcontrol",
+        "precomputes",
         "ramsete",
         "repr",
         "rustc",

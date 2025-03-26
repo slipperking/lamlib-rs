@@ -14,7 +14,10 @@ use crate::{
         ramsete::RAMSETEHybridParameters,
     },
     subsystems::ladybrown::LadybrownState,
-    utils::{math::AngleExt, AllianceColor, FIELD_WALL},
+    utils::{
+        math::{AngleExt, AngularDirection},
+        AllianceColor, FIELD_WALL,
+    },
     Robot,
 };
 pub struct Skills;
@@ -254,8 +257,19 @@ impl AutonRoutine for Skills {
         intake.lock().await.stop();
         intake.lock().await.clear_optical_callback();
         Rc::clone(&chassis)
-            .move_to_point()
-            .target((-FIELD_WALL as f64, -60.0))
+            .turn_to()
+            .target((-FIELD_WALL, -62.0))
+            .params(
+                TurnToParameters::builder()
+                    .early_exit_range(1.0.deg())
+                    .min_speed(0.1)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_relative()
+            .distance(10.0)
             .call()
             .await;
         chassis.wait_until(5.0).await;
@@ -405,8 +419,19 @@ impl AutonRoutine for Skills {
             .await;
 
         Rc::clone(&chassis)
-            .move_to_point()
+            .turn_to()
             .target((-FIELD_WALL, 60))
+            .params(
+                TurnToParameters::builder()
+                    .early_exit_range(1.0.deg())
+                    .min_speed(0.1)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_relative()
+            .distance(10.0)
             .call()
             .await;
         chassis.wait_until(5.0).await;
@@ -528,9 +553,252 @@ impl AutonRoutine for Skills {
             .call()
             .await;
         chassis.wait_until_complete().await;
+        // Run alliance stake macro after touching the stake.
         run_alliance_stake(robot).await;
         chassis.wait_until_complete().await;
         intake.lock().await.spin();
+
+        Rc::clone(&chassis)
+            .turn_to()
+            .target((46, 46))
+            .params(
+                TurnToParameters::builder()
+                    .forwards(false)
+                    .min_speed(0.4)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_to_point()
+            .target((46.0, 46.0))
+            .params(
+                MoveToPointParameters::builder()
+                    .forwards(false)
+                    .min_linear_speed(0.2)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .turn_to()
+            .target((54, 46))
+            .params(
+                TurnToParameters::builder()
+                    .forwards(false)
+                    .min_speed(0.4)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target((54, 46))
+            .params(RAMSETEHybridParameters::builder().forwards(false).build())
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target((38, 46))
+            .params(
+                RAMSETEHybridParameters::builder()
+                    .min_linear_speed(0.1)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .turn_to()
+            .target((23, 47))
+            .params(
+                TurnToParameters::builder()
+                    .forwards(false)
+                    .min_speed(0.4)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target((23, 47))
+            .params(
+                RAMSETEHybridParameters::builder()
+                    .forwards(false)
+                    .min_linear_speed(0.3)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+
+        Rc::clone(&chassis)
+            .turn_to()
+            .target((13, 13))
+            .params(
+                TurnToParameters::builder()
+                    .forwards(false)
+                    .min_speed(0.4)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target((13, 13))
+            .params(
+                RAMSETEHybridParameters::builder()
+                    .forwards(false)
+                    .min_linear_speed(0.3)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+
+        Rc::clone(&chassis)
+            .turn_to()
+            .target((0, 0))
+            .params(
+                TurnToParameters::builder()
+                    .forwards(false)
+                    .min_speed(0.4)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target((0, 0))
+            .params(
+                RAMSETEHybridParameters::builder()
+                    .forwards(false)
+                    .min_linear_speed(0.3)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+
+        Rc::clone(&chassis)
+            .turn_to()
+            .target((23, -23))
+            .params(
+                TurnToParameters::builder()
+                    .forwards(false)
+                    .min_speed(0.4)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target((23, -23))
+            .params(
+                RAMSETEHybridParameters::builder()
+                    .forwards(false)
+                    .min_linear_speed(0.3)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .turn_to()
+            .target((46, -56))
+            .params(
+                TurnToParameters::builder()
+                    .forwards(false)
+                    .min_speed(0.4)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target((46, -56))
+            .params(
+                RAMSETEHybridParameters::builder()
+                    .forwards(false)
+                    .min_linear_speed(0.3)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .turn_to()
+            .target((FIELD_WALL, -62))
+            .params(
+                TurnToParameters::builder()
+                    .direction(AngularDirection::Clockwise)
+                    .min_speed(0.1)
+                    .early_exit_range(2.0.deg())
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .move_relative()
+            .distance(10.0)
+            .call()
+            .await;
+        chassis.wait_until(5.0).await;
+        robot.clamp_main.set_state(false);
+        Rc::clone(&chassis)
+            .move_relative()
+            .distance(-10.0)
+            .params(
+                MoveRelativeParameters::builder()
+                    .min_linear_speed(0.7)
+                    .early_exit_range(2.0)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target((37, -18))
+            .params(
+                RAMSETEHybridParameters::builder()
+                    .forwards(false)
+                    .early_exit_range(2.0)
+                    .min_linear_speed(0.2)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target((57, 4))
+            .params(
+                RAMSETEHybridParameters::builder()
+                    .early_exit_range(2.0)
+                    .min_linear_speed(0.2)
+                    .build(),
+            )
+            .call()
+            .await;
+        Rc::clone(&chassis)
+            .ramsete_hybrid()
+            .target((61, 50))
+            .params(
+                RAMSETEHybridParameters::builder()
+                    .early_exit_range(2.0)
+                    .min_linear_speed(0.2)
+                    .build(),
+            )
+            .call()
+            .await;
+        
 
         println!("{}", Skills::color().get_name());
     }

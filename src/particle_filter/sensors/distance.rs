@@ -7,7 +7,7 @@ use vexide::{float::Float, prelude::DistanceSensor, time::Instant};
 use super::ParticleFilterSensor;
 use crate::utils::{
     math::lerp,
-    samplers::{multivariate_gaussian_sampler::GaussianSampler, Sampler},
+    samplers::{multivariate_gaussian_sampler::GaussianSampler, BatchSampler},
     FIELD_WALL,
 };
 

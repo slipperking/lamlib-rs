@@ -1,13 +1,18 @@
 use nalgebra::{ArrayStorage, Const, Dyn, Matrix, SMatrix, SVector, VecStorage};
 use rand::Rng;
 
-use super::Sampler;
+use super::BatchSampler;
 
-/// Gaussian sampler that can sample a batch or a single value.
-/// Takes in a covariance matrix and the mean vector.
-/// T: Vector dimension,
-/// P: Precompute size,
-/// To improve efficiency, a large sample size of precomputed values will be made and randomly drawn from.
+/// Gaussian sampler that can sample a batch or a single value, taking in the
+/// covariance matrix and a mean vector.
+///
+/// The sampler precomputes a set of samples to draw from, which can be used to
+/// reduce time required to generate samples when they are sampled from. Provide a high value
+/// for `P` to increase the sample size and increase randomness.
+///
+/// # Arguments:
+/// - `T`: The vector dimension (column size).
+/// - `P`: Precompute size, or the number of samples to precompute.
 pub struct GaussianSampler<const T: usize, const P: usize> {
     precomputed_size: usize,
     precomputed_samples: SMatrix<f32, T, P>,
@@ -42,7 +47,7 @@ impl<const T: usize, const P: usize> GaussianSampler<T, P> {
     }
 }
 
-impl<const T: usize, const P: usize> Sampler<T> for GaussianSampler<T, P> {
+impl<const T: usize, const P: usize> BatchSampler<T> for GaussianSampler<T, P> {
     fn sample(&mut self) -> SVector<f32, T> {
         let idx = self.rng.random_range(0..self.precomputed_size);
         self.precomputed_samples.column(idx).into()

@@ -1,7 +1,7 @@
 use nalgebra::{Const, Dyn, Matrix, VecStorage};
 pub mod multivariate_gaussian_sampler;
 
-pub trait Sampler<const T: usize> {
+pub trait BatchSampler<const T: usize> {
     fn sample(&mut self) -> nalgebra::SVector<f32, T>;
     fn sample_batch(
         &mut self,
