@@ -67,6 +67,11 @@ pub struct Robot {
 impl SelectCompete for Robot {
     async fn driver(&mut self) {
         println!("Driver!");
+        self.ladybrown_arm
+            .borrow_mut()
+            .motor_group
+            .borrow_mut()
+            .set_target_all(MotorControl::Brake(BrakeMode::Hold));
         loop {
             let state = self.controller.lock().await.state().unwrap_or_default();
             self.chassis

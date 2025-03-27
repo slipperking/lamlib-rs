@@ -16,6 +16,7 @@ macro_rules! create_route_from_routine {
 }
 pub use create_route_from_routine;
 
+pub mod negative_elims;
 pub mod run_macros;
 pub mod skills;
 pub mod test;
@@ -25,6 +26,8 @@ pub mod test;
 macro_rules! create_routine_array {
     () => {
         [
+            create_route_from_routine!($crate::auton_routines::negative_elims::RedNegativeElims),
+            create_route_from_routine!($crate::auton_routines::negative_elims::BlueNegativeElims),
             create_route_from_routine!($crate::auton_routines::skills::Skills),
             create_route_from_routine!($crate::auton_routines::test::Test),
         ]

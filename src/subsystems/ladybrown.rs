@@ -52,7 +52,7 @@ pub struct Ladybrown {
     arm_state_positions: Rc<BTreeMap<LadybrownState, f64>>,
     free_start_time: Option<Instant>,
     last_intake_button: ArmButtonCycle,
-    motor_group: Rc<RefCell<MotorGroup>>,
+    pub motor_group: Rc<RefCell<MotorGroup>>,
     rotation_sensor: Rc<RefCell<RotationSensor>>,
 
     /// The max speed for each state.
@@ -166,8 +166,10 @@ impl Ladybrown {
     pub fn reset_all(&self) {
         self.motor_group
             .borrow_mut()
+            .set_target_all(MotorControl::Brake(BrakeMode::Hold));
+        self.motor_group
+            .borrow_mut()
             .set_position_all(Position::from_degrees(0.0));
-
         let _ = self
             .rotation_sensor
             .borrow_mut()

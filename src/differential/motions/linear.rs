@@ -305,17 +305,15 @@ impl<T: Tracking + 'static> Chassis<T> {
         let displacement_vector =
             nalgebra::Rotation2::new(pose.orientation) * Vector2::new(distance, 0.0);
         let move_to_point_params = match params {
-            Some(params) => MoveToPointParameters {
-                forwards: distance > 0.0,
-                min_linear_speed: params.min_linear_speed,
-                max_linear_speed: params.max_linear_speed,
-                max_angular_speed: 1.0,
-                linear_slew: params.linear_slew,
-                angular_slew: None,
-                early_exit_range: params.early_exit_range,
-            },
+            Some(params) => MoveToPointParameters::builder()
+                .forwards(distance > 0.0)
+                .min_linear_speed(params.min_linear_speed)
+                .max_linear_speed(params.max_linear_speed)
+                .maybe_linear_slew(params.linear_slew)
+                .early_exit_range(params.early_exit_range)
+                .build(),
             None => {
-                params_move_to_point!(forwards: distance > 0.0,)
+                params_move_to_point!(forwards: distance > 0.0)
             }
         };
         self.move_to_point()
