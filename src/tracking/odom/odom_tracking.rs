@@ -1,5 +1,5 @@
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
-use core::{cell::RefCell, time::Duration};
+use core::cell::RefCell;
 
 use bon::bon;
 use nalgebra::Vector3;

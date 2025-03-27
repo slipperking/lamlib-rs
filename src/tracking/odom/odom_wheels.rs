@@ -80,22 +80,18 @@ impl OdomWheel {
     }
     pub fn distance_traveled(&self) -> Option<f64> {
         if let Some(rotation) = &self.rotation {
-            if let Ok(position) = rotation.borrow().position() {
-                return Some(
-                    position.as_revolutions()
-                        * core::f64::consts::PI
-                        * (self.wheel_diameter / self.gear_ratio),
-                );
-            }
+            return rotation.borrow().position().ok().map(|position| {
+                position.as_revolutions()
+                    * core::f64::consts::PI
+                    * (self.wheel_diameter / self.gear_ratio)
+            });
         }
         if let Some(encoder) = &self.encoder {
-            if let Ok(position) = encoder.borrow().position() {
-                return Some(
-                    position.as_revolutions()
-                        * core::f64::consts::PI
-                        * (self.wheel_diameter / self.gear_ratio),
-                );
-            }
+            return encoder.borrow().position().ok().map(|position| {
+                position.as_revolutions()
+                    * core::f64::consts::PI
+                    * (self.wheel_diameter / self.gear_ratio)
+            });
         }
         if let Some(motors) = &self.motors {
             let motors = motors.borrow();
@@ -104,15 +100,13 @@ impl OdomWheel {
             let motor_count = motors.size();
             let mut distances: Vec<f64> = Vec::new();
             (0..motor_count).for_each(|i| {
-                if let Ok(position) = &positions[i] {
-                    if let Ok(gearset) = &gearsets[i] {
-                        let gearset_rpm: f64 = gearset.max_rpm();
-                        distances.push(
-                            position.as_revolutions()
-                                * core::f64::consts::PI
-                                * (self.wheel_diameter * self.drive_wheel_rpm / gearset_rpm),
-                        );
-                    }
+                if let (Ok(position), Ok(gearset)) = (&positions[i], &gearsets[i]) {
+                    let gearset_rpm: f64 = gearset.max_rpm();
+                    distances.push(
+                        position.as_revolutions()
+                            * core::f64::consts::PI
+                            * (self.wheel_diameter * self.drive_wheel_rpm / gearset_rpm),
+                    );
                 }
             });
             if distances.is_empty() {

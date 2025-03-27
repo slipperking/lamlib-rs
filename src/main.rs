@@ -69,22 +69,20 @@ impl SelectCompete for Robot {
         println!("Driver!");
         loop {
             let state = self.controller.lock().await.state().unwrap_or_default();
+            self.chassis
+                .arcade(state.left_stick.y(), state.right_stick.x(), true);
             if !state.button_y.is_pressed() {
-                self.chassis
-                    .arcade(state.left_stick.y(), state.right_stick.x(), true);
-                // Put in scopes to free mutexes.
-                {
-                    self.ladybrown_arm.borrow_mut().driver(&state);
-                    self.doinker_left.driver_toggle(state.button_b.is_pressed());
-                    self.doinker_right
-                        .driver_toggle(state.button_up.is_pressed());
-                    self.clamp_main.driver_explicit(
-                        state.button_l1.is_pressed(),
-                        state.button_l2.is_pressed(),
-                        LogicLevel::High,
-                        LogicLevel::Low,
-                    );
-                }
+                self.ladybrown_arm.borrow_mut().driver(&state);
+                self.doinker_left.driver_toggle(state.button_b.is_pressed());
+                self.doinker_right
+                    .driver_toggle(state.button_up.is_pressed());
+                self.clamp_main.driver_explicit(
+                    state.button_l1.is_pressed(),
+                    state.button_l2.is_pressed(),
+                    LogicLevel::High,
+                    LogicLevel::Low,
+                );
+
                 self.intake.lock().await.driver(&state);
             } else {
                 {
