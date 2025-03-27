@@ -160,7 +160,7 @@ impl<T: Tracking + 'static> Chassis<T> {
                 .reset();
         }
         *self.distance_traveled.borrow_mut() = Some(0.0);
-        let target = target.into().0;
+        let target: Vector2<_> = target.into().0;
         let mut unwrapped_params = params.unwrap_or(params_move_to_point!());
         let mut previous_pose = self.pose().await;
         let mut is_near: bool = false;

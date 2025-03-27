@@ -172,9 +172,7 @@ impl<T: Tracking + 'static> Chassis<T> {
                 .borrow_mut()
                 .reset();
         }
-        {
-            *self.distance_traveled.borrow_mut() = Some(0.0);
-        }
+        *self.distance_traveled.borrow_mut() = Some(0.0);
         let target: RAMSETETarget = target.into();
         let mut unwrapped_params = params.unwrap_or(params_ramsete_h!());
         unwrapped_params.min_linear_speed = unwrapped_params.min_linear_speed.abs();

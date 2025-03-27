@@ -208,7 +208,7 @@ impl<T: Tracking + 'static> Chassis<T> {
             }
             None => {}
         };
-        let target = target.into();
+        let target: TurnToTarget = target.into();
         let mut previous_pose = self.pose().await;
         let mut previous_raw_error: Option<f64> = None;
         let mut oscillations_begin = false;

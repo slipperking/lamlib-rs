@@ -79,11 +79,9 @@ impl MotionHandler {
         self.mutex.take().await;
     }
     pub async fn end_motion(&self) {
-        {
-            let mut is_in_queue = self.is_in_queue.borrow_mut();
-            *self.is_in_motion.borrow_mut() = *is_in_queue;
-            *is_in_queue = false;
-        }
+        *self.is_in_motion.borrow_mut() = *self.is_in_queue.borrow();
+        *self.is_in_queue.borrow_mut() = false;
+
         self.mutex.give().await;
     }
 

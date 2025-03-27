@@ -154,9 +154,8 @@ impl<T: Tracking + 'static> Chassis<T> {
             self.motion_settings.boomerang_settings.borrow_mut().reset();
         }
         let mut previous_pose = self.pose().await;
-        {
-            *self.distance_traveled.borrow_mut() = Some(0.0);
-        }
+
+        *self.distance_traveled.borrow_mut() = Some(0.0);
         let target = target.into().0;
         let mut is_near = false;
         let mut previous_was_same_side = false;
