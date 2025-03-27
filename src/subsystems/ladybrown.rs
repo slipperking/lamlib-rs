@@ -286,15 +286,9 @@ impl Ladybrown {
                 loop {
                     let start_time = Instant::now();
                     self_rc_refcell.borrow_mut().update();
-                    vexide::time::sleep({
-                        let mut duration = Instant::elapsed(&start_time).as_secs_f64() * 1000.0;
-                        if duration > Motor::UPDATE_INTERVAL.as_secs_f64() * 1000.0 {
-                            duration = 0.0;
-                        }
-                        Duration::from_millis(
-                            (Motor::UPDATE_INTERVAL.as_secs_f64() * 1000.0 - duration) as u64,
-                        )
-                    })
+                    vexide::time::sleep(
+                        Motor::UPDATE_INTERVAL.saturating_sub(Instant::elapsed(&start_time)),
+                    )
                     .await;
                 }
             }

@@ -68,34 +68,32 @@ impl SelectCompete for Robot {
     async fn driver(&mut self) {
         println!("Driver!");
         loop {
-            {
-                let state = self.controller.lock().await.state().unwrap_or_default();
-                if !state.button_y.is_pressed() {
-                    self.chassis
-                        .arcade(state.left_stick.y(), state.right_stick.x(), true);
-                    // Put in scopes to free mutexes.
-                    {
-                        self.ladybrown_arm.borrow_mut().driver(&state);
-                        self.doinker_left.driver_toggle(state.button_b.is_pressed());
-                        self.doinker_right
-                            .driver_toggle(state.button_up.is_pressed());
-                        self.clamp_main.driver_explicit(
-                            state.button_l1.is_pressed(),
-                            state.button_l2.is_pressed(),
-                            LogicLevel::High,
-                            LogicLevel::Low,
-                        );
-                    }
-                    self.intake.lock().await.driver(&state);
-                } else {
-                    {
-                        if state.button_right.is_pressed() {
-                            // Add init logic.
-                            auton_routines::test::Test.run(self).await;
-                        } else if state.button_left.is_pressed() {
-                            // Add init logic.
-                            auton_routines::skills::Skills.run(self).await;
-                        }
+            let state = self.controller.lock().await.state().unwrap_or_default();
+            if !state.button_y.is_pressed() {
+                self.chassis
+                    .arcade(state.left_stick.y(), state.right_stick.x(), true);
+                // Put in scopes to free mutexes.
+                {
+                    self.ladybrown_arm.borrow_mut().driver(&state);
+                    self.doinker_left.driver_toggle(state.button_b.is_pressed());
+                    self.doinker_right
+                        .driver_toggle(state.button_up.is_pressed());
+                    self.clamp_main.driver_explicit(
+                        state.button_l1.is_pressed(),
+                        state.button_l2.is_pressed(),
+                        LogicLevel::High,
+                        LogicLevel::Low,
+                    );
+                }
+                self.intake.lock().await.driver(&state);
+            } else {
+                {
+                    if state.button_right.is_pressed() {
+                        // Add init logic.
+                        auton_routines::test::Test.run(self).await;
+                    } else if state.button_left.is_pressed() {
+                        // Add init logic.
+                        auton_routines::skills::Skills.run(self).await;
                     }
                 }
             }
