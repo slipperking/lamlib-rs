@@ -124,7 +124,9 @@ impl ParticleFilterSensor<3> for LiDAR {
 
         if let Some(detected_distance_mm) = detected_object.as_ref().map(|object| object.distance) {
             let detected_distance_mm = detected_distance_mm as f32 * self.scalar;
-            self.global_angles = positions.row(2).map(|x| x + self.sensor_offset[2]);
+            self.global_angles = positions
+                .row(2)
+                .map(|orientation| orientation + self.sensor_offset[2]);
             self.sensor_unit_vectors
                 .row_mut(0)
                 .copy_from(&self.global_angles.map(|x| x.cos()));
@@ -132,8 +134,8 @@ impl ParticleFilterSensor<3> for LiDAR {
                 .row_mut(1)
                 .copy_from(&self.global_angles.map(|x| x.sin()));
 
-            let mut sampler = self.sampler.borrow_mut();
-            self.transformed_sensor_offsets = sampler.sample_batch(positions.ncols());
+            self.transformed_sensor_offsets =
+                self.sampler.borrow_mut().sample_batch(positions.ncols());
             let precompute_data = self.precompute_data.borrow();
             self.transformed_sensor_offsets.row_mut(0).add_scalar_mut(
                 precompute_data

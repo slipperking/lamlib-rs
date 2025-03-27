@@ -5,12 +5,24 @@ use vexide::{float::Float, time::Instant};
 
 use super::FeedbackController;
 pub struct PID<T> {
+    /// Struct [`PIDGains`] containing the gains.
     gains: PIDGains<T>,
-    prev_error: T, // Previous error for derivative calculation
+
+    /// Previous error for derivative calculation.
+    prev_error: T,
+
+    /// Previous update time for integral and derivative calculations.         
     prev_time: Option<Instant>,
-    integral: T,              // Integral sum for integral term
-    windup_range: T,          // Range where integral starts accumulating
-    reset_on_sign_flip: bool, // Whether or not to reset integral when sign flips
+
+    /// Accumulated integral sum.
+    integral: T,
+
+    /// Range that integral accumulates in.
+    /// The integral value resets when the error is outside of this range.     
+    windup_range: T,
+
+    /// Whether or not to reset the accumulated integral when sign flips
+    reset_on_sign_flip: bool,
 }
 
 #[derive(Clone)]

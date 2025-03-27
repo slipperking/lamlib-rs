@@ -20,7 +20,7 @@ pub struct OdomInertial {
     pub inertial: Rc<Mutex<InertialSensor>>,
 
     /// For imu scaling.
-    /// Use larger values to make the imu return a higher value.
+    /// Use larger values to make the imu return a more drastic value.
     pub scalar: f64,
 
     /// How much to prioritize this sensor's output.
@@ -130,8 +130,8 @@ impl OdomTracking {
         for (i, imu) in self.sensors.imus.iter().enumerate() {
             let imu_lock = imu.inertial.lock().await;
             let rotation = match (imu_lock.rotation(), &self.prev_imu_angles[i]) {
-                (Ok(rotation), _) => Some(-rotation.to_radians() * imu.scalar),
-                (Err(_), Some(rotation)) => Some(rotation.to_radians()),
+                (Ok(raw_rotation), _) => Some(-raw_rotation.to_radians() * imu.scalar),
+                (Err(_), Some(previous_rotation)) => Some(previous_rotation.to_radians()),
                 (Err(_), None) => None,
             };
             imu_angles.push(rotation);
