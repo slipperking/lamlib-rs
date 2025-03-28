@@ -37,6 +37,10 @@ pub struct BoomerangParameters {
     pub early_exit_range: f64,
     pub linear_slew: Option<f64>,
     pub angular_slew: Option<f64>,
+
+    /// A larger value here for less compensation. Smaller values may limit the angular output.
+    /// Lemlib recommends 2 for an omni-wheel drive while using around 8 for traction wheels.
+    /// Here the values are between -1 and 1 whereas Lemlib uses -127 and 127, so the values should be scaled accordingly.
     pub horizontal_drift_compensation: Option<f64>,
 }
 #[derive(Clone)]

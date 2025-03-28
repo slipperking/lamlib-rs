@@ -1,3 +1,9 @@
+# TODO
+- Unify param structs since many are repeats.
+- Maybe macros or predefined params for specific motion chains.
+- Abstract the Ladybrown code.
+
+
 # vexide Template
 
 [![Build status](https://github.com/vexide/vexide-template/actions/workflows/build.yml/badge.svg)](https://github.com/vexide/vexide-template/actions/workflows/build.yml)
