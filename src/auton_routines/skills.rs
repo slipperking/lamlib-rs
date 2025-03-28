@@ -7,7 +7,7 @@ use vexide::io::println;
 
 use super::AutonRoutine;
 use crate::{
-    auton_routines::run_macros::alliance_stake::run_alliance_stake,
+    auton_routines::partials::alliance_stake::run_alliance_stake,
     differential::motions::{
         angular::TurnToParameters,
         linear::{MoveRelativeParameters, MoveToPointParameters},

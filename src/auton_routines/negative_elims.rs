@@ -174,7 +174,7 @@ impl AutonRoutine for RedNegativeElims {
             .await;
         Rc::clone(&chassis)
             .move_relative()
-            .distance(30.0)
+            .distance(40.0)
             .params(
                 MoveRelativeParameters::builder()
                     .min_linear_speed(0.3)
@@ -186,7 +186,7 @@ impl AutonRoutine for RedNegativeElims {
         robot.doinker_left.set_state(false);
         Rc::clone(&chassis)
             .move_to_point()
-            .target((-12, 26))
+            .target((-13, 30))
             .params(params_move_to_point!(forwards: false))
             .call()
             .await;
