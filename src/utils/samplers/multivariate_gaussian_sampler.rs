@@ -1,7 +1,7 @@
 use nalgebra::{ArrayStorage, Const, Dyn, Matrix, SMatrix, SVector, VecStorage};
 use rand::Rng;
 
-use super::BatchSampler;
+use super::MultivariateSampler;
 
 /// Gaussian sampler that can sample a batch or a single value, taking in the
 /// covariance matrix and a mean vector.
@@ -47,7 +47,7 @@ impl<const T: usize, const P: usize> GaussianSampler<T, P> {
     }
 }
 
-impl<const T: usize, const P: usize> BatchSampler<T> for GaussianSampler<T, P> {
+impl<const T: usize, const P: usize> MultivariateSampler<T> for GaussianSampler<T, P> {
     fn sample(&mut self) -> SVector<f32, T> {
         let idx = self.rng.random_range(0..self.precomputed_size);
         self.precomputed_samples.column(idx).into()

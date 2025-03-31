@@ -10,7 +10,7 @@ use rand::{
 use sensors::ParticleFilterSensor;
 use veranda::SystemRng;
 
-use crate::utils::samplers::{multivariate_gaussian_sampler::GaussianSampler, BatchSampler};
+use crate::utils::samplers::{multivariate_gaussian_sampler::GaussianSampler, MultivariateSampler};
 pub struct ParticleFilter {
     enabled: bool,
     estimate_position: Vector3<f32>,
