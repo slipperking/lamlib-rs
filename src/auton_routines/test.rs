@@ -2,14 +2,13 @@ use alloc::{boxed::Box, string::ToString};
 use core::time::Duration;
 
 use async_trait::async_trait;
+use lemlib_rs::{
+    params_ramsete_h, params_turn_to, unsigned_mod, utils::{math::AngleExt, timer::Timer, AllianceColor, TILE_SIZE}
+};
 use vexide::io::{println, Write};
 
 use super::AutonRoutine;
-use crate::{
-    params_turn_to,
-    utils::{math::AngleExt, timer::Timer, TILE_SIZE},
-    Robot,
-};
+use crate::Robot;
 pub struct Test;
 pub enum TestMode {
     Linear(f64),
@@ -28,8 +27,8 @@ impl AutonRoutine for Test {
         "Test"
     }
 
-    fn color() -> crate::utils::AllianceColor {
-        crate::utils::AllianceColor::Red
+    fn color() -> AllianceColor {
+        AllianceColor::Red
     }
 
     fn symbol() -> &'static str {

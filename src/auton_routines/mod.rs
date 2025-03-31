@@ -1,9 +1,9 @@
 use alloc::boxed::Box;
 
 use async_trait::async_trait;
+use lemlib_rs::utils::AllianceColor;
 
-use crate::{utils::AllianceColor, Robot};
-
+use crate::Robot;
 #[macro_export]
 macro_rules! create_route_from_routine {
     ($auton_type:path) => {{

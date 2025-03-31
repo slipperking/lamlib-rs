@@ -7,7 +7,7 @@ use vexide::{
     time::Instant,
 };
 
-use crate::{avg_valid, devices::motor_group::MotorGroup, utils::AllianceColor};
+use lemlib_rs::{avg_valid, devices::motor_group::MotorGroup, utils::AllianceColor};
 
 #[derive(PartialEq)]
 enum IntakeButtonState {

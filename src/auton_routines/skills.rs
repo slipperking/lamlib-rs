@@ -2,23 +2,25 @@ use alloc::{boxed::Box, rc::Rc};
 use core::time::Duration;
 
 use async_trait::async_trait;
+use lemlib_rs::{
+    differential::motions::{
+        angular::TurnToParameters,
+        linear::{MoveRelativeParameters, MoveToPointParameters},
+        ramsete::RAMSETEHybridParameters,
+    },
+    params_move_to_point, params_ramsete_h, params_turn_to,
+    utils::{
+        math::{AngleExt, AngularDirection},
+        AllianceColor, FIELD_WALL,
+    },
+};
 use nalgebra::Vector2;
 use vexide::io::println;
 
 use super::AutonRoutine;
 use crate::{
     auton_routines::partials::alliance_stake::run_alliance_stake,
-    differential::motions::{
-        angular::TurnToParameters,
-        linear::{MoveRelativeParameters, MoveToPointParameters},
-        ramsete::RAMSETEHybridParameters,
-    },
-    subsystems::ladybrown::LadybrownState,
-    utils::{
-        math::{AngleExt, AngularDirection},
-        AllianceColor, FIELD_WALL,
-    },
-    Robot,
+    subsystems::ladybrown::LadybrownState, Robot,
 };
 pub struct Skills;
 #[async_trait(?Send)]
@@ -27,8 +29,8 @@ impl AutonRoutine for Skills {
         "Skills"
     }
 
-    fn color() -> crate::utils::AllianceColor {
-        crate::utils::AllianceColor::Red
+    fn color() -> AllianceColor {
+        AllianceColor::Red
     }
 
     fn symbol() -> &'static str {

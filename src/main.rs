@@ -1,20 +1,11 @@
 #![no_main]
 #![no_std]
 #![feature(future_join)]
+
 extern crate alloc;
-
-pub mod controllers;
-pub mod devices;
-
-#[macro_use]
-pub mod differential;
-pub mod particle_filter;
-pub mod subsystems;
-pub mod tracking;
-#[macro_use]
-pub mod utils;
-
 pub mod auton_routines;
+pub mod subsystems;
+
 use alloc::{boxed::Box, rc::Rc, string::ToString, vec, vec::Vec};
 use core::{
     cell::RefCell,
@@ -24,28 +15,31 @@ use core::{
 
 use auton_routines::AutonRoutine;
 use autons::{prelude::*, simple::SimpleSelect};
-use controllers::pid::PID;
-use devices::motor_group::MotorGroup;
-use differential::{
-    chassis::{Chassis, Drivetrain, MotionSettings},
-    drive_curve::exponential::ExponentialDriveCurve,
-    motions::{
-        angular::TurnToSettings, boomerang::BoomerangSettings, linear::MoveToPointSettings,
-        ramsete::RAMSETEHybridSettings, Tolerance, ToleranceGroup,
+use lemlib_rs::{
+    controllers::pid::PID,
+    devices::{motor_group::MotorGroup, pneumatics::PneumaticWrapper},
+    differential::{
+        chassis::{Chassis, Drivetrain, MotionSettings},
+        drive_curve::exponential::ExponentialDriveCurve,
+        motions::{
+            angular::TurnToSettings, boomerang::BoomerangSettings, linear::MoveToPointSettings,
+            ramsete::RAMSETEHybridSettings, Tolerance, ToleranceGroup,
+        }, pose::Pose,
     },
+    particle_filter::{
+        sensors::{
+            distance::{LiDAR, LiDARPrecomputedData},
+            ParticleFilterSensor,
+        },
+        ParticleFilter,
+    },
+    tracking::odom::{odom_tracking::*, odom_wheels::*},
+    utils::{math::AngleExt, AllianceColor},
 };
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
-use particle_filter::{
-    sensors::{
-        distance::{LiDAR, LiDARPrecomputedData},
-        ParticleFilterSensor,
-    },
-    ParticleFilter,
-};
-use subsystems::{intake::Intake, ladybrown::Ladybrown, pneumatics::PneumaticWrapper};
-use tracking::odom::{odom_tracking::*, odom_wheels::*};
-use utils::{math::AngleExt, AllianceColor};
 use vexide::{devices::adi::digital::LogicLevel, prelude::*, sync::Mutex, time};
+
+use crate::subsystems::{intake::Intake, ladybrown::Ladybrown};
 
 pub struct Robot {
     pub alliance_color: Rc<RefCell<AllianceColor>>,
@@ -286,7 +280,7 @@ async fn main(peripherals: Peripherals) {
     ladybrown_arm.borrow_mut().init(ladybrown_arm.clone());
     intake.lock().await.init(intake.clone()).await;
     chassis
-        .set_pose(differential::pose::Pose::new(0.0, 0.0, 0.0.hdg_deg()))
+        .set_pose(Pose::new(0.0, 0.0, 0.0.hdg_deg()))
         .await;
     let controller = Rc::new(Mutex::new(peripherals.primary_controller));
     let _ = controller.lock().await.rumble("._.").await;

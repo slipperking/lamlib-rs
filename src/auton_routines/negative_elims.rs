@@ -2,19 +2,17 @@ use alloc::{boxed::Box, rc::Rc};
 use core::time::Duration;
 
 use async_trait::async_trait;
-use nalgebra::Vector2;
-
-use super::AutonRoutine;
-use crate::{
+use lemlib_rs::{
     differential::motions::{
         angular::TurnToParameters,
         linear::{MoveRelativeParameters, MoveToPointParameters},
         ramsete::RAMSETEHybridParameters,
-    },
-    subsystems::ladybrown::LadybrownState,
-    utils::math::AngleExt,
-    Robot,
+    }, params_move_to_point, utils::{math::AngleExt, AllianceColor}
 };
+use nalgebra::Vector2;
+
+use super::AutonRoutine;
+use crate::{subsystems::ladybrown::LadybrownState, Robot};
 pub struct RedNegativeElims;
 pub struct BlueNegativeElims;
 #[async_trait(?Send)]
@@ -23,8 +21,8 @@ impl AutonRoutine for RedNegativeElims {
         "Skills"
     }
 
-    fn color() -> crate::utils::AllianceColor {
-        crate::utils::AllianceColor::Red
+    fn color() -> AllianceColor {
+        AllianceColor::Red
     }
 
     fn symbol() -> &'static str {
@@ -199,8 +197,8 @@ impl AutonRoutine for BlueNegativeElims {
         "BlueNegativeElims"
     }
 
-    fn color() -> crate::utils::AllianceColor {
-        crate::utils::AllianceColor::Blue
+    fn color() -> AllianceColor {
+        AllianceColor::Blue
     }
 
     fn symbol() -> &'static str {
