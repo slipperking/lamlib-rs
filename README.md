@@ -1,8 +1,15 @@
-# TODO
-- Unify param structs since many are repeats.
-- Maybe macros or predefined params for specific motion chains.
-- Abstract the Ladybrown code.
+# lemlib-rs
+[![Build](https://github.com/slipperking/lemlib-rs/actions/workflows/build.yml/badge.svg)](https://github.com/slipperking/lemlib-rs/actions/workflows/build.yml)
 
+This is not actually meant to be a library, but I couldn't find a name for it. Instead, it's the entire repository code for High Stakes (untested).
+
+## TODO
+- Unify motion param structs since many are repeats.
+- Maybe macros or predefined params for specific motion chaining situations, such as Turn and Move.
+- Pure pursuit 🤢🤢
+
+<details>
+<summary>Original README</summary>
 
 # vexide Template
 
@@ -162,3 +169,4 @@ Use a USB cable to connect to your robot brain or controller, then start the ter
 ```console
 cargo v5 terminal
 ```
+</details>
