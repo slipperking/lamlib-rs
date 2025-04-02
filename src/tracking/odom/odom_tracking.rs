@@ -1,4 +1,5 @@
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
+use rand::Rng;
 use core::cell::RefCell;
 
 use bon::bon;
@@ -87,14 +88,14 @@ impl OdomSensors {
     }
 }
 
-pub struct OdomTracking {
+pub struct OdomTracking<T: Rng> {
     task: Option<Task<()>>,
     sensors: Rc<OdomSensors>,
 
     tracked_pose: Vector3<f64>,
     controller: Option<Rc<Mutex<Controller>>>,
 
-    localization: Option<Rc<RefCell<ParticleFilter>>>,
+    localization: Option<Rc<RefCell<ParticleFilter<T>>>>,
     particle_filter_sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>,
 
     delta_global_pose: Vector3<f32>,
@@ -103,12 +104,12 @@ pub struct OdomTracking {
     prev_vertical_distances: Vec<Option<f64>>,
 }
 
-impl OdomTracking {
+impl<T: Rng> OdomTracking<T> {
     #[allow(clippy::type_complexity)]
     pub fn new(
         sensors: Rc<OdomSensors>,
         controller: Option<Rc<Mutex<Controller>>>,
-        localization: Option<Rc<RefCell<ParticleFilter>>>,
+        localization: Option<Rc<RefCell<ParticleFilter<T>>>>,
         particle_filter_sensors: Option<Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>>,
     ) -> Self {
         Self {
@@ -354,7 +355,7 @@ impl OdomTracking {
 #[async_trait::async_trait(?Send)]
 // Make dyn compatible by Box wrapping.
 
-impl Tracking for OdomTracking {
+impl<T: Rng + 'static> Tracking for OdomTracking<T> {
     fn position(&mut self) -> Vector3<f64> {
         self.tracked_pose
     }

@@ -38,14 +38,16 @@ use lemlib_rs::{
     utils::{math::AngleExt, AllianceColor},
 };
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
+use veranda::SystemRng;
 use vexide::{devices::adi::digital::LogicLevel, prelude::*, sync::Mutex, time};
 
 use crate::subsystems::{intake::Intake, ladybrown::Ladybrown};
 
+type Generator = SystemRng;
 pub struct Robot {
     pub alliance_color: Rc<RefCell<AllianceColor>>,
     pub controller: Rc<Mutex<Controller>>,
-    pub chassis: Rc<Chassis<OdomTracking>>,
+    pub chassis: Rc<Chassis<OdomTracking<Generator>>>,
 
     pub ladybrown_arm: Rc<RefCell<Ladybrown>>,
 
@@ -109,6 +111,7 @@ async fn main(peripherals: Peripherals) {
     let alliance_color = Rc::new(RefCell::new(AllianceColor::Red));
 
     let controller = Rc::new(Mutex::new(peripherals.primary_controller));
+    let generator: Rc<RefCell<Generator>> = Rc::new(RefCell::new(Generator::new()));
     let rotation_vertical_odom_wheel: Rc<RefCell<RotationSensor>> = Rc::new(RefCell::new(
         RotationSensor::new(peripherals.port_7, Direction::Forward),
     ));
@@ -123,7 +126,7 @@ async fn main(peripherals: Peripherals) {
         .build();
     let sensors = OdomSensors::new(
         vec![Rc::new(imu)],
-        vec![],
+        Vec::new(),
         vec![Rc::new(vertical_odom_wheel)],
         1.0,
         0.0,
@@ -132,6 +135,7 @@ async fn main(peripherals: Peripherals) {
     let localization = Rc::new(RefCell::new(ParticleFilter::new(
         300,
         Matrix3::from_diagonal(&Vector3::<f32>::new(0.08, 0.08, 0.003)),
+        generator.clone(),
     )));
 
     let sensor_position_noise = Matrix2::from_diagonal(&Vector2::<f32>::new(0.15, 0.15));
@@ -144,42 +148,42 @@ async fn main(peripherals: Peripherals) {
         Rc::new(RefCell::new(LiDAR::new(
             Vector3::<f32>::new(1.0, 1.0, 0.0),
             sensor_position_noise,
-            3.0,
-            7.0,
+            (3.0, 7.0),
             mcl_lidar_0,
             lidar_group_precompute_data.clone(),
             None,
+            generator.clone(),
         ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
         Rc::new(RefCell::new(LiDAR::new(
             Vector3::<f32>::new(1.0, 1.0, FRAC_PI_2),
             sensor_position_noise,
-            3.0,
-            7.0,
+            (3.0, 7.0),
             mcl_lidar_pi_2,
             lidar_group_precompute_data.clone(),
             None,
+            generator.clone(),
         ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
         Rc::new(RefCell::new(LiDAR::new(
             Vector3::<f32>::new(1.0, 1.0, PI),
             sensor_position_noise,
-            3.0,
-            7.0,
+            (3.0, 7.0),
             mcl_lidar_pi,
             lidar_group_precompute_data.clone(),
             None,
+            generator.clone(),
         ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
         Rc::new(RefCell::new(LiDAR::new(
             Vector3::<f32>::new(1.0, 1.0, 3.0 * FRAC_PI_2),
             sensor_position_noise,
-            3.0,
-            7.0,
+            (3.0, 7.0),
             mcl_lidar_3_pi_2,
             lidar_group_precompute_data.clone(),
             None,
+            generator.clone(),
         ))) as Rc<RefCell<dyn ParticleFilterSensor<3>>>,
     ]);
 
-    let tracking: Rc<Mutex<OdomTracking>> = Rc::new(Mutex::new(OdomTracking::new(
+    let tracking: Rc<Mutex<OdomTracking<Generator>>> = Rc::new(Mutex::new(OdomTracking::new(
         Rc::new(sensors),
         None,
         Some(localization.clone()),

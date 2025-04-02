@@ -5,29 +5,32 @@ use core::{cell::RefCell, ops::AddAssign};
 use nalgebra::{Matrix, Matrix2xX, Matrix3, Matrix3xX, RowDVector, Vector3};
 use rand::{
     distr::{Distribution, Uniform},
-    Rng,
+    Rng, RngCore,
 };
 use sensors::ParticleFilterSensor;
-use veranda::SystemRng;
 
 use crate::utils::samplers::{multivariate_gaussian_sampler::GaussianSampler, MultivariateSampler};
-pub struct ParticleFilter {
+pub struct ParticleFilter<T: RngCore> {
     enabled: bool,
     estimate_position: Vector3<f32>,
     positions: Matrix3xX<f32>,
     new_positions: Matrix3xX<f32>,
     weights: RowDVector<f32>,
-    sampler: GaussianSampler<3, 20000>,
+    sampler: GaussianSampler<3, 20000, T>,
     particle_count: usize,
-    generator: SystemRng,
+    generator: Rc<RefCell<T>>,
 }
 
-impl ParticleFilter {
-    pub fn new(particle_count: usize, covariance_matrix: Matrix3<f32>) -> Self {
+impl<T: RngCore> ParticleFilter<T> {
+    pub fn new(
+        particle_count: usize,
+        covariance_matrix: Matrix3<f32>,
+        generator: Rc<RefCell<T>>,
+    ) -> Self {
         let positions = Matrix3xX::from_element(particle_count, 0.0);
         let new_positions = Matrix3xX::from_element(particle_count, 0.0);
         let weights = RowDVector::from_element(particle_count, 1.0 / particle_count as f32);
-        let sampler = GaussianSampler::new(Vector3::zeros(), covariance_matrix);
+        let sampler = GaussianSampler::new(Vector3::zeros(), covariance_matrix, generator.clone());
 
         ParticleFilter {
             enabled: false,
@@ -37,7 +40,7 @@ impl ParticleFilter {
             weights,
             sampler,
             particle_count,
-            generator: SystemRng::new(),
+            generator,
         }
     }
 
@@ -91,7 +94,7 @@ impl ParticleFilter {
 
         let step = 1.0 / self.particle_count as f32;
         let dist = Uniform::new(0.0, step).expect("Failed to create uniform distribution.");
-        let offset = dist.sample(&mut self.generator);
+        let offset = dist.sample(&mut *self.generator.borrow_mut());
 
         for i in 0..self.particle_count {
             let target = offset + i as f32 * step;
@@ -114,8 +117,9 @@ impl ParticleFilter {
 
     pub fn scatter_particles(&mut self, center: &Vector3<f32>, distance: f32) {
         let noise = {
+            let mut generator = self.generator.borrow_mut();
             Matrix2xX::from_fn(self.particle_count, |_, _| {
-                self.generator.random_range(-distance..distance)
+                generator.random_range(-distance..distance)
             })
         };
 

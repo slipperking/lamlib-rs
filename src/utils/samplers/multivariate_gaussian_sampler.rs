@@ -1,3 +1,6 @@
+use alloc::rc::Rc;
+use core::cell::RefCell;
+
 use nalgebra::{ArrayStorage, Const, Dyn, Matrix, SMatrix, SVector, VecStorage};
 use rand::Rng;
 
@@ -13,18 +16,18 @@ use super::MultivariateSampler;
 /// # Arguments:
 /// - `T`: The vector dimension (column size).
 /// - `P`: Precompute size, or the number of samples to precompute.
-pub struct GaussianSampler<const T: usize, const P: usize> {
+pub struct GaussianSampler<const T: usize, const P: usize, S: Rng> {
     precomputed_size: usize,
     precomputed_samples: SMatrix<f32, T, P>,
-    rng: veranda::SystemRng,
+    generator: Rc<RefCell<S>>,
 }
 
-impl<const T: usize, const P: usize> GaussianSampler<T, P> {
+impl<const T: usize, const P: usize, S: Rng> GaussianSampler<T, P, S> {
     pub fn new(
         mu: SVector<f32, T>,
         sigma: Matrix<f32, Const<T>, Const<T>, ArrayStorage<f32, T, T>>,
+        generator: Rc<RefCell<S>>,
     ) -> Self {
-        let mut rng = veranda::SystemRng::new();
         let mut precomputed_samples = SMatrix::<f32, T, P>::zeros();
 
         // Cholesky decomposition for positive definite covariance.
@@ -34,22 +37,28 @@ impl<const T: usize, const P: usize> GaussianSampler<T, P> {
             .l();
 
         // Precompute a set of samples.
-        for j in 0..P {
-            let standard_normal = SVector::<f32, T>::from_fn(|_, _| rng.random::<f32>());
-            precomputed_samples.set_column(j, &(mu + l * standard_normal));
+        {
+            let mut generator = generator.borrow_mut();
+            for j in 0..P {
+                let standard_normal = SVector::<f32, T>::from_fn(|_, _| generator.random::<f32>());
+                precomputed_samples.set_column(j, &(mu + l * standard_normal));
+            }
         }
 
         Self {
             precomputed_size: P,
             precomputed_samples,
-            rng,
+            generator,
         }
     }
 }
 
-impl<const T: usize, const P: usize> MultivariateSampler<T> for GaussianSampler<T, P> {
+impl<const T: usize, const P: usize, S: Rng> MultivariateSampler<T> for GaussianSampler<T, P, S> {
     fn sample(&mut self) -> SVector<f32, T> {
-        let idx = self.rng.random_range(0..self.precomputed_size);
+        let idx = self
+            .generator
+            .borrow_mut()
+            .random_range(0..self.precomputed_size);
         self.precomputed_samples.column(idx).into()
     }
 
@@ -58,8 +67,9 @@ impl<const T: usize, const P: usize> MultivariateSampler<T> for GaussianSampler<
         n: usize,
     ) -> Matrix<f32, Const<T>, Dyn, VecStorage<f32, Const<T>, Dyn>> {
         let mut samples = Matrix::<f32, Const<T>, Dyn, VecStorage<f32, Const<T>, Dyn>>::zeros(n);
+        let mut generator = self.generator.borrow_mut();
         for j in 0..n {
-            let idx = self.rng.random_range(0..self.precomputed_size);
+            let idx = generator.random_range(0..self.precomputed_size);
             samples.set_column(j, &self.precomputed_samples.column(idx));
         }
         samples

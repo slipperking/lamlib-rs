@@ -2,6 +2,7 @@ use alloc::rc::Rc;
 use core::{cell::RefCell, f32::consts::PI, time::Duration};
 
 use nalgebra::{Matrix1xX, Matrix2, Matrix2xX, Matrix3xX, RowDVector, Vector2, Vector3};
+use rand::Rng;
 use vexide::{float::Float, prelude::DistanceSensor, time::Instant};
 
 use super::ParticleFilterSensor;
@@ -39,7 +40,7 @@ impl Default for LiDARPrecomputedData {
     }
 }
 
-pub struct LiDAR {
+pub struct LiDAR<T: Rng> {
     distance_sensor: Rc<DistanceSensor>,
     /// Offset: the vector from the tracking center to the sensor position.
     /// Offset where (+, 0) refers to the right side and (0, +) refers to the front.
@@ -49,7 +50,7 @@ pub struct LiDAR {
     min_std_dev: f32,
     max_std_dev: f32,
     // Run two dimensional vector here to incorporate positional noise.
-    sampler: Rc<RefCell<GaussianSampler<2, 5000>>>,
+    sampler: Rc<RefCell<GaussianSampler<2, 5000, T>>>,
     sensor_unit_vectors: Matrix2xX<f32>,
     transformed_sensor_offsets: Matrix2xX<f32>,
     global_angles: RowDVector<f32>,
@@ -64,23 +65,23 @@ pub struct LiDAR {
     /// This is to store the last time it was polled at.
     last_updated: Option<Instant>,
 }
-impl LiDAR {
+impl<T: Rng> LiDAR<T> {
     pub fn new(
         sensor_offset: Vector3<f32>,
         sensor_noise_covar_matrix: Matrix2<f32>,
-        min_std_dev: f32,
-        max_std_dev: f32,
+        confidence_std_dev_range: (f32, f32),
         distance_sensor: Rc<DistanceSensor>,
         precompute_data: Rc<RefCell<LiDARPrecomputedData>>,
         scalar: Option<f32>,
+        generator: Rc<RefCell<T>>,
     ) -> Self {
-        let sampler = GaussianSampler::new(Vector2::zeros(), sensor_noise_covar_matrix);
+        let sampler = GaussianSampler::new(Vector2::zeros(), sensor_noise_covar_matrix, generator);
 
         LiDAR {
             distance_sensor,
             sensor_offset,
-            min_std_dev,
-            max_std_dev,
+            min_std_dev: confidence_std_dev_range.0,
+            max_std_dev: confidence_std_dev_range.1,
             sampler: Rc::new(RefCell::new(sampler)),
             sensor_unit_vectors: Matrix2xX::zeros(2),
             transformed_sensor_offsets: Matrix2xX::zeros(0),
@@ -92,7 +93,7 @@ impl LiDAR {
     }
 }
 
-impl ParticleFilterSensor<3> for LiDAR {
+impl<T: Rng> ParticleFilterSensor<3> for LiDAR<T> {
     // TODO: logic simplification since we have timing checks.
     fn precompute(&mut self, positions: &Matrix3xX<f32>) {
         if let Some(last_updated) = self.last_updated {
