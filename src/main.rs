@@ -24,7 +24,8 @@ use lemlib_rs::{
         motions::{
             angular::TurnToSettings, boomerang::BoomerangSettings, linear::MoveToPointSettings,
             ramsete::RAMSETEHybridSettings, Tolerance, ToleranceGroup,
-        }, pose::Pose,
+        },
+        pose::Pose,
     },
     particle_filter::{
         sensors::{
@@ -107,6 +108,7 @@ async fn main(peripherals: Peripherals) {
     // TODO: implement color.
     let alliance_color = Rc::new(RefCell::new(AllianceColor::Red));
 
+    let controller = Rc::new(Mutex::new(peripherals.primary_controller));
     let rotation_vertical_odom_wheel: Rc<RefCell<RotationSensor>> = Rc::new(RefCell::new(
         RotationSensor::new(peripherals.port_7, Direction::Forward),
     ));
@@ -179,8 +181,9 @@ async fn main(peripherals: Peripherals) {
 
     let tracking: Rc<Mutex<OdomTracking>> = Rc::new(Mutex::new(OdomTracking::new(
         Rc::new(sensors),
+        None,
         Some(localization.clone()),
-        particle_filter_sensors.clone(),
+        Some(particle_filter_sensors.clone()),
     )));
     let left_motors = Rc::new(RefCell::new(MotorGroup::new(vec![
         Motor::new(peripherals.port_1, Gearset::Blue, Direction::Reverse),
@@ -279,11 +282,7 @@ async fn main(peripherals: Peripherals) {
     chassis.calibrate().await;
     ladybrown_arm.borrow_mut().init(ladybrown_arm.clone());
     intake.lock().await.init(intake.clone()).await;
-    chassis
-        .set_pose(Pose::new(0.0, 0.0, 0.0.hdg_deg()))
-        .await;
-    let controller = Rc::new(Mutex::new(peripherals.primary_controller));
-    let _ = controller.lock().await.rumble("._.").await;
+    chassis.set_pose(Pose::new(0.0, 0.0, 0.0.hdg_deg())).await;
 
     vexide::task::spawn({
         let chassis = chassis.clone();

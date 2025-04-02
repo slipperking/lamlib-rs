@@ -4,7 +4,7 @@ use core::cell::RefCell;
 use bon::bon;
 use nalgebra::Vector3;
 use vexide::{
-    prelude::{Float, InertialSensor, Motor, SmartDevice, Task},
+    prelude::{Controller, Float, InertialSensor, Motor, SmartDevice, Task},
     sync::Mutex,
     time::Instant,
 };
@@ -86,11 +86,15 @@ impl OdomSensors {
         self.verticals.len()
     }
 }
+
 pub struct OdomTracking {
     task: Option<Task<()>>,
-    localization: Option<Rc<RefCell<ParticleFilter>>>,
     sensors: Rc<OdomSensors>,
+
     tracked_pose: Vector3<f64>,
+    controller: Option<Rc<Mutex<Controller>>>,
+
+    localization: Option<Rc<RefCell<ParticleFilter>>>,
     particle_filter_sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>,
 
     delta_global_pose: Vector3<f32>,
@@ -100,21 +104,24 @@ pub struct OdomTracking {
 }
 
 impl OdomTracking {
+    #[allow(clippy::type_complexity)]
     pub fn new(
         sensors: Rc<OdomSensors>,
+        controller: Option<Rc<Mutex<Controller>>>,
         localization: Option<Rc<RefCell<ParticleFilter>>>,
-        particle_filter_sensors: Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>,
+        particle_filter_sensors: Option<Rc<Vec<Rc<RefCell<dyn ParticleFilterSensor<3>>>>>>,
     ) -> Self {
         Self {
             task: None,
-            sensors: sensors.clone(),
+            controller,
             tracked_pose: Vector3::new(0.0, 0.0, 0.0),
             localization,
-            particle_filter_sensors,
+            particle_filter_sensors: particle_filter_sensors.unwrap_or(Rc::new(Vec::new())),
             delta_global_pose: Vector3::new(0.0, 0.0, 0.0),
             prev_imu_angles: vec![None; sensors.imu_count()],
             prev_horizontal_distances: vec![None; sensors.horizontals_count()],
             prev_vertical_distances: vec![None; sensors.verticals_count()],
+            sensors,
         }
     }
 
@@ -390,11 +397,27 @@ impl Tracking for OdomTracking {
                     let _ = imu_lock_value.set_rotation(0.0);
                 }
             }
-            let calibration_result = imu_lock_value.calibrate().await;
-            match calibration_result {
+
+            let imu_calibration_result = imu_lock_value.calibrate().await;
+            match imu_calibration_result {
                 Ok(_) => {}
                 Err(_) => {
-                    let _ = imu_lock_value.calibrate().await;
+                    if let Some(controller) = &mut self.controller {
+                        let _ = controller.lock().await.rumble("---").await;
+                    }
+                    let imu_calibration_result = imu_lock_value.calibrate().await;
+                    match imu_calibration_result {
+                        Ok(_) => {}
+                        Err(_) => {
+                            let imu_calibration_result = imu_lock_value.calibrate().await;
+                            match imu_calibration_result {
+                                Ok(_) => {}
+                                Err(_) => {
+                                    let _ = imu_lock_value.calibrate().await;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -430,5 +453,8 @@ impl Tracking for OdomTracking {
                 }
             }
         }));
+        if let Some(controller) = &mut self.controller {
+            let _ = controller.lock().await.rumble(".").await;
+        }
     }
 }

@@ -4,6 +4,7 @@
 This is not actually meant to be a library, but I couldn't find a name for it. Instead, it's the entire repository code for High Stakes (untested).
 
 ## TODO
+- Use adi rng potentially, or impl/dyn Rng for particle filter/sampler
 - Unify motion param structs since many are repeats.
 - Maybe macros or predefined params for specific motion chaining situations, such as Turn and Move.
 - Pure pursuit 🤢🤢
