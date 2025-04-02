@@ -179,7 +179,7 @@ impl<T: Tracking + 'static> Chassis<T> {
         unwrapped_params.max_linear_speed = unwrapped_params.max_linear_speed.abs();
         unwrapped_params.max_angular_speed = unwrapped_params.max_angular_speed.abs();
         assert!(
-            unwrapped_params.max_angular_speed < unwrapped_params.min_linear_speed,
+            unwrapped_params.max_angular_speed >= unwrapped_params.min_linear_speed,
             "Minimum speed may not exceed the maximum."
         );
         let mut previous_pose = self.pose().await;
