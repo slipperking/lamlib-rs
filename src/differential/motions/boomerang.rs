@@ -128,7 +128,7 @@ impl<T: Tracking + 'static> Chassis<T> {
             "Minimum speed may not exceed the maximum."
         );
         self.motion_handler.wait_for_motions_end().await;
-        if self.motion_handler.is_in_motion() {
+        if !self.motion_handler.is_in_motion() {
             return;
         }
         if run_async.unwrap_or(true) {

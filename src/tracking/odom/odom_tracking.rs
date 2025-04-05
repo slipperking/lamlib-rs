@@ -1,10 +1,11 @@
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
-use rand::Rng;
-use core::cell::RefCell;
+use core::{cell::RefCell, time::Duration};
 
 use bon::bon;
 use nalgebra::Vector3;
+use rand::Rng;
 use vexide::{
+    io::println,
     prelude::{Controller, Float, InertialSensor, Motor, SmartDevice, Task},
     sync::Mutex,
     time::Instant,
@@ -401,8 +402,14 @@ impl<T: Rng + 'static> Tracking for OdomTracking<T> {
 
             let imu_calibration_result = imu_lock_value.calibrate().await;
             match imu_calibration_result {
-                Ok(_) => {}
+                Ok(_) => {
+                    if let Some(controller) = &mut self.controller {
+                        let _ = controller.lock().await.rumble(".").await;
+                    }
+                    println!("IMU calibration successful.");
+                }
                 Err(_) => {
+                    println!("IMU calibration failed, retrying...");
                     if let Some(controller) = &mut self.controller {
                         let _ = controller.lock().await.rumble("---").await;
                     }
@@ -422,6 +429,7 @@ impl<T: Rng + 'static> Tracking for OdomTracking<T> {
                 }
             }
         }
+        vexide::time::sleep(Duration::from_millis(100)).await;
         self.task = Some(vexide::task::spawn({
             let self_rc_mutex = self_rc_mutex.clone();
             async move {
@@ -454,8 +462,5 @@ impl<T: Rng + 'static> Tracking for OdomTracking<T> {
                 }
             }
         }));
-        if let Some(controller) = &mut self.controller {
-            let _ = controller.lock().await.rumble(".").await;
-        }
     }
 }

@@ -163,7 +163,7 @@ impl<T: Tracking + 'static> Chassis<T> {
     ) {
         let unwrapped_params = params.unwrap_or(params_turn_to!());
         self.motion_handler.wait_for_motions_end().await;
-        if self.motion_handler.is_in_motion() {
+        if !self.motion_handler.is_in_motion() {
             return;
         }
         if run_async.unwrap_or(true) {

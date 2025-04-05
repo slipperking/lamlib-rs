@@ -6,7 +6,7 @@ extern crate alloc;
 pub mod auton_routines;
 pub mod subsystems;
 
-use alloc::{boxed::Box, rc::Rc, string::ToString, vec, vec::Vec};
+use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use core::{
     cell::RefCell,
     f32::consts::{FRAC_PI_2, PI},
@@ -64,6 +64,7 @@ pub struct Robot {
 impl SelectCompete for Robot {
     async fn driver(&mut self) {
         println!("Driver!");
+        let mut was_auton_just_pressed = false;
         self.ladybrown_arm
             .borrow_mut()
             .motor_group
@@ -73,30 +74,37 @@ impl SelectCompete for Robot {
             let state = self.controller.lock().await.state().unwrap_or_default();
             self.chassis
                 .arcade(state.left_stick.y(), state.right_stick.x(), true);
-            if !state.button_y.is_pressed() {
-                self.ladybrown_arm.borrow_mut().driver(&state);
-                self.doinker_left.driver_toggle(state.button_b.is_pressed());
-                self.doinker_right
-                    .driver_toggle(state.button_up.is_pressed());
-                self.clamp_main.driver_explicit(
-                    state.button_l1.is_pressed(),
-                    state.button_l2.is_pressed(),
-                    LogicLevel::High,
-                    LogicLevel::Low,
-                );
+            self.ladybrown_arm.borrow_mut().driver(&state);
+            self.doinker_left.driver_toggle(state.button_b.is_pressed());
+            self.doinker_right
+                .driver_toggle(state.button_up.is_pressed());
+            self.clamp_main.driver_explicit(
+                state.button_l1.is_pressed(),
+                state.button_l2.is_pressed(),
+                LogicLevel::High,
+                LogicLevel::Low,
+            );
 
-                self.intake.lock().await.driver(&state);
+            self.intake.lock().await.driver(&state);
+
+            if state.button_right.is_pressed()
+                && state.button_y.is_pressed()
+                && !was_auton_just_pressed
+            {
+                was_auton_just_pressed = true;
+                // Add init logic.ss
+                auton_routines::test::Test.run(self).await;
+            } else if state.button_left.is_pressed()
+                && state.button_y.is_pressed()
+                && !was_auton_just_pressed
+            {
+                was_auton_just_pressed = true;
+                // Add init logic.
+                auton_routines::skills::Skills.run(self).await;
             } else {
-                {
-                    if state.button_right.is_pressed() {
-                        // Add init logic.
-                        auton_routines::test::Test.run(self).await;
-                    } else if state.button_left.is_pressed() {
-                        // Add init logic.
-                        auton_routines::skills::Skills.run(self).await;
-                    }
-                }
+                was_auton_just_pressed = false;
             }
+
             time::sleep(Duration::from_millis(20)).await;
         }
     }
@@ -208,8 +216,8 @@ async fn main(peripherals: Peripherals) {
         Tolerance::new(1.0.deg(), Duration::from_millis(150)),
         Tolerance::new(3.0.deg(), Duration::from_millis(500)),
     ]);
-    let linear_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
-    let angular_controller = Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true));
+    let linear_controller = Box::new(PID::new(0.05, 0.0, 0.6, 2.0, true));
+    let angular_controller = Box::new(PID::new(0.07, 0.0, 0.7, 2.0, true));
 
     let motion_settings = MotionSettings::new(
         RefCell::new(MoveToPointSettings::new(
@@ -244,7 +252,7 @@ async fn main(peripherals: Peripherals) {
         motion_settings,
     );
 
-    let pid_arm_controller = Rc::new(RefCell::new(PID::new(0.18, 0.0, 0.0, 2.0, true)));
+    let pid_arm_controller = Rc::new(RefCell::new(PID::new(0.2, 0.0, 0.0, 2.0, true)));
     let rotation_arm_state_machine = Rc::new(RefCell::new(RotationSensor::new(
         peripherals.port_17,
         Direction::Forward,
@@ -288,10 +296,11 @@ async fn main(peripherals: Peripherals) {
     intake.lock().await.init(intake.clone()).await;
     chassis.set_pose(Pose::new(0.0, 0.0, 0.0.hdg_deg())).await;
 
-    vexide::task::spawn({
+    /*vexide::task::spawn({
         let chassis = chassis.clone();
         let controller = controller.clone();
         async move {
+            time::sleep(Duration::from_millis(100)).await;
             loop {
                 let pose = chassis.pose().await;
                 println!("{}", pose.to_string());
@@ -299,13 +308,13 @@ async fn main(peripherals: Peripherals) {
                     .lock()
                     .await
                     .screen
-                    .set_text(pose.to_string().as_str(), 2, 6)
+                    .set_text(pose.to_string().as_str().to_owned() + "  ", 2, 6)
                     .await;
-                time::sleep(Duration::from_millis(200)).await;
+                time::sleep(Duration::from_millis(300)).await;
             }
         }
     })
-    .await;
+    .detach();*/
 
     let robot = Robot {
         alliance_color,
@@ -323,6 +332,7 @@ async fn main(peripherals: Peripherals) {
             peripherals.adi_h,
         )))),
     };
+    println!("Competing with robot!");
     robot
         .compete(SimpleSelect::new(
             peripherals.display,

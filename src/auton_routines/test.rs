@@ -3,13 +3,16 @@ use core::time::Duration;
 
 use async_trait::async_trait;
 use lemlib_rs::{
-    params_ramsete_h, params_turn_to, unsigned_mod, utils::{math::AngleExt, timer::Timer, AllianceColor, TILE_SIZE}
+    params_ramsete_h, params_turn_to, unsigned_mod,
+    utils::{math::AngleExt, timer::Timer, AllianceColor, TILE_SIZE},
 };
 use vexide::io::{println, Write};
 
 use super::AutonRoutine;
 use crate::Robot;
 pub struct Test;
+
+#[derive(Clone, Copy, Debug)]
 pub enum TestMode {
     Linear(f64),
     Angular(f64),
@@ -36,6 +39,7 @@ impl AutonRoutine for Test {
     }
 
     async fn run(&self, robot: &mut Robot) {
+        println!("Test routine started: {:?}", TEST_MODE);
         let chassis = robot.chassis.clone();
         chassis.set_pose((0.0, 0.0, 0.0.hdg_deg())).await;
         match TEST_MODE {
@@ -45,7 +49,6 @@ impl AutonRoutine for Test {
                     .clone()
                     .move_relative()
                     .distance(distance)
-                    .run_async(false)
                     .call()
                     .await;
                 robot.intake.lock().await.spin();

@@ -10,7 +10,7 @@ pub mod ramsete;
 use alloc::{collections::VecDeque, vec::Vec};
 use core::{cell::RefCell, time::Duration};
 
-use vexide::{sync::Mutex, time::Instant};
+use vexide::{io::println, sync::Mutex, time::Instant};
 
 struct BlockingQueue {
     /// It is locked when there is a value as the first element of the queue.
@@ -34,16 +34,14 @@ impl BlockingQueue {
             id
         };
 
-        let mut queue_lock = self.queue.lock().await;
-        queue_lock.push_back(id);
-
+        self.queue.lock().await.push_back(id);
+        println!("{:?}", self.queue.lock().await.front().copied());
         loop {
-            if queue_lock.front().copied() == Some(id) {
+            if self.queue.lock().await.front().copied() == Some(id) {
+                println!("Identifier reached the start of the queue.");
                 return;
             }
-            drop(queue_lock);
-            vexide::time::sleep(Duration::from_millis(5)).await;
-            queue_lock = self.queue.lock().await;
+            vexide::time::sleep(Duration::from_millis(100)).await;
         }
     }
 

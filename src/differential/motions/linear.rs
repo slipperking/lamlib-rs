@@ -4,7 +4,10 @@ use core::{f64::consts::PI, time::Duration};
 use bon::{bon, Builder};
 use nalgebra::Vector2;
 use num_traits::AsPrimitive;
-use vexide::prelude::{Float, Motor};
+use vexide::{
+    io::println,
+    prelude::{Float, Motor},
+};
 
 use super::ToleranceGroup;
 use crate::{
@@ -125,10 +128,12 @@ impl<T: Tracking + 'static> Chassis<T> {
         mut settings: Option<MoveToPointSettings>,
         run_async: Option<bool>,
     ) {
+        println!("Moving to point!");
         self.motion_handler.wait_for_motions_end().await;
-        if self.motion_handler.is_in_motion() {
+        if !self.motion_handler.is_in_motion() {
             return;
         }
+        println!("Received motion mutex.");
         if run_async.unwrap_or(true) {
             // Spawn vexide task
             vexide::task::spawn({
@@ -190,13 +195,13 @@ impl<T: Tracking + 'static> Chassis<T> {
             }
 
             if if let Some(settings) = &mut settings {
-                settings.linear_tolerances.update_all(linear_error)
+                settings.linear_tolerances.update_all(cosine_linear_error)
             } else {
                 self.motion_settings
                     .boomerang_settings
                     .borrow_mut()
                     .linear_tolerances
-                    .update_all(linear_error)
+                    .update_all(cosine_linear_error)
             } && is_near
             {
                 break;
@@ -241,12 +246,12 @@ impl<T: Tracking + 'static> Chassis<T> {
 
             let angular_output = {
                 if let Some(settings) = &mut settings {
-                    settings.linear_controller.update(angular_error)
+                    settings.angular_controller.update(angular_error)
                 } else {
                     self.motion_settings
                         .move_to_point_settings
                         .borrow_mut()
-                        .linear_controller
+                        .angular_controller
                         .update(angular_error)
                 }
             }
@@ -271,6 +276,10 @@ impl<T: Tracking + 'static> Chassis<T> {
                     -linear_output
                 },
                 angular_output,
+            );
+            println!(
+                "l. error: {}, l. output: {}, cos l. error: {}, a. error: {}, a.output: {}, left: {}, right: {}",
+                linear_error, linear_output, cosine_linear_error, angular_error, angular_output, left, right
             );
 
             self.drivetrain
@@ -297,10 +306,12 @@ impl<T: Tracking + 'static> Chassis<T> {
         settings: Option<MoveRelativeSettings>,
         run_async: Option<bool>,
     ) {
+        println!("Moving relative: {}", distance);
         // Wait until the motion is done. before calculating angles.
         if self.motion_handler.is_in_motion() {
             self.wait_until_complete().await;
         }
+        println!("Previous motion was done.");
         let pose = self.pose().await;
         let displacement_vector =
             nalgebra::Rotation2::new(pose.orientation) * Vector2::new(distance, 0.0);
