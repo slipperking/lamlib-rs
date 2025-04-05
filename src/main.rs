@@ -216,8 +216,8 @@ async fn main(peripherals: Peripherals) {
         Tolerance::new(1.0.deg(), Duration::from_millis(150)),
         Tolerance::new(3.0.deg(), Duration::from_millis(500)),
     ]);
-    let linear_controller = Box::new(PID::new(0.05, 0.0, 0.6, 2.0, true));
-    let angular_controller = Box::new(PID::new(0.07, 0.0, 0.7, 2.0, true));
+    let linear_controller = Box::new(PID::new(0.038, 0.0, 0.5, 2.0, true));
+    let angular_controller = Box::new(PID::new(0.03, 0.0, 0.8, 2.0, true));
 
     let motion_settings = MotionSettings::new(
         RefCell::new(MoveToPointSettings::new(
