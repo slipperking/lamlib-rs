@@ -123,6 +123,6 @@ impl AutonRoutine for Test {
                     .await;
             }
         }
-        println!("{}", Test::color().get_name());
+        println!("{}", Test::color());
     }
 }

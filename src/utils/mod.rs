@@ -3,7 +3,7 @@ pub mod math;
 pub mod samplers;
 pub mod timer;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AllianceColor {
     None,
     Red,
@@ -14,19 +14,32 @@ pub static TILE_SIZE: f64 = 23.576533;
 pub static FIELD_WALL: f32 = 70.20462;
 
 impl AllianceColor {
-    pub fn get_name(&self) -> &'static str {
+    pub fn name(&self) -> &'static str {
         match self {
             AllianceColor::None => "None",
             AllianceColor::Red => "Red",
             AllianceColor::Blue => "Blue",
         }
     }
-    pub fn get_symbol(&self, length: usize) -> &'static str {
-        let name = self.get_name();
+    pub fn symbol(&self, length: usize) -> &'static str {
+        let name = self.name();
         let length = length.min(name.len());
-        self.get_name().split_at(length).0
+        self.name().split_at(length).0
     }
-    pub fn get_quick_symbol(&self) -> &'static str {
-        self.get_symbol(1)
+    pub fn quick_symbol(&self) -> &'static str {
+        self.symbol(1)
+    }
+    pub fn opponent(&self) -> AllianceColor {
+        match self {
+            AllianceColor::None => AllianceColor::None,
+            AllianceColor::Red => AllianceColor::Blue,
+            AllianceColor::Blue => AllianceColor::Red,
+        }
+    }
+}
+
+impl core::fmt::Display for AllianceColor {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.name())
     }
 }

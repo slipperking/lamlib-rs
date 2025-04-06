@@ -33,9 +33,11 @@ impl BlockingQueue {
             *counter += 1;
             id
         };
-
-        self.queue.lock().await.push_back(id);
-        println!("{:?}", self.queue.lock().await.front().copied());
+        {
+            let mut lock = self.queue.lock().await;
+            lock.push_back(id);
+            println!("{:?}", lock.front().copied());
+        }
         loop {
             if self.queue.lock().await.front().copied() == Some(id) {
                 println!("Identifier reached the start of the queue.");

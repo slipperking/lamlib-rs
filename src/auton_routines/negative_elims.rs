@@ -18,7 +18,7 @@ pub struct BlueNegativeElims;
 #[async_trait(?Send)]
 impl AutonRoutine for RedNegativeElims {
     fn name() -> &'static str {
-        "Skills"
+        "RedNegativeElims"
     }
 
     fn color() -> AllianceColor {

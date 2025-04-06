@@ -831,6 +831,6 @@ impl AutonRoutine for Skills {
             .call()
             .await;
 
-        println!("{}", Skills::color().get_name());
+        println!("{}", Skills::color());
     }
 }
