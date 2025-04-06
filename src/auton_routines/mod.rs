@@ -10,6 +10,7 @@ macro_rules! create_route_from_routine {
         use $crate::auton_routines::AutonRoutine;
         autons::simple::Route::new(<$auton_type>::name(), |robot: &mut Robot| {
             let auton = Rc::new($auton_type);
+            info!("Autonomous starting: {}", <$auton_type>::name());
             Box::pin(async move { auton.run(robot).await })
         })
     }};

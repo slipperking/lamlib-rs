@@ -1,11 +1,11 @@
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
+use log::{error, info};
 use core::{cell::RefCell, time::Duration};
 
 use bon::bon;
 use nalgebra::Vector3;
 use rand::Rng;
 use vexide::{
-    io::println,
     prelude::{Controller, Float, InertialSensor, Motor, SmartDevice, Task},
     sync::Mutex,
     time::Instant,
@@ -406,10 +406,10 @@ impl<T: Rng + 'static> Tracking for OdomTracking<T> {
                     if let Some(controller) = &mut self.controller {
                         let _ = controller.lock().await.rumble(".").await;
                     }
-                    println!("IMU calibration successful.");
+                    info!("IMU calibration successful.");
                 }
                 Err(_) => {
-                    println!("IMU calibration failed, retrying...");
+                    error!("IMU calibration failed, retrying...");
                     if let Some(controller) = &mut self.controller {
                         let _ = controller.lock().await.rumble("---").await;
                     }

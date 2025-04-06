@@ -8,9 +8,10 @@ pub mod boomerang;
 pub mod ramsete;
 
 use alloc::{collections::VecDeque, vec::Vec};
+use log::debug;
 use core::{cell::RefCell, time::Duration};
 
-use vexide::{io::println, sync::Mutex, time::Instant};
+use vexide::{sync::Mutex, time::Instant};
 
 struct BlockingQueue {
     /// It is locked when there is a value as the first element of the queue.
@@ -36,11 +37,11 @@ impl BlockingQueue {
         {
             let mut lock = self.queue.lock().await;
             lock.push_back(id);
-            println!("{:?}", lock.front().copied());
+            debug!("Blocking queue identifier: {:?}", lock.front().copied());
         }
         loop {
             if self.queue.lock().await.front().copied() == Some(id) {
-                println!("Identifier reached the start of the queue.");
+                debug!("Identifier {} reached the start of the queue.", id);
                 return;
             }
             vexide::time::sleep(Duration::from_millis(100)).await;

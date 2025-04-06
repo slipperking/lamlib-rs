@@ -15,7 +15,6 @@ use lamlib_rs::{
     },
 };
 use nalgebra::Vector2;
-use vexide::io::println;
 
 use super::AutonRoutine;
 use crate::{
@@ -830,7 +829,5 @@ impl AutonRoutine for Skills {
             .params(params_ramsete_h!(forwards: false, max_linear_speed: 0.7))
             .call()
             .await;
-
-        println!("{}", Skills::color());
     }
 }

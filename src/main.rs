@@ -37,6 +37,7 @@ use lamlib_rs::{
     tracking::odom::{odom_tracking::*, odom_wheels::*},
     utils::{math::AngleExt, AllianceColor},
 };
+use log::info;
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
 use veranda::SystemRng;
 use vexide::{devices::adi::digital::LogicLevel, prelude::*, sync::Mutex, time};
@@ -63,7 +64,7 @@ pub struct Robot {
 
 impl SelectCompete for Robot {
     async fn driver(&mut self) {
-        println!("Driver!");
+        info!("Driver control starting.");
         let mut was_auton_just_pressed = false;
         self.ladybrown_arm
             .borrow_mut()
@@ -116,6 +117,10 @@ impl SelectCompete for Robot {
 #[vexide::main]
 async fn main(peripherals: Peripherals) {
     // TODO: implement color.
+    env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Info)
+        .init();
+
     let alliance_color = Rc::new(RefCell::new(AllianceColor::Red));
 
     let controller = Rc::new(Mutex::new(peripherals.primary_controller));
@@ -305,7 +310,7 @@ async fn main(peripherals: Peripherals) {
                 time::sleep(Duration::from_millis(100)).await;
                 loop {
                     let pose = chassis.pose().await;
-                    println!("{}", pose.to_string());
+                    info!("Pose: {}", pose);
                     let _ = controller
                         .lock()
                         .await

@@ -1,4 +1,5 @@
 use alloc::{boxed::Box, string::ToString};
+use log::info;
 use core::time::Duration;
 
 use async_trait::async_trait;
@@ -39,7 +40,7 @@ impl AutonRoutine for Test {
     }
 
     async fn run(&self, robot: &mut Robot) {
-        println!("Test routine started: {:?}", TEST_MODE);
+        info!("Test routine selected: {:?}", TEST_MODE);
         let chassis = robot.chassis.clone();
         chassis.set_pose((0.0, 0.0, 0.0.hdg_deg())).await;
         match TEST_MODE {
@@ -123,6 +124,5 @@ impl AutonRoutine for Test {
                     .await;
             }
         }
-        println!("{}", Test::color());
     }
 }
