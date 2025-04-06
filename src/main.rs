@@ -36,6 +36,7 @@ use lamlib_rs::{
     },
     tracking::odom::{odom_tracking::*, odom_wheels::*},
     utils::{math::AngleExt, AllianceColor},
+    xyv_logger,
 };
 use log::info;
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
@@ -117,10 +118,8 @@ impl SelectCompete for Robot {
 #[vexide::main]
 async fn main(peripherals: Peripherals) {
     // TODO: implement color.
-    env_logger::Builder::from_default_env()
-        .filter_level(log::LevelFilter::Info)
-        .init();
-
+    xyv_logger::init_logger();
+    log::set_max_level(log::LevelFilter::Info);
     let alliance_color = Rc::new(RefCell::new(AllianceColor::Red));
 
     let controller = Rc::new(Mutex::new(peripherals.primary_controller));

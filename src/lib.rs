@@ -11,3 +11,4 @@ pub mod tracking;
 
 #[macro_use]
 pub mod utils;
+pub mod xyv_logger;
