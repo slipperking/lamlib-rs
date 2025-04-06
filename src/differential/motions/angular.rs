@@ -126,23 +126,19 @@ impl TurnToTarget {
     }
 }
 
-impl From<f64> for TurnToTarget {
-    fn from(angle: f64) -> Self {
-        Self::Angle(angle)
-    }
+macro_rules! scalar_turn_to_impl {
+    ($($t:ty),*) => {
+        $(
+            impl From<$t> for TurnToTarget {
+                fn from(angle: $t) -> Self {
+                    Self::Angle(angle as f64)
+                }
+            }
+        )*
+    };
 }
 
-impl From<f32> for TurnToTarget {
-    fn from(angle: f32) -> Self {
-        Self::Angle(angle as f64)
-    }
-}
-
-impl From<i32> for TurnToTarget {
-    fn from(angle: i32) -> Self {
-        Self::Angle(angle as f64)
-    }
-}
+scalar_turn_to_impl!(f64, f32, i32);
 
 impl<T: AsPrimitive<f64>, U: AsPrimitive<f64>> From<(T, U)> for TurnToTarget {
     fn from((x, y): (T, U)) -> Self {
