@@ -6,7 +6,7 @@ extern crate alloc;
 pub mod auton_routines;
 pub mod subsystems;
 
-use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
+use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, string::ToString, vec, vec::Vec};
 use core::{
     cell::RefCell,
     f32::consts::{FRAC_PI_2, PI},
@@ -15,7 +15,7 @@ use core::{
 
 use auton_routines::AutonRoutine;
 use autons::{prelude::*, simple::SimpleSelect};
-use lemlib_rs::{
+use lamlib_rs::{
     controllers::pid::PID,
     devices::{motor_group::MotorGroup, pneumatics::PneumaticWrapper},
     differential::{
@@ -296,25 +296,28 @@ async fn main(peripherals: Peripherals) {
     intake.lock().await.init(intake.clone()).await;
     chassis.set_pose(Pose::new(0.0, 0.0, 0.0.hdg_deg())).await;
 
-    /*vexide::task::spawn({
-        let chassis = chassis.clone();
-        let controller = controller.clone();
-        async move {
-            time::sleep(Duration::from_millis(100)).await;
-            loop {
-                let pose = chassis.pose().await;
-                println!("{}", pose.to_string());
-                let _ = controller
-                    .lock()
-                    .await
-                    .screen
-                    .set_text(pose.to_string().as_str().to_owned() + "  ", 2, 6)
-                    .await;
-                time::sleep(Duration::from_millis(300)).await;
+    static SHOULD_PRINT_POSE: bool = false;
+    if SHOULD_PRINT_POSE {
+        vexide::task::spawn({
+            let chassis = chassis.clone();
+            let controller = controller.clone();
+            async move {
+                time::sleep(Duration::from_millis(100)).await;
+                loop {
+                    let pose = chassis.pose().await;
+                    println!("{}", pose.to_string());
+                    let _ = controller
+                        .lock()
+                        .await
+                        .screen
+                        .set_text(pose.to_string().as_str().to_owned() + "  ", 2, 6)
+                        .await;
+                    time::sleep(Duration::from_millis(300)).await;
+                }
             }
-        }
-    })
-    .detach();*/
+        })
+        .detach();
+    }
 
     let robot = Robot {
         alliance_color,

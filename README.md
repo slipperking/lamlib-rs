@@ -1,5 +1,5 @@
-# lemlib-rs
-[![Build](https://github.com/slipperking/lemlib-rs/actions/workflows/build.yml/badge.svg)](https://github.com/slipperking/lemlib-rs/actions/workflows/build.yml)
+# lamlib-rs
+[![Build](https://github.com/slipperking/lamlib-rs/actions/workflows/build.yml/badge.svg)](https://github.com/slipperking/lamlib-rs/actions/workflows/build.yml)
 
 This is not actually meant to be a library, but I couldn't find a name for it. Instead, it's the entire repository code for High Stakes (untested).
 

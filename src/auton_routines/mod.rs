@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 
 use async_trait::async_trait;
-use lemlib_rs::utils::AllianceColor;
+use lamlib_rs::utils::AllianceColor;
 
 use crate::Robot;
 #[macro_export]

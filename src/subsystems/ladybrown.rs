@@ -1,7 +1,7 @@
 use alloc::{collections::BTreeMap, rc::Rc, vec, vec::Vec};
 use core::cell::RefCell;
 
-use lemlib_rs::{controllers::FeedbackController, devices::motor_group::MotorGroup};
+use lamlib_rs::{controllers::FeedbackController, devices::motor_group::MotorGroup};
 use vexide::{
     devices::controller::ControllerState,
     prelude::{BrakeMode, Motor, MotorControl, Position, RotationSensor, SmartDevice, Task},

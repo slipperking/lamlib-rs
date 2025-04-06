@@ -429,7 +429,7 @@ impl<T: Rng + 'static> Tracking for OdomTracking<T> {
                 }
             }
         }
-        vexide::time::sleep(Duration::from_millis(100)).await;
+        vexide::time::sleep(Duration::from_millis(110)).await;
         self.task = Some(vexide::task::spawn({
             let self_rc_mutex = self_rc_mutex.clone();
             async move {

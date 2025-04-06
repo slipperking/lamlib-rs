@@ -2,7 +2,7 @@ use alloc::{boxed::Box, string::ToString};
 use core::time::Duration;
 
 use async_trait::async_trait;
-use lemlib_rs::{
+use lamlib_rs::{
     params_ramsete_h, params_turn_to, unsigned_mod,
     utils::{math::AngleExt, timer::Timer, AllianceColor, TILE_SIZE},
 };

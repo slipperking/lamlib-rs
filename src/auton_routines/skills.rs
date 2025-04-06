@@ -2,7 +2,7 @@ use alloc::{boxed::Box, rc::Rc};
 use core::time::Duration;
 
 use async_trait::async_trait;
-use lemlib_rs::{
+use lamlib_rs::{
     differential::motions::{
         angular::TurnToParameters,
         linear::{MoveRelativeParameters, MoveToPointParameters},
