@@ -27,6 +27,7 @@ use lamlib_rs::{
         },
         pose::Pose,
     },
+    logger,
     particle_filter::{
         sensors::{
             distance::{LiDAR, LiDARPrecomputedData},
@@ -35,13 +36,15 @@ use lamlib_rs::{
         ParticleFilter,
     },
     tracking::odom::{odom_tracking::*, odom_wheels::*},
-    utils::{math::AngleExt, AllianceColor},
-    logger,
+    utils::{differential_tracker::DifferentialTracker, math::AngleExt, AllianceColor},
 };
 use log::info;
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
 use veranda::SystemRng;
-use vexide::{devices::adi::digital::LogicLevel, prelude::*, sync::Mutex, time};
+use vexide::{
+    devices::adi::digital::LogicLevel, prelude::*, startup::banner::themes::THEME_NORD_AURORA,
+    sync::Mutex, time,
+};
 
 use crate::subsystems::{intake::Intake, ladybrown::Ladybrown};
 
@@ -115,7 +118,7 @@ impl SelectCompete for Robot {
     async fn connected(&mut self) {}
 }
 
-#[vexide::main]
+#[vexide::main(banner(theme = THEME_NORD_AURORA))]
 async fn main(peripherals: Peripherals) {
     // TODO: implement color.
     logger::SerialLogger
@@ -221,8 +224,8 @@ async fn main(peripherals: Peripherals) {
         Tolerance::new(1.0.deg(), Duration::from_millis(150)),
         Tolerance::new(3.0.deg(), Duration::from_millis(500)),
     ]);
-    let linear_controller = Box::new(PID::new(0.038, 0.0, 0.5, 2.0, true));
-    let angular_controller = Box::new(PID::new(0.03, 0.0, 0.8, 2.0, true));
+    let linear_controller = Box::new(PID::new(0.038, 0.0, 0.5, 2.0, true, 2, None));
+    let angular_controller = Box::new(PID::new(0.03, 0.0, 0.8, 2.0, true, 2, None));
 
     let motion_settings = MotionSettings::new(
         RefCell::new(MoveToPointSettings::new(
@@ -232,7 +235,7 @@ async fn main(peripherals: Peripherals) {
         )),
         RefCell::new(TurnToSettings::new(
             angular_controller.clone(),
-            Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true)), // Swing constants.
+            Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true, 2, None)), // Swing constants.
             angular_tolerances.clone(),
         )),
         RefCell::new(BoomerangSettings::new(
@@ -257,7 +260,17 @@ async fn main(peripherals: Peripherals) {
         motion_settings,
     );
 
-    let pid_arm_controller = Rc::new(RefCell::new(PID::new(0.2, 0.0, 0.0, 2.0, true)));
+    let pid_arm_controller = Rc::new(RefCell::new(PID::new(
+        0.2,
+        0.0,
+        0.0,
+        2.0,
+        true,
+        2,
+        Some(Rc::new(
+            lamlib_rs::default_differential_tracker_feedforward!(),
+        )),
+    )));
     let rotation_arm_state_machine = Rc::new(RefCell::new(RotationSensor::new(
         peripherals.port_17,
         Direction::Forward,

@@ -2,6 +2,7 @@
 pub mod math;
 pub mod samplers;
 pub mod timer;
+pub mod differential_tracker;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AllianceColor {

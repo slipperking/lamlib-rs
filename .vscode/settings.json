@@ -16,6 +16,7 @@
         "doinker",
         "elim",
         "elims",
+        "feedforward",
         "gearset",
         "gearsets",
         "hashbrown",
@@ -29,6 +30,7 @@
         "mogo",
         "nalgebra",
         "ncols",
+        "nord",
         "odometry",
         "opcontrol",
         "precomputes",
@@ -39,6 +41,7 @@
         "signum",
         "sinc",
         "slint",
+        "SYNTHWAVE",
         "vexide",
         "vexnet"
     ],
