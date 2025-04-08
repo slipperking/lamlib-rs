@@ -16,7 +16,7 @@ use core::{
 use auton_routines::AutonRoutine;
 use autons::{prelude::*, simple::SimpleSelect};
 use lamlib_rs::{
-    controllers::{pid::PID, simple_feedforward::SimpleFeedforward},
+    controllers::pid::PID,
     devices::{motor_group::MotorGroup, pneumatics::PneumaticWrapper},
     differential::{
         chassis::{Chassis, Drivetrain, MotionSettings},
@@ -224,8 +224,8 @@ async fn main(peripherals: Peripherals) {
         Tolerance::new(1.0.deg(), Duration::from_millis(150)),
         Tolerance::new(3.0.deg(), Duration::from_millis(500)),
     ]);
-    let linear_controller = Box::new(PID::new(0.038, 0.0, 0.5, 2.0, true, 2, None));
-    let angular_controller = Box::new(PID::new(0.03, 0.0, 0.8, 2.0, true, 2, None));
+    let linear_controller = Box::new(PID::new(0.038, 0.0, 0.5, 2.0, true, 2));
+    let angular_controller = Box::new(PID::new(0.03, 0.0, 0.8, 2.0, true, 2));
 
     let motion_settings = MotionSettings::new(
         RefCell::new(MoveToPointSettings::new(
@@ -235,7 +235,7 @@ async fn main(peripherals: Peripherals) {
         )),
         RefCell::new(TurnToSettings::new(
             angular_controller.clone(),
-            Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true, 2, None)), // Swing constants.
+            Box::new(PID::new(0.18, 0.0, 0.0, 2.0, true, 2)), // Swing constants.
             angular_tolerances.clone(),
         )),
         RefCell::new(BoomerangSettings::new(
@@ -253,17 +253,7 @@ async fn main(peripherals: Peripherals) {
         )),
     );
 
-    let _feedforward_closure =
-        lamlib_rs::simple_feedforward_closure!(SimpleFeedforward::new(0.5, vec![10.0, 50.0]));
-    let _chassis_velocity_controller = PID::new(
-        1.0,
-        1.0,
-        0.0,
-        0.0,
-        true,
-        3, // To support acceleration.
-        Some(Rc::new(_feedforward_closure)),
-    );
+    let _chassis_velocity_controller = PID::new(1.0, 1.0, 0.0, 0.0, true, 2);
     let chassis = Chassis::new(
         drivetrain.clone(),
         tracking,
@@ -272,17 +262,7 @@ async fn main(peripherals: Peripherals) {
         motion_settings,
     );
 
-    let pid_arm_controller = Rc::new(RefCell::new(PID::new(
-        0.2,
-        0.0,
-        0.0,
-        2.0,
-        true,
-        2,
-        Some(Rc::new(
-            lamlib_rs::default_differential_tracker_feedforward!(),
-        )),
-    )));
+    let pid_arm_controller = Rc::new(RefCell::new(PID::new(0.2, 0.0, 0.0, 2.0, true, 2)));
     let rotation_arm_state_machine = Rc::new(RefCell::new(RotationSensor::new(
         peripherals.port_17,
         Direction::Forward,

@@ -1,12 +1,11 @@
 use alloc::rc::Rc;
 use core::ops::AddAssign;
 
-use num_traits::{FromPrimitive, Zero};
-use vexide::float::Float;
+use num_traits::{Float, FromPrimitive, Zero};
 
 use super::FeedbackController;
 use crate::utils::differential_tracker::DifferentialTracker;
-pub struct PID<T> {
+pub struct PID<T: Float> {
     /// Struct [`PIDGains`] containing the gains.
     gains: PIDGains<T>,
 
@@ -17,18 +16,8 @@ pub struct PID<T> {
     /// Whether or not to reset the accumulated integral when sign flips
     reset_on_sign_flip: bool,
 
-    differential_tracker: DifferentialTracker,
-
-    feedforward: Rc<dyn Fn(DifferentialTracker) -> T>,
+    differential_tracker: DifferentialTracker<T>,
 }
-
-#[macro_export]
-macro_rules! default_differential_tracker_feedforward {
-    () => {
-        |_: $crate::utils::differential_tracker::DifferentialTracker| 0.0;
-    };
-}
-pub use default_differential_tracker_feedforward;
 
 #[derive(Clone)]
 pub struct PIDGains<T> {
@@ -45,7 +34,6 @@ impl<T: Float + Zero> PID<T> {
         windup_range: T,
         reset_on_sign_flip: bool,
         differential_tracker_len: usize,
-        feedforward: Option<Rc<dyn Fn(DifferentialTracker) -> T>>,
     ) -> Self {
         assert!(
             differential_tracker_len >= 2,
@@ -56,7 +44,6 @@ impl<T: Float + Zero> PID<T> {
             reset_on_sign_flip,
             windup_range,
             differential_tracker: DifferentialTracker::new(differential_tracker_len),
-            feedforward: feedforward.unwrap_or(Rc::new(|_: DifferentialTracker| T::zero())),
         }
     }
     pub fn from_pid_gains(
@@ -64,7 +51,6 @@ impl<T: Float + Zero> PID<T> {
         windup_range: T,
         reset_on_sign_flip: bool,
         differential_tracker_len: usize,
-        feedforward: Option<Rc<dyn Fn(DifferentialTracker) -> T>>,
     ) -> Self {
         assert!(
             differential_tracker_len >= 2,
@@ -75,7 +61,6 @@ impl<T: Float + Zero> PID<T> {
             reset_on_sign_flip,
             windup_range,
             differential_tracker: DifferentialTracker::new(differential_tracker_len),
-            feedforward: feedforward.unwrap_or(Rc::new(|_: DifferentialTracker| T::zero())),
         }
     }
 }
@@ -83,8 +68,7 @@ impl<T: Float + Zero + FromPrimitive + AddAssign + num_traits::Float> FeedbackCo
     for PID<T>
 {
     fn update(&mut self, error: T) -> T {
-        self.differential_tracker
-            .update(error.to_f64().unwrap_or(0.0));
+        self.differential_tracker.update(error);
 
         if Float::signum(error)
             != Float::signum({
@@ -92,7 +76,7 @@ impl<T: Float + Zero + FromPrimitive + AddAssign + num_traits::Float> FeedbackCo
                     .differential_tracker
                     .at_index(self.differential_tracker.space_size() - 2)
                 {
-                    T::from_f64(prev_error).unwrap()
+                    prev_error
                 } else {
                     error
                 }
@@ -102,12 +86,11 @@ impl<T: Float + Zero + FromPrimitive + AddAssign + num_traits::Float> FeedbackCo
         {
             self.differential_tracker.reset_integral();
         }
-        let derivative: T = T::from_f64(self.differential_tracker.derivative(1).unwrap_or(0.0))
+        let derivative: T = self.differential_tracker.derivative(1)
             .unwrap_or(T::zero());
         self.gains.kp * error
-            + self.gains.ki * T::from_f64(self.differential_tracker.integral()).unwrap_or(T::zero())
+            + self.gains.ki * self.differential_tracker.integral()
             + self.gains.kd * derivative
-            + (self.feedforward)(self.differential_tracker.clone())
     }
 
     fn reset(&mut self) {
@@ -122,7 +105,6 @@ impl<T: num_traits::Float> Clone for PID<T> {
             windup_range: self.windup_range,
             reset_on_sign_flip: self.reset_on_sign_flip,
             differential_tracker: DifferentialTracker::new(self.differential_tracker.space_size()),
-            feedforward: self.feedforward.clone(),
         }
     }
 }
