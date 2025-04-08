@@ -16,7 +16,7 @@ use core::{
 use auton_routines::AutonRoutine;
 use autons::{prelude::*, simple::SimpleSelect};
 use lamlib_rs::{
-    controllers::pid::PID,
+    controllers::{pid::PID, simple_feedforward::SimpleFeedforward},
     devices::{motor_group::MotorGroup, pneumatics::PneumaticWrapper},
     differential::{
         chassis::{Chassis, Drivetrain, MotionSettings},
@@ -36,7 +36,7 @@ use lamlib_rs::{
         ParticleFilter,
     },
     tracking::odom::{odom_tracking::*, odom_wheels::*},
-    utils::{differential_tracker::DifferentialTracker, math::AngleExt, AllianceColor},
+    utils::{math::AngleExt, AllianceColor},
 };
 use log::info;
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
@@ -251,6 +251,18 @@ async fn main(peripherals: Peripherals) {
             angular_tolerances.clone(),
             1.0,
         )),
+    );
+
+    let _feedforward_closure =
+        lamlib_rs::simple_feedforward_closure!(SimpleFeedforward::new(0.5, vec![10.0, 50.0]));
+    let _chassis_velocity_controller = PID::new(
+        1.0,
+        1.0,
+        0.0,
+        0.0,
+        true,
+        3, // To support acceleration.
+        Some(Rc::new(_feedforward_closure)),
     );
     let chassis = Chassis::new(
         drivetrain.clone(),

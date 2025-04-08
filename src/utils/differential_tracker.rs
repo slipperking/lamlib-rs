@@ -66,20 +66,15 @@ impl DifferentialTracker {
     }
 
     /// Returns the kth order derivative of the last value in the tracker.
-    pub fn derivative(&self, k: usize) -> f64 {
-        assert!(
-            k < self.n,
-            "k must be less than n to support the kth derivative."
-        );
+    pub fn derivative(&self, k: usize) -> Option<f64> {
+        if k >= self.n {
+            return None;
+        }
         if k == 0 {
-            return self.data.back().map(|(_, v)| *v).unwrap_or(0.0);
+            return self.data.back().map(|(_, v)| *v);
         }
 
-        if self.data.len() <= k {
-            return 0.0;
-        }
-
-        self.compute_derivative(k, self.data.len() - 1)
+        Some(self.compute_derivative(k, self.data.len() - 1))
     }
 
     fn compute_derivative(&self, k: usize, idx: usize) -> f64 {

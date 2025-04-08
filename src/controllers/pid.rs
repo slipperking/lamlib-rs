@@ -1,7 +1,7 @@
 use alloc::rc::Rc;
 use core::ops::AddAssign;
 
-use num_traits::{FromPrimitive, ToPrimitive, Zero};
+use num_traits::{FromPrimitive, Zero};
 use vexide::float::Float;
 
 use super::FeedbackController;
@@ -102,13 +102,8 @@ impl<T: Float + Zero + FromPrimitive + AddAssign + num_traits::Float> FeedbackCo
         {
             self.differential_tracker.reset_integral();
         }
-        let derivative: T = T::from_f64(
-            self.differential_tracker
-                .derivative(1)
-                .to_f64()
-                .unwrap_or(0.0),
-        )
-        .unwrap();
+        let derivative: T = T::from_f64(self.differential_tracker.derivative(1).unwrap_or(0.0))
+            .unwrap_or(T::zero());
         self.gains.kp * error
             + self.gains.ki * T::from_f64(self.differential_tracker.integral()).unwrap_or(T::zero())
             + self.gains.kd * derivative

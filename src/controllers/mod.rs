@@ -10,3 +10,4 @@ pub trait FeedbackController<T: Float + FromPrimitive + AddAssign>: dyn_clone::D
 }
 
 pub mod pid;
+pub mod simple_feedforward;
