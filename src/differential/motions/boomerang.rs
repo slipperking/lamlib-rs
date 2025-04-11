@@ -252,7 +252,7 @@ impl<T: Tracking + 'static> Chassis<T> {
                     &mut *motion_settings
                 }
                 .angular_controller
-                .update(angular_error)
+                .update(angular_error, 0.0)
                 .clamp(
                     -unwrapped_params.max_angular_speed,
                     unwrapped_params.max_angular_speed,
@@ -274,7 +274,7 @@ impl<T: Tracking + 'static> Chassis<T> {
                     &mut motion_settings
                 }
                 .linear_controller
-                .update(linear_error)
+                .update(linear_error, 0.0)
                 .clamp(
                     -unwrapped_params.max_linear_speed,
                     unwrapped_params.max_linear_speed,

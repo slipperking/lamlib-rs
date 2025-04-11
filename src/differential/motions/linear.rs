@@ -206,13 +206,13 @@ impl<T: Tracking + 'static> Chassis<T> {
             }
             let linear_output = {
                 if let Some(settings) = &mut settings {
-                    settings.linear_controller.update(cosine_linear_error)
+                    settings.linear_controller.update(cosine_linear_error, 0.0)
                 } else {
                     self.motion_settings
                         .move_to_point_settings
                         .borrow_mut()
                         .linear_controller
-                        .update(cosine_linear_error)
+                        .update(cosine_linear_error, 0.0)
                 }
             }
             .clamp(
@@ -244,13 +244,13 @@ impl<T: Tracking + 'static> Chassis<T> {
 
             let angular_output = {
                 if let Some(settings) = &mut settings {
-                    settings.angular_controller.update(angular_error)
+                    settings.angular_controller.update(angular_error, 0.0)
                 } else {
                     self.motion_settings
                         .move_to_point_settings
                         .borrow_mut()
                         .angular_controller
-                        .update(angular_error)
+                        .update(angular_error, 0.0)
                 }
             }
             .clamp(

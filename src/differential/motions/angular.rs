@@ -264,22 +264,22 @@ impl<T: Tracking + 'static> Chassis<T> {
             // Apply controllers.
             let mut raw_output = if unwrapped_params.locked_side.is_some() {
                 if let Some(settings) = &mut settings {
-                    settings.swing_controller.update(error)
+                    settings.swing_controller.update(error, 0.0)
                 } else {
                     self.motion_settings
                         .turn_to_settings
                         .borrow_mut()
                         .swing_controller
-                        .update(error)
+                        .update(error, 0.0)
                 }
             } else if let Some(settings) = &mut settings {
-                settings.angular_controller.update(error)
+                settings.angular_controller.update(error, 0.0)
             } else {
                 self.motion_settings
                     .turn_to_settings
                     .borrow_mut()
                     .angular_controller
-                    .update(error)
+                    .update(error, 0.0)
             }
             .clamp(-unwrapped_params.max_speed, unwrapped_params.max_speed);
             raw_output = delta_clamp(

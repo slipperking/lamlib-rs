@@ -1,4 +1,3 @@
-use alloc::rc::Rc;
 use core::ops::AddAssign;
 
 use num_traits::{Float, FromPrimitive, Zero};
@@ -67,7 +66,8 @@ impl<T: Float + Zero> PID<T> {
 impl<T: Float + Zero + FromPrimitive + AddAssign + num_traits::Float> FeedbackController<T>
     for PID<T>
 {
-    fn update(&mut self, error: T) -> T {
+    fn update(&mut self, set_point: T, process_variable: T) -> T {
+        let error = set_point - process_variable;
         self.differential_tracker.update(error);
 
         if Float::signum(error)
@@ -86,8 +86,7 @@ impl<T: Float + Zero + FromPrimitive + AddAssign + num_traits::Float> FeedbackCo
         {
             self.differential_tracker.reset_integral();
         }
-        let derivative: T = self.differential_tracker.derivative(1)
-            .unwrap_or(T::zero());
+        let derivative: T = self.differential_tracker.derivative(1).unwrap_or(T::zero());
         self.gains.kp * error
             + self.gains.ki * self.differential_tracker.integral()
             + self.gains.kd * derivative

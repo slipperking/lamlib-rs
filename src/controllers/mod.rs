@@ -4,7 +4,7 @@ use crate::utils::differential_tracker::DifferentialTracker;
 
 dyn_clone::clone_trait_object!(<T> FeedbackController<T>);
 pub trait FeedbackController<T: Float>: dyn_clone::DynClone {
-    fn update(&mut self, error: T) -> T;
+    fn update(&mut self, set_point: T, process_variable: T) -> T;
     fn reset(&mut self);
 }
 

@@ -256,13 +256,13 @@ impl<T: Tracking + 'static> Chassis<T> {
                 let controller_input =
                     local_error.position.norm() * local_error.orientation.cos().signum();
                 if let Some(settings) = &mut settings {
-                    settings.linear_controller.update(controller_input)
+                    settings.linear_controller.update(controller_input, 0.0)
                 } else {
                     self.motion_settings
                         .ramsete_hybrid_settings
                         .borrow_mut()
                         .linear_controller
-                        .update(controller_input)
+                        .update(controller_input, 0.0)
                 }
             };
             let linear_output = (v_d * local_error.orientation.cos().abs()).clamp(
@@ -292,13 +292,13 @@ impl<T: Tracking + 'static> Chassis<T> {
             };
             let angular_output = ({
                 if let Some(settings) = &mut settings {
-                    settings.angular_controller.update(local_error.orientation)
+                    settings.angular_controller.update(local_error.orientation, 0.0)
                 } else {
                     self.motion_settings
                         .ramsete_hybrid_settings
                         .borrow_mut()
                         .angular_controller
-                        .update(local_error.orientation)
+                        .update(local_error.orientation, 0.0)
                 }
             } + v_d
                 * local_error.position.y
