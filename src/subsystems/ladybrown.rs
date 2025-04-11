@@ -208,25 +208,25 @@ impl Ladybrown {
                 .unwrap_or(&Some(f64::INFINITY))
                 .unwrap_or(f64::INFINITY);
             let target_position = self.arm_state_positions.get(&self.state);
-            if let Some(target_position) = target_position {
+            if let Some(&target_position) = target_position {
                 let current_arm_position = self
                     .rotation_sensor
                     .borrow()
                     .position()
                     .unwrap_or_default()
-                    .as_degrees();
-                let error = target_position - current_arm_position * self.gear_ratio;
-                {
-                    let controller_output = self
-                        .controller
-                        .borrow_mut()
-                        .update(error)
-                        .clamp(-max_speed, max_speed);
-                    self.motor_group.borrow_mut().set_voltage_all_for_types(
-                        controller_output,
-                        controller_output * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
-                    );
-                }
+                    .as_degrees()
+                    * self.gear_ratio;
+                let controller_output = self
+                    .controller
+                    .borrow_mut()
+                    .update(target_position, current_arm_position)
+                    .clamp(-max_speed, max_speed);
+                self.motor_group.borrow_mut().set_voltage_all_for_types(
+                    controller_output,
+                    controller_output * Motor::EXP_MAX_VOLTAGE / Motor::V5_MAX_VOLTAGE,
+                );
+
+                let error = target_position - current_arm_position;
                 if error.abs() < self.state_reached_threshold {
                     if self.state == LadybrownState::Neutral {
                         self.state = LadybrownState::Off;
